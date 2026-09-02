@@ -2,10 +2,11 @@
 // Bénéficiaires — ciblage (prévu) vs atteint, désagrégation par genre
 // ============================================================================
 import { useMemo, useState } from 'react'
-import { Users, Plus, Pencil, Trash2, MoreVertical } from 'lucide-react'
+import { Users, Plus, Pencil, Trash2, MoreVertical, Download } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { beneficiaryRollup } from '../lib/compute.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { C } from '../lib/constants.js'
 import { num, pct } from '../lib/format.js'
 import {
@@ -39,6 +40,26 @@ export default function Beneficiaires() {
       remove('beneficiaries', b.id); log('supprime', 'bénéficiaires', 'Ligne de ciblage supprimée')
     }
   }
+  const bulkDelete = async (sel) => {
+    if (await confirm({ title: 'Supprimer les lignes', message: `Supprimer ${sel.length} ligne(s) de ciblage ? Action annulable juste après.`, danger: true, confirmLabel: 'Supprimer' })) {
+      sel.forEach((r) => remove('beneficiaries', r.id)); log('supprime', 'bénéficiaires', `${sel.length} ligne(s) de ciblage supprimée(s)`)
+    }
+  }
+  const EXPORT_COLS = [
+    { label: 'Projet', get: (r) => byId(projects, r.projectId)?.code || '' },
+    { label: 'Site', get: (r) => byId(sites, r.siteId)?.name || '' },
+    { label: 'Catégorie', get: (r) => r.category },
+    { label: 'Ciblé F', get: (r) => r.plannedF }, { label: 'Ciblé H', get: (r) => r.plannedM },
+    { label: 'Ciblé total', get: (r) => r.plannedTotal },
+    { label: 'Atteint F', get: (r) => r.reachedF }, { label: 'Atteint H', get: (r) => r.reachedM },
+    { label: 'Atteint total', get: (r) => r.reachedTotal },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (sel) => exportRowsXlsx('beneficiaires-selection', sel, EXPORT_COLS) },
+    canEdit && { key: 'del', label: 'Supprimer', icon: Trash2, tone: 'bad', keepSelection: true,
+      onClick: (sel) => bulkDelete(sel) },
+  ].filter(Boolean)
 
   return (
     <div>
@@ -72,6 +93,7 @@ export default function Beneficiaires() {
       <SectionTitle className="mt-6">Détail du ciblage</SectionTitle>
       <DataTable
         empty="Aucune donnée de ciblage"
+        selectable bulkActions={bulkActions}
         rows={rows}
         columns={[
           { key: 'project', label: 'Projet', render: (r) => <Badge tone="ink">{byId(projects, r.projectId)?.code || '—'}</Badge> },

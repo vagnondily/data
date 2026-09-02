@@ -2,9 +2,10 @@
 // Sites & carte — répertoire des sites d'intervention + cartographie Leaflet
 // ============================================================================
 import { useMemo, useState } from 'react'
-import { MapPin, Plus, Map as MapIcon, Table2, Pencil, Trash2, MoreVertical } from 'lucide-react'
+import { MapPin, Plus, Map as MapIcon, Table2, Pencil, Trash2, MoreVertical, Download } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { REGIONS, SECURITY, SITE_STATUS } from '../lib/constants.js'
 import { num } from '../lib/format.js'
 import {
@@ -44,6 +45,25 @@ export default function Sites() {
       remove('sites', s.id); log('supprime', 'site', `Site supprimé : ${s.name}`)
     }
   }
+  const bulkDelete = async (rows) => {
+    if (await confirm({ title: 'Supprimer les sites', message: `Supprimer ${rows.length} site(s) ? Action annulable juste après.`, danger: true, confirmLabel: 'Supprimer' })) {
+      rows.forEach((r) => remove('sites', r.id)); log('supprime', 'site', `${rows.length} site(s) supprimé(s)`)
+    }
+  }
+  const EXPORT_COLS = [
+    { label: 'Site', get: (r) => r.name }, { label: 'District', get: (r) => r.district },
+    { label: 'Région', get: (r) => byId(REGIONS.map((x) => ({ id: x.pcode, ...x })), r.pcode)?.name || r.pcode || '' },
+    { label: 'Projets', get: (r) => (r.projectIds || []).map((id) => byId(projects, id)?.code).filter(Boolean).join(', ') },
+    { label: 'Population', get: (r) => r.population },
+    { label: 'Sécurité', get: (r) => SECURITY[r.security]?.label || r.security },
+    { label: 'Statut', get: (r) => SITE_STATUS[r.status]?.label || r.status },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (rows) => exportRowsXlsx('sites-selection', rows, EXPORT_COLS) },
+    canEdit && { key: 'del', label: 'Supprimer', icon: Trash2, tone: 'bad', keepSelection: true,
+      onClick: (rows) => bulkDelete(rows) },
+  ].filter(Boolean)
 
   return (
     <div>

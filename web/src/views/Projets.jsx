@@ -3,10 +3,11 @@
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Briefcase, Plus, LayoutGrid, Table2, MapPin, Users as UsersIcon } from 'lucide-react'
+import { Briefcase, Plus, LayoutGrid, Table2, MapPin, Users as UsersIcon, Download, Trash2 } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { budgetForProject, projectProgress, projectHealth, beneficiaryRollup } from '../lib/compute.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { PROJECT_STATUS, PRIORITY, SECTORS, REGIONS } from '../lib/constants.js'
 import { moneyShort, fmtDate, pct, num } from '../lib/format.js'
 import {
@@ -47,6 +48,30 @@ export default function Projets() {
     const rec = store.add('projects', { ...rest, code: `${p.code}-C`, name: `${p.name} (copie)`, status: 'planification' })
     store.log('cree', 'projet', `Projet dupliqué : ${rec.name}`)
   }
+  const bulkDelete = async (rows) => {
+    if (await confirm({
+      title: 'Supprimer les projets',
+      message: `Supprimer ${rows.length} projet(s) et toutes leurs données rattachées ? Cette action peut être annulée juste après.`,
+      danger: true, confirmLabel: 'Supprimer',
+    })) {
+      rows.forEach((r) => store.deleteProject(r.p.id))
+      store.log('supprime', 'projet', `${rows.length} projet(s) supprimé(s)`)
+    }
+  }
+  const EXPORT_COLS = [
+    { label: 'Code', get: (r) => r.p.code }, { label: 'Projet', get: (r) => r.p.name },
+    { label: 'Programme', get: (r) => byId(programmes, r.p.programmeId)?.name || '' },
+    { label: 'Statut', get: (r) => PROJECT_STATUS[r.p.status]?.label || r.p.status },
+    { label: 'Santé', get: (r) => r.health.label }, { label: 'Avancement %', get: (r) => r.prog },
+    { label: 'Budget prévu', get: (r) => r.budget.planned }, { label: 'Dépensé', get: (r) => r.budget.spent },
+    { label: 'Bénéficiaires', get: (r) => r.ben.reached }, { label: 'Échéance', get: (r) => r.p.endDate },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (rows) => exportRowsXlsx('projets-selection', rows, EXPORT_COLS) },
+    canEdit && { key: 'del', label: 'Supprimer', icon: Trash2, tone: 'bad', keepSelection: true,
+      onClick: (rows) => bulkDelete(rows) },
+  ].filter(Boolean)
 
   const enriched = useMemo(() => projects.map((p) => {
     const prog = projectProgress(activities, p.id)
@@ -145,7 +170,7 @@ export default function Projets() {
       ) : (
         <DataTable
           onRowClick={(r) => nav(`/projets/${r.p.id}`)}
-          keyField="id"
+          keyField="id" selectable bulkActions={bulkActions}
           rows={filtered.map((x) => ({ id: x.p.id, ...x }))}
           columns={[
             { key: 'code', label: 'Code', sortValue: (r) => r.p.code, render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.p.code}</span> },

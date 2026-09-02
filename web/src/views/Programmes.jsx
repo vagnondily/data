@@ -3,10 +3,11 @@
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FolderKanban, Plus } from 'lucide-react'
+import { FolderKanban, Plus, Download, Trash2 } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { budgetForProject } from '../lib/compute.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { useOpenOnNew } from '../lib/hooks.js'
 import { PROGRAMME_STATUS } from '../lib/constants.js'
 import { moneyShort, pct } from '../lib/format.js'
@@ -43,6 +44,29 @@ export default function Programmes() {
       log('supprime', 'programme', `Programme supprimé : ${pg.name}`)
     }
   }
+  const bulkDelete = async (rows) => {
+    if (await confirm({
+      title: 'Supprimer les programmes',
+      message: `Supprimer ${rows.length} programme(s) ? Les projets rattachés ne sont pas supprimés. Action annulable juste après.`,
+      danger: true, confirmLabel: 'Supprimer',
+    })) {
+      rows.forEach((r) => remove('programmes', r.pg.id))
+      log('supprime', 'programme', `${rows.length} programme(s) supprimé(s)`)
+    }
+  }
+  const EXPORT_COLS = [
+    { label: 'Code', get: (r) => r.pg.code }, { label: 'Programme', get: (r) => r.pg.name },
+    { label: 'Bailleur', get: (r) => byId(partners, r.pg.donorId)?.name || '' },
+    { label: 'Projets', get: (r) => r.count }, { label: 'Budget', get: (r) => r.pg.budget },
+    { label: 'Devise', get: (r) => r.pg.currency }, { label: 'Consommation %', get: (r) => Math.round(r.burn) },
+    { label: 'Statut', get: (r) => PROGRAMME_STATUS[r.pg.status]?.label || r.pg.status },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (rows) => exportRowsXlsx('programmes-selection', rows, EXPORT_COLS) },
+    canEdit && { key: 'del', label: 'Supprimer', icon: Trash2, tone: 'bad', keepSelection: true,
+      onClick: (rows) => bulkDelete(rows) },
+  ].filter(Boolean)
 
   return (
     <div>
@@ -56,6 +80,7 @@ export default function Programmes() {
       ) : (
         <DataTable
           onRowClick={(r) => open(r.pg)}
+          selectable bulkActions={bulkActions}
           rows={rows}
           columns={[
             { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.pg.code}</span> },

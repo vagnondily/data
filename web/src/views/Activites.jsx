@@ -3,10 +3,11 @@
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ListChecks, LayoutGrid, Table2 } from 'lucide-react'
+import { ListChecks, LayoutGrid, Table2, Download, Trash2 } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { ACTIVITY_STATUS, PRIORITY } from '../lib/constants.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { fmtDate, moneyShort } from '../lib/format.js'
 import { PageHeader, Segmented, Select, Badge, Avatar, Progress, DataTable, StatusBadge, SearchInput, RowActions, useConfirm } from '../components/ui.jsx'
 import { ActivityBoard, ActivityModal } from './panels/Activities.jsx'
@@ -27,6 +28,26 @@ export default function Activites() {
       remove('activities', a.id); log('supprime', 'activité', `Activité supprimée : ${a.name}`)
     }
   }
+  const bulkDelete = async (sel) => {
+    if (await confirm({ title: 'Supprimer les activités', message: `Supprimer ${sel.length} activité(s) ? Action annulable juste après.`, danger: true, confirmLabel: 'Supprimer' })) {
+      sel.forEach((a) => remove('activities', a.id)); log('supprime', 'activité', `${sel.length} activité(s) supprimée(s)`)
+    }
+  }
+  const EXPORT_COLS = [
+    { label: 'Code', get: (r) => r.code }, { label: 'Activité', get: (r) => r.name },
+    { label: 'Projet', get: (r) => byId(projects, r.projectId)?.code || '' },
+    { label: 'Statut', get: (r) => ACTIVITY_STATUS[r.status]?.label || r.status },
+    { label: 'Priorité', get: (r) => PRIORITY[r.priority]?.label || r.priority },
+    { label: 'Avancement %', get: (r) => (r.status === 'done' ? 100 : r.progress) },
+    { label: 'Responsable', get: (r) => byId(users, r.responsibleId)?.name || '' },
+    { label: 'Échéance', get: (r) => r.endDate },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (sel) => exportRowsXlsx('activites-selection', sel, EXPORT_COLS) },
+    canEdit && { key: 'del', label: 'Supprimer', icon: Trash2, tone: 'bad', keepSelection: true,
+      onClick: (sel) => bulkDelete(sel) },
+  ].filter(Boolean)
 
   const listRows = useMemo(() => activities.filter((a) => {
     if (status && a.status !== status) return false
@@ -65,6 +86,7 @@ export default function Activites() {
           <DataTable
             empty="Aucune activité"
             onRowClick={(r) => nav(`/projets/${r.projectId}`)}
+            selectable bulkActions={bulkActions}
             rows={listRows}
             columns={[
               { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.code}</span> },

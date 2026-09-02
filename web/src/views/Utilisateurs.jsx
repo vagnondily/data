@@ -2,9 +2,10 @@
 // Utilisateurs & rôles — comptes, rôle (ce qu'on peut faire) × bureau (où)
 // ============================================================================
 import { useState } from 'react'
-import { UserCog, Plus, Pencil, Trash2, MoreVertical, ShieldCheck } from 'lucide-react'
+import { UserCog, Plus, Pencil, Trash2, MoreVertical, ShieldCheck, Download } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { ROLES, ROLE_KEYS } from '../lib/constants.js'
 import {
   PageHeader, Card, SectionTitle, Button, Badge, Avatar, DataTable, Modal, Field, Input, Select,
@@ -26,6 +27,26 @@ export default function Utilisateurs() {
       remove('users', u.id); log('supprime', 'utilisateur', `Compte supprimé : ${u.name}`)
     }
   }
+  const bulkDelete = async (sel) => {
+    const targets = sel.filter((u) => u.id !== currentUserId)
+    if (!targets.length) return
+    const selfNote = targets.length < sel.length ? ' (votre propre compte est ignoré)' : ''
+    if (await confirm({ title: 'Supprimer les comptes', message: `Supprimer ${targets.length} compte(s) ?${selfNote} Action annulable juste après.`, danger: true, confirmLabel: 'Supprimer' })) {
+      targets.forEach((u) => remove('users', u.id)); log('supprime', 'utilisateur', `${targets.length} compte(s) supprimé(s)`)
+    }
+  }
+  const EXPORT_COLS = [
+    { label: 'Nom', get: (u) => u.name }, { label: 'Email', get: (u) => u.email },
+    { label: 'Rôle', get: (u) => ROLES[u.role]?.label || u.role }, { label: 'Fonction', get: (u) => u.title },
+    { label: 'Bureau', get: (u) => byId(offices, u.officeId)?.name || '' },
+    { label: 'État', get: (u) => (u.active ? 'Actif' : 'Inactif') },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (sel) => exportRowsXlsx('utilisateurs-selection', sel, EXPORT_COLS) },
+    canAdmin && { key: 'del', label: 'Supprimer', icon: Trash2, tone: 'bad', keepSelection: true,
+      onClick: (sel) => bulkDelete(sel) },
+  ].filter(Boolean)
 
   return (
     <div>
@@ -35,6 +56,7 @@ export default function Utilisateurs() {
 
       <DataTable
         rows={users}
+        selectable bulkActions={bulkActions}
         columns={[
           { key: 'name', label: 'Utilisateur', render: (u) => (<div className="flex items-center gap-2.5"><Avatar name={u.name} size={34} tone={ROLES[u.role]?.color || 'ink'} /><div><div className="font-semibold text-ink">{u.name}{u.id === currentUserId && <span className="ml-1.5 text-[10px] text-brand">(vous)</span>}</div><div className="text-xs text-ink-mute">{u.email}</div></div></div>) },
           { key: 'role', label: 'Rôle', render: (u) => <Badge tone={ROLES[u.role]?.color || 'ink'}>{ROLES[u.role]?.label}</Badge> },

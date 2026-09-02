@@ -3,10 +3,11 @@
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Target, TrendingUp } from 'lucide-react'
+import { Target, TrendingUp, Download } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { indicatorAchievement, indicatorActual, achievementTone } from '../lib/compute.js'
 import { INDICATOR_LEVEL } from '../lib/constants.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { num, pct } from '../lib/format.js'
 import { PageHeader, Select, Kpi, DataTable, Badge, Progress, RowActions } from '../components/ui.jsx'
 import { IndicatorPanel } from './panels/Indicators.jsx'
@@ -24,6 +25,18 @@ export default function Indicateurs() {
     const onTrack = ach.filter((a) => a >= 90).length
     return { total: indicators.length, avg, onTrack, measured: ach.length }
   }, [indicators])
+
+  const EXPORT_COLS = [
+    { label: 'Code', get: (r) => r.code }, { label: 'Indicateur', get: (r) => r.name },
+    { label: 'Unité', get: (r) => r.unit }, { label: 'Projet', get: (r) => byId(projects, r.projectId)?.code || '' },
+    { label: 'Niveau', get: (r) => INDICATOR_LEVEL[r.level]?.label || r.level },
+    { label: 'Référence', get: (r) => r.baseline }, { label: 'Cible', get: (r) => r.target },
+    { label: 'Réalisé', get: (r) => indicatorActual(r) }, { label: 'Atteinte %', get: (r) => indicatorAchievement(r) },
+  ]
+  const bulkActions = [
+    { key: 'export', label: 'Exporter la sélection', icon: Download, keepSelection: true,
+      onClick: (sel) => exportRowsXlsx('indicateurs-selection', sel, EXPORT_COLS) },
+  ]
 
   return (
     <div>
@@ -46,6 +59,7 @@ export default function Indicateurs() {
         <DataTable
           empty="Aucun indicateur"
           onRowClick={(r) => nav(`/projets/${r.projectId}`)}
+          selectable bulkActions={bulkActions}
           rows={indicators}
           columns={[
             { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.code}</span> },

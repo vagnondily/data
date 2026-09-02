@@ -2,7 +2,7 @@
 // Kit d'interface MEMS — primitives réutilisables (charte WFP, style appli PM)
 // ============================================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight, ChevronsUpDown, Copy } from 'lucide-react'
+import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight, ChevronsUpDown, Copy, Check, Minus } from 'lucide-react'
 import { initials, clamp } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 
@@ -230,16 +230,48 @@ export function SectionTitle({ children, action, className }) {
   )
 }
 
+// ---- Case à cocher (sélection multiple) ------------------------------------
+function CheckCell({ checked, indeterminate, onChange, title }) {
+  return (
+    <button type="button" role="checkbox" aria-checked={indeterminate ? 'mixed' : checked} title={title}
+      onClick={(e) => { e.stopPropagation(); onChange() }}
+      className={cx('grid h-[18px] w-[18px] flex-none place-items-center rounded-[5px] border transition',
+        checked || indeterminate ? 'border-brand bg-brand text-white' : 'border-line bg-surface hover:border-brand')}>
+      {checked ? <Check size={13} /> : indeterminate ? <Minus size={13} /> : null}
+    </button>
+  )
+}
+
 // ---- Table -----------------------------------------------------------------
-export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée', keyField = 'id', className, dense = false }) {
+export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée', keyField = 'id', className, dense = false,
+  selectable = false, getRowId, bulkActions = [] }) {
+  const rowId = getRowId || ((r) => r[keyField])
+  const cols = columns // colonnes visibles (déjà filtrées en amont)
   const [sort, setSort] = useState(null) // { key, dir }
+  const [sel, setSel] = useState(() => new Set())
+  const actions = (bulkActions || []).filter(Boolean)
+  const canSelect = selectable && actions.length > 0
+
+  // Purge les sélections qui ne sont plus dans les lignes (filtre, suppression).
+  useEffect(() => {
+    if (!canSelect) return
+    setSel((prev) => {
+      if (!prev.size) return prev
+      const valid = new Set(rows.map(rowId))
+      const next = new Set()
+      let changed = false
+      prev.forEach((id) => (valid.has(id) ? next.add(id) : (changed = true)))
+      return changed ? next : prev
+    })
+  }, [rows]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const sortableOf = (c) => c.sortable === false ? false
     : c.sortValue ? true
       : (rows.length ? ['string', 'number'].includes(typeof rows[0][c.key]) : false)
   const valueOf = (c, r) => (c.sortValue ? c.sortValue(r) : r[c.key])
   const sorted = useMemo(() => {
     if (!sort) return rows
-    const col = columns.find((c) => c && c.key === sort.key)
+    const col = cols.find((c) => c && c.key === sort.key)
     if (!col) return rows
     const dir = sort.dir === 'asc' ? 1 : -1
     return [...rows].sort((a, b) => {
@@ -250,50 +282,93 @@ export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée',
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
       return String(va).localeCompare(String(vb), 'fr', { numeric: true }) * dir
     })
-  }, [rows, sort, columns])
+  }, [rows, sort, cols])
   const toggle = (c) => {
     if (!sortableOf(c)) return
     setSort((s) => (s && s.key === c.key ? (s.dir === 'asc' ? { key: c.key, dir: 'desc' } : null) : { key: c.key, dir: 'asc' }))
   }
   if (!rows.length) return <EmptyState title={empty} />
+
+  const ids = sorted.map(rowId)
+  const selCount = ids.filter((id) => sel.has(id)).length
+  const allChecked = ids.length > 0 && selCount === ids.length
+  const someChecked = selCount > 0 && !allChecked
+  const clear = () => setSel(new Set())
+  const toggleAll = () => setSel(allChecked ? new Set() : new Set(ids))
+  const toggleRow = (id) => setSel((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const runBulk = (a) => {
+    const chosen = sorted.filter((r) => sel.has(rowId(r)))
+    a.onClick(chosen, clear)
+    if (!a.keepSelection) clear()
+  }
+
   return (
-    <div className={cx('overflow-x-auto rounded-xl2 border border-line bg-surface shadow-card', className)}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-line bg-surface-2">
-            {columns.map((c) => {
-              const sortable = sortableOf(c)
-              const active = sort && sort.key === c.key
+    <div className={cx('rounded-xl2 border border-line bg-surface shadow-card', className)}>
+      {canSelect && selCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-line bg-brand-tint/60 px-3 py-2">
+          <span className="text-sm font-bold text-brand-d">{selCount} {t('sélectionné(s)')}</span>
+          <div className="ml-1 flex flex-wrap items-center gap-1.5">
+            {actions.map((a) => (
+              <button key={a.key} onClick={() => runBulk(a)}
+                className={cx('inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition',
+                  a.tone === 'bad' ? 'text-bad hover:bg-bad-tint' : 'text-brand-d hover:bg-surface')}>
+                {a.icon && <a.icon size={14} />}{tr(a.label)}
+              </button>
+            ))}
+          </div>
+          <button onClick={clear} className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-ink-mute transition hover:text-ink">
+            <X size={13} />{t('Désélectionner')}
+          </button>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-line bg-surface-2">
+              {canSelect && (
+                <th className="w-9 px-3 py-2.5"><CheckCell checked={allChecked} indeterminate={someChecked} onChange={toggleAll} title={t('Tout sélectionner')} /></th>
+              )}
+              {cols.map((c) => {
+                const sortable = sortableOf(c)
+                const active = sort && sort.key === c.key
+                return (
+                  <th key={c.key} onClick={sortable ? () => toggle(c) : undefined}
+                    className={cx('px-3.5 py-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-soft',
+                      c.align === 'right' && 'text-right', c.align === 'center' && 'text-center',
+                      sortable && 'cursor-pointer select-none transition hover:text-ink')} style={c.width ? { width: c.width } : undefined}>
+                    <span className={cx('inline-flex items-center gap-1', c.align === 'right' && 'flex-row-reverse')}>
+                      {tr(c.label)}
+                      {sortable && (active
+                        ? <span className="text-brand">{sort.dir === 'asc' ? '▲' : '▼'}</span>
+                        : <ChevronsUpDown size={11} className="text-ink-mute/40" />)}
+                    </span>
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r) => {
+              const id = rowId(r)
+              const checked = sel.has(id)
               return (
-                <th key={c.key} onClick={sortable ? () => toggle(c) : undefined}
-                  className={cx('px-3.5 py-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-soft',
-                    c.align === 'right' && 'text-right', c.align === 'center' && 'text-center',
-                    sortable && 'cursor-pointer select-none transition hover:text-ink')} style={c.width ? { width: c.width } : undefined}>
-                  <span className={cx('inline-flex items-center gap-1', c.align === 'right' && 'flex-row-reverse')}>
-                    {tr(c.label)}
-                    {sortable && (active
-                      ? <span className="text-brand">{sort.dir === 'asc' ? '▲' : '▼'}</span>
-                      : <ChevronsUpDown size={11} className="text-ink-mute/40" />)}
-                  </span>
-                </th>
+                <tr key={id} onClick={onRowClick ? () => onRowClick(r) : undefined}
+                  className={cx('border-b border-line-soft last:border-0', onRowClick && 'cursor-pointer hover:bg-surface-2', checked && 'bg-brand-tint/40')}>
+                  {canSelect && (
+                    <td className="w-9 px-3 py-2 align-middle"><CheckCell checked={checked} onChange={() => toggleRow(id)} title={t('Sélectionner la ligne')} /></td>
+                  )}
+                  {cols.map((c) => (
+                    <td key={c.key} className={cx(dense ? 'px-3.5 py-2' : 'px-3.5 py-3', 'align-middle text-ink-soft',
+                      c.align === 'right' && 'text-right tabnum', c.align === 'center' && 'text-center')}>
+                      {c.render ? c.render(r) : (c.get ? c.get(r) : r[c.key])}
+                    </td>
+                  ))}
+                </tr>
               )
             })}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((r) => (
-            <tr key={r[keyField]} onClick={onRowClick ? () => onRowClick(r) : undefined}
-              className={cx('border-b border-line-soft last:border-0', onRowClick && 'cursor-pointer hover:bg-surface-2')}>
-              {columns.map((c) => (
-                <td key={c.key} className={cx(dense ? 'px-3.5 py-2' : 'px-3.5 py-3', 'align-middle text-ink-soft',
-                  c.align === 'right' && 'text-right tabnum', c.align === 'center' && 'text-center')}>
-                  {c.render ? c.render(r) : (c.get ? c.get(r) : r[c.key])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
