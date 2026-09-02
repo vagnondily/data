@@ -101,7 +101,7 @@ function MreModal({ mre, projects, users, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="lg" title={mre.id ? 'Modifier l’activité MRE' : 'Nouvelle activité MRE'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.name}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Intitulé" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
         <Field label="Projet"><Select value={f.projectId} onChange={(e) => set('projectId', e.target.value)}><option value="">—</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</Select></Field>
         <Field label="Type"><Select value={f.type} onChange={(e) => set('type', e.target.value)}>{Object.entries(MRE_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></Field>

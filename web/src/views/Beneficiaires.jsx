@@ -129,7 +129,7 @@ function BeneficiaryModal({ ben, projects, sites, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="lg" title={ben.id ? 'Modifier le ciblage' : 'Nouveau ciblage'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.category || !f.projectId}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Projet" required><Select value={f.projectId} onChange={(e) => set('projectId', e.target.value)}><option value="">—</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</Select></Field>
         <Field label="Site"><Select value={f.siteId} onChange={(e) => set('siteId', e.target.value)}><option value="">—</option>{projSites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
         <Field label="Catégorie de bénéficiaires" required className="col-span-2"><Input value={f.category} onChange={(e) => set('category', e.target.value)} placeholder="Ex. Ménages vulnérables, Enfants 6-59 mois…" /></Field>

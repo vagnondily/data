@@ -105,7 +105,7 @@ function BudgetLineModal({ line, partners, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={line.id ? 'Modifier la ligne' : 'Nouvelle ligne budgétaire'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, planned: Number(f.planned) || 0, committed: Number(f.committed) || 0, spent: Number(f.spent) || 0 })} disabled={!f.category}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Catégorie" required className="col-span-2"><Input value={f.category} onChange={(e) => set('category', e.target.value)} /></Field>
         <Field label="Bailleur" className="col-span-2"><Select value={f.donorId} onChange={(e) => set('donorId', e.target.value)}><option value="">—</option>{donors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select></Field>
         <Field label="Prévu"><Input type="number" value={f.planned} onChange={(e) => set('planned', e.target.value)} /></Field>

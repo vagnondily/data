@@ -28,7 +28,7 @@ export function ProgrammeForm({ programme, onClose, onSaved }) {
         <Button variant="outline" onClick={onClose}>Annuler</Button>
         <Button onClick={save} disabled={!f.name || !f.code}>Enregistrer</Button>
       </>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Code" required><Input value={f.code} onChange={(e) => set('code', e.target.value)} placeholder="PRG-XXX" /></Field>
         <Field label="Statut"><Select value={f.status} onChange={(e) => set('status', e.target.value)}>{Object.entries(PROGRAMME_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></Field>
         <Field label="Nom du programme" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>

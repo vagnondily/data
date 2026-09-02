@@ -127,7 +127,7 @@ export function ActivityModal({ activity, results, users, sites, onClose }) {
   return (
     <Modal open onClose={onClose} size="lg" title={activity.id ? 'Modifier l’activité' : 'Nouvelle activité'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={!f.name}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Code"><Input value={f.code} onChange={(e) => set('code', e.target.value)} placeholder="A1.1" /></Field>
         <Field label="Statut"><Select value={f.status} onChange={(e) => set('status', e.target.value)}>{ACTIVITY_ORDER.map((k) => <option key={k} value={k}>{ACTIVITY_STATUS[k].label}</option>)}</Select></Field>
         <Field label="Intitulé" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>

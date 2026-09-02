@@ -106,7 +106,7 @@ export function DocMetaModal({ doc, kind, offices, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={doc.id ? `Modifier le ${cfg.singular}` : `Nouveau ${cfg.singular}`}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.ref}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Référence" required className="col-span-2"><Input value={f.ref} onChange={(e) => set('ref', e.target.value)} /></Field>
         <Field label="Version"><Input value={f.version} onChange={(e) => set('version', e.target.value)} placeholder="1.0" /></Field>
         <Field label="Période"><Input value={f.period} onChange={(e) => set('period', e.target.value)} placeholder="2025-T4" /></Field>

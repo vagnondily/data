@@ -298,6 +298,7 @@ function AccountMenu() {
   }))
   const nav = useNavigate()
   const { confirm, node } = useConfirm()
+  const { lang, setLang } = useLang()
   const me = users.find((u) => u.id === currentUserId) || users[0]
   const role = ROLES[me?.role]
 
@@ -319,7 +320,17 @@ function AccountMenu() {
         <div className="px-2.5 py-2">
           <div className="text-sm font-bold text-ink">{me?.name}</div>
           <div className="text-xs text-ink-mute">{me?.email}</div>
-          <div className="mt-1"><Badge tone={role?.color || 'ink'}>{role?.label}</Badge></div>
+          <div className="mt-1"><Badge tone={role?.color || 'ink'}>{t(role?.label)}</Badge></div>
+        </div>
+        {/* Langue — accessible sur mobile (la bascule de la barre haute est masquée < sm) */}
+        <div className="flex items-center justify-between px-2.5 py-1.5 sm:hidden">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-ink-mute">{t('Langue')}</span>
+          <div className="flex items-center rounded-lg border border-line bg-inset p-0.5">
+            {['fr', 'en'].map((l) => (
+              <button key={l} onClick={() => setLang(l)}
+                className={cx('rounded px-2.5 py-1 text-[11px] font-bold uppercase transition', lang === l ? 'bg-brand text-white shadow-card' : 'text-ink-mute hover:text-ink')}>{l}</button>
+            ))}
+          </div>
         </div>
         <div className="my-1 border-t border-line" />
         <div className="px-2.5 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-ink-mute">{t('Se connecter en tant que (démo)')}</div>

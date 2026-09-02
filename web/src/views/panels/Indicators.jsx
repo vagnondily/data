@@ -97,7 +97,7 @@ export function IndicatorModal({ indicator, results, onClose }) {
   return (
     <Modal open onClose={onClose} size="lg" title={indicator.id ? 'Modifier l’indicateur' : 'Nouvel indicateur'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={!f.name}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Code"><Input value={f.code} onChange={(e) => set('code', e.target.value)} placeholder="OUT-01" /></Field>
         <Field label="Niveau"><Select value={f.level} onChange={(e) => set('level', e.target.value)}>{Object.entries(INDICATOR_LEVEL).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></Field>
         <Field label="Libellé de l’indicateur" required className="col-span-2"><Textarea value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>

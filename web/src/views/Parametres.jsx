@@ -43,7 +43,7 @@ function OrgTab({ canAdmin }) {
   return (
     <Card className="max-w-2xl">
       <SectionTitle>Identité du bureau pays</SectionTitle>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Nom" className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} disabled={!canAdmin} /></Field>
         <Field label="Acronyme"><Input value={f.acronym} onChange={(e) => set('acronym', e.target.value)} disabled={!canAdmin} /></Field>
         <Field label="Pays"><Input value={f.country} onChange={(e) => set('country', e.target.value)} disabled={!canAdmin} /></Field>
@@ -85,7 +85,7 @@ function PartnerModal({ partner, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={partner.id ? 'Modifier le partenaire' : 'Nouveau partenaire'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.name}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Nom" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
         <Field label="Acronyme"><Input value={f.acronym} onChange={(e) => set('acronym', e.target.value)} /></Field>
         <Field label="Type"><Select value={f.type} onChange={(e) => set('type', e.target.value)}>{Object.entries(PARTNER_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
@@ -121,7 +121,7 @@ function OfficeModal({ office, offices, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={office.id ? 'Modifier le bureau' : 'Nouveau bureau'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.name}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Nom" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
         <Field label="Type"><Select value={f.type} onChange={(e) => set('type', e.target.value)}><option value="pays">Pays</option><option value="terrain">Terrain</option><option value="antenne">Antenne</option></Select></Field>
         <Field label="Rattaché à"><Select value={f.parentId || ''} onChange={(e) => set('parentId', e.target.value)}><option value="">—</option>{offices.filter((o) => o.id !== office.id).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field>

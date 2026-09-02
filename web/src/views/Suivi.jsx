@@ -151,7 +151,7 @@ function VisitModal({ visit, sites, projects, users, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="lg" title={visit.id ? 'Modifier la visite' : 'Planifier une visite'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, score: f.score === '' ? null : Number(f.score) })} disabled={!f.siteId}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Site" required><Select value={f.siteId} onChange={(e) => onSite(e.target.value)}><option value="">—</option>{sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
         <Field label="Projet"><Select value={f.projectId} onChange={(e) => set('projectId', e.target.value)}><option value="">—</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select></Field>
         <Field label="Date"><Input type="date" value={f.date} onChange={(e) => set('date', e.target.value)} /></Field>

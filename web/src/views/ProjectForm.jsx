@@ -31,7 +31,7 @@ export function ProjectForm({ project, onClose, onSaved }) {
         <Button variant="outline" onClick={onClose}>Annuler</Button>
         <Button onClick={save} disabled={!f.name || !f.code}>Enregistrer</Button>
       </>}>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="form-grid-4 grid grid-cols-1 gap-4 md:grid-cols-4">
         <Field label="Code" required><Input value={f.code} onChange={(e) => set('code', e.target.value)} placeholder="MG-XX-00" /></Field>
         <Field label="Programme" className="col-span-2"><Select value={f.programmeId} onChange={(e) => set('programmeId', e.target.value)}><option value="">—</option>{programmes.map((pg) => <option key={pg.id} value={pg.id}>{pg.name}</option>)}</Select></Field>
         <Field label="Statut"><Select value={f.status} onChange={(e) => set('status', e.target.value)}>{Object.entries(PROJECT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></Field>

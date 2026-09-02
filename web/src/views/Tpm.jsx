@@ -178,7 +178,7 @@ function ContractForm({ contract, partners, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="lg" title={contract.id ? 'Modifier le contrat' : 'Nouveau contrat TPM'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, ceiling: Number(f.ceiling) || 0, ratePerSite: Number(f.ratePerSite) || 0 })} disabled={!f.code || !f.title}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Référence" required><Input value={f.code} onChange={(e) => set('code', e.target.value)} placeholder="TPM-2025-00" /></Field>
         <Field label="Prestataire"><Select value={f.providerId} onChange={(e) => set('providerId', e.target.value)}>{providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
         <Field label="Objet du contrat" required className="col-span-2"><Input value={f.title} onChange={(e) => set('title', e.target.value)} /></Field>
@@ -203,7 +203,7 @@ function MissionForm({ mission, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={mission.id ? 'Modifier la mission' : 'Nouvelle mission'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, sitesCount: Number(f.sitesCount) || 0, agents: Number(f.agents) || 0, budget: Number(f.budget) || 0 })}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Période"><Input value={f.period} onChange={(e) => set('period', e.target.value)} placeholder="2025-T4" /></Field>
         <Field label="Mode"><Select value={f.mode} onChange={(e) => set('mode', e.target.value)}><option value="par_commune">Par commune</option><option value="equipe_unique">Équipe unique</option></Select></Field>
         <Field label="Nombre de sites"><Input type="number" value={f.sitesCount} onChange={(e) => set('sitesCount', e.target.value)} /></Field>
@@ -221,7 +221,7 @@ function ExpenseForm({ expense, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title="Nouvelle dépense"
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, amount: Number(f.amount) || 0 })} disabled={!f.label}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Date"><Input type="date" value={f.date} onChange={(e) => set('date', e.target.value)} /></Field>
         <Field label="Montant"><Input type="number" value={f.amount} onChange={(e) => set('amount', e.target.value)} /></Field>
         <Field label="Libellé" required className="col-span-2"><Input value={f.label} onChange={(e) => set('label', e.target.value)} /></Field>

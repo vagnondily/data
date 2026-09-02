@@ -105,7 +105,7 @@ function UserModal({ user, offices, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={user.id ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.name || !f.email}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Nom complet" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
         <Field label="E-mail" required className="col-span-2"><Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
         <Field label="Rôle"><Select value={f.role} onChange={(e) => set('role', e.target.value)}>{ROLE_KEYS.map((k) => <option key={k} value={k}>{ROLES[k].label}</option>)}</Select></Field>

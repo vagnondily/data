@@ -131,7 +131,7 @@ function ObjectiveModal({ obj, nextCode, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={obj.id ? 'Modifier l’objectif' : 'Nouvel objectif spécifique'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.label}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="form-grid-4 grid grid-cols-1 gap-4 md:grid-cols-4">
         <Field label="Code"><Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} /></Field>
         <Field label="Objectif spécifique" required className="col-span-3"><Textarea value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} /></Field>
       </div>
@@ -144,7 +144,7 @@ function ResultModal({ res, objectives, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="md" title={res.id ? 'Modifier le résultat' : 'Nouveau résultat attendu'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave(f)} disabled={!f.label}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="form-grid-4 grid grid-cols-1 gap-4 md:grid-cols-4">
         <Field label="Code"><Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="R1.1" /></Field>
         <Field label="Objectif" className="col-span-3"><Select value={f.objectiveId} onChange={(e) => setF({ ...f, objectiveId: e.target.value })}>{objectives.map((o) => <option key={o.id} value={o.id}>{o.code} · {o.label}</option>)}</Select></Field>
         <Field label="Résultat attendu" required className="col-span-4"><Textarea value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} /></Field>

@@ -144,7 +144,7 @@ function SiteModal({ site, projects, offices, onClose, onSave }) {
   return (
     <Modal open onClose={onClose} size="lg" title={site.id ? 'Modifier le site' : 'Nouveau site'}
       footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, population: Number(f.population) || 0, lat: Number(f.lat), lng: Number(f.lng) })} disabled={!f.name}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Nom du site" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
         <Field label="Région"><Select value={f.pcode} onChange={(e) => onRegion(e.target.value)}>{REGIONS.map((r) => <option key={r.pcode} value={r.pcode}>{r.name}</option>)}</Select></Field>
         <Field label="Commune"><Input value={f.commune} onChange={(e) => set('commune', e.target.value)} /></Field>

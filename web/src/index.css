@@ -42,6 +42,16 @@
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
+/* Formulaires : en dessous du point de bascule, chaque champ occupe toute la
+   largeur — neutralise les col-span-2/4 qui créeraient des colonnes implicites.
+   .form-grid bascule à sm (640px) ; .form-grid-4 (4 colonnes) bascule à md (768px). */
+@media (max-width: 639px) {
+  .form-grid > * { grid-column: auto !important; }
+}
+@media (max-width: 767px) {
+  .form-grid-4 > * { grid-column: auto !important; }
+}
+
 /* Leaflet container needs an explicit height */
 .leaflet-container { height: 100%; width: 100%; background: #dbe7f0; font-family: inherit; }
 

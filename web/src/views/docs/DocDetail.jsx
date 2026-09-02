@@ -167,7 +167,7 @@ function DocRowModal({ row, columns, kind, offices, onClose, onSave }) {
         columns.forEach((c) => { if (c.type === 'number') data[c.key] = Number(data[c.key]) || 0 })
         onSave(data)
       }} disabled={!f.site}>Enregistrer</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
         {columns.map((c) => (
           <Field key={c.key} label={c.label} className={c.key === 'site' || c.key === 'activite' ? 'col-span-2' : ''}>
             {c.key === 'bureau' ? (
