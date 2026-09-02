@@ -67,7 +67,10 @@ npm run preview   # sert la build → http://localhost:4000
 ```
 
 `web/dist` est un site **statique** : il peut être servi par n'importe quel
-hébergement de fichiers statiques (Nginx, Apache, un bucket, un partage réseau…).
+hébergement de fichiers statiques (Nginx, Apache, IIS, un bucket, un partage réseau…).
+
+**Déploiement en service Windows (NSSM)** : voir [`web/DEPLOIEMENT-WINDOWS.md`](web/DEPLOIEMENT-WINDOWS.md)
+et le script `web/scripts/install-nssm-service.ps1`.
 
 ---
 
