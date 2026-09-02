@@ -1,29 +1,27 @@
 /** @type {import('tailwindcss').Config} */
-// WFP charter palette + neutrals. Used as bg-brand, text-ok, border-line, etc.
+// Charte WFP. Les tokens neutres + teintes sont pilotés par variables CSS
+// (voir src/index.css) pour permettre le thème clair / sombre.
+const v = (name) => `rgb(var(${name}) / <alpha-value>)`
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#007DBC',
-          d: '#085387',
+          DEFAULT: v('--brand'),
+          d: v('--brand-d'),
           deep: '#03293D',
-          tint: '#E2F0F9',
-          50: '#EAF6FF',
-          100: '#D5EDFB',
-          600: '#007DBC',
-          700: '#085387',
-          800: '#03293D',
+          tint: v('--brand-tint'),
+          50: '#EAF6FF', 100: '#D5EDFB', 600: '#007DBC', 700: '#085387', 800: '#03293D',
         },
-        ok: { DEFAULT: '#5C8A13', dot: '#689E18', tint: '#EEF6E0' },
-        warn: { DEFAULT: '#B07D05', dot: '#F7B825', tint: '#FCF3D9' },
-        bad: { DEFAULT: '#C5192D', dot: '#C5192D', tint: '#FBE3E6' },
-        ink: { DEFAULT: '#0F2231', soft: '#43596A', mute: '#6F8798' },
-        line: { DEFAULT: '#D6E2EC', soft: '#E6EEF4' },
-        ground: '#F4F7FA',
-        surface: { DEFAULT: '#FFFFFF', 2: '#EAF1F7' },
-        inset: '#F0F5F9',
+        ok: { DEFAULT: v('--ok'), dot: '#689E18', tint: v('--ok-tint') },
+        warn: { DEFAULT: v('--warn'), dot: '#F7B825', tint: v('--warn-tint') },
+        bad: { DEFAULT: v('--bad'), dot: '#C5192D', tint: v('--bad-tint') },
+        ink: { DEFAULT: v('--ink'), soft: v('--ink-soft'), mute: v('--ink-mute') },
+        line: { DEFAULT: v('--line'), soft: v('--line-soft') },
+        ground: v('--ground'),
+        surface: { DEFAULT: v('--surface'), 2: v('--surface-2') },
+        inset: v('--inset'),
       },
       fontFamily: {
         sans: ['"Open Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],

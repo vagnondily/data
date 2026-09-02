@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog,
   Settings, Menu, X, Bell, ChevronDown, ChevronRight, Search, RefreshCw, Download, LogIn, Building2,
-  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus,
+  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus, Sun, Moon,
 } from 'lucide-react'
 import { NAV, NAV_LEAVES, ROLES } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
@@ -17,6 +17,7 @@ import { exportJSON } from '../lib/export.js'
 import { cx, Avatar, Badge, Dropdown, MenuItem, IconButton, useConfirm } from './ui.jsx'
 import { fromNow } from '../lib/format.js'
 import { t, useLang } from '../lib/i18n.js'
+import { useTheme } from '../lib/theme.js'
 import Toaster from './Toaster.jsx'
 import CommandPalette from './CommandPalette.jsx'
 
@@ -32,7 +33,10 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('mems-collapsed') === '1' } catch { return false } })
   const org = useStore((s) => s.organization)
   const lang = useLang((s) => s.lang)
+  const theme = useTheme((s) => s.theme)
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('mems-collapsed', n ? '1' : '0') } catch { /* ignore */ } return n })
+
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -161,12 +165,18 @@ function Topbar({ onMenu, onPalette }) {
       <GlobalSearch onPalette={onPalette} />
       <div className="ml-auto flex items-center gap-1.5">
         <LangToggle />
+        <ThemeToggle />
         <QuickCreate />
         <Notifications />
         <AccountMenu />
       </div>
     </header>
   )
+}
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme()
+  return <IconButton icon={theme === 'dark' ? Sun : Moon} onClick={toggle} title={theme === 'dark' ? t('Thème clair') : t('Thème sombre')} />
 }
 
 function LangToggle() {

@@ -9,8 +9,11 @@ import {
 import { C, CHART_COLORS } from '../lib/constants.js'
 import { num } from '../lib/format.js'
 
-const AXIS = { fontSize: 11, fill: C.inkMute }
-const gridProps = { stroke: '#E6EEF4', vertical: false }
+// Couleurs pilotées par les variables CSS du thème (clair / sombre) — résolues
+// par le navigateur dans les attributs SVG, donc toujours synchrones avec le thème.
+const AXIS = { fontSize: 11, fill: 'rgb(var(--ink-mute))' }
+const gridProps = { stroke: 'rgb(var(--line))', vertical: false }
+const AXIS_LINE = 'rgb(var(--line))'
 
 function TooltipBox({ active, payload, label, fmt = num }) {
   if (!active || !payload?.length) return null
@@ -28,7 +31,7 @@ function TooltipBox({ active, payload, label, fmt = num }) {
   )
 }
 
-const legendStyle = { fontSize: 11, color: C.inkSoft }
+const legendStyle = { fontSize: 11, color: 'rgb(var(--ink-soft))' }
 
 export function ChartBars({ data, xKey, series, height = 240, stacked = false, fmt = num, layout = 'horizontal' }) {
   const vertical = layout === 'vertical'
@@ -43,7 +46,7 @@ export function ChartBars({ data, xKey, series, height = 240, stacked = false, f
           </>
         ) : (
           <>
-            <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={{ stroke: C.line }} />
+            <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={{ stroke: AXIS_LINE }} />
             <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={fmt} width={44} />
           </>
         )}
@@ -74,7 +77,7 @@ export function ChartLines({ data, xKey, series, height = 240, fmt = num, area =
           ))}
         </defs>
         <CartesianGrid {...gridProps} />
-        <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={{ stroke: C.line }} />
+        <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={{ stroke: AXIS_LINE }} />
         <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={fmt} width={44} />
         <Tooltip content={<TooltipBox fmt={fmt} />} />
         {series.length > 1 && <Legend wrapperStyle={legendStyle} iconType="circle" iconSize={8} />}

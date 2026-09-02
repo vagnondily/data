@@ -3,7 +3,26 @@
 @tailwind utilities;
 
 @layer base {
-  :root { color-scheme: light; }
+  /* Palette claire (par défaut) — triplets RGB pour l'alpha Tailwind */
+  :root {
+    color-scheme: light;
+    --ground: 244 247 250; --surface: 255 255 255; --surface-2: 234 241 247; --inset: 240 245 249;
+    --ink: 15 34 49; --ink-soft: 67 89 106; --ink-mute: 111 135 152;
+    --line: 214 226 236; --line-soft: 230 238 244;
+    --brand: 0 125 188; --brand-d: 8 83 135; --brand-tint: 226 240 249;
+    --ok: 92 138 19; --warn: 176 125 5; --bad: 197 25 45;
+    --ok-tint: 238 246 224; --warn-tint: 252 243 217; --bad-tint: 251 227 230;
+  }
+  /* Palette sombre */
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: 7 22 32; --surface: 13 35 49; --surface-2: 18 48 67; --inset: 10 30 43;
+    --ink: 232 239 245; --ink-soft: 179 198 211; --ink-mute: 127 154 171;
+    --line: 29 58 78; --line-soft: 22 48 63;
+    --brand: 57 168 226; --brand-d: 124 198 236; --brand-tint: 15 49 67;
+    --ok: 143 196 74; --warn: 242 194 73; --bad: 240 104 122;
+    --ok-tint: 22 45 22; --warn-tint: 55 45 15; --bad-tint: 58 28 33;
+  }
   html, body, #root { height: 100%; }
   body {
     margin: 0;
