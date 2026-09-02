@@ -15,8 +15,12 @@ export default function SiteMap({ sites = [], onSelect, showRegions = true, heig
 
   useEffect(() => {
     if (mapRef.current || !elRef.current) return
-    const map = L.map(elRef.current, { zoomControl: true, attributionControl: false, scrollWheelZoom: false })
-      .setView([COUNTRY_CENTER.lat, COUNTRY_CENTER.lng], COUNTRY_CENTER.zoom)
+    // Animations désactivées : évite qu'une image d'animation en vol accède à
+    // un conteneur déjà retiré lors d'une navigation rapide (_leaflet_pos).
+    const map = L.map(elRef.current, {
+      zoomControl: true, attributionControl: false, scrollWheelZoom: false,
+      fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false,
+    }).setView([COUNTRY_CENTER.lat, COUNTRY_CENTER.lng], COUNTRY_CENTER.zoom)
     if (tiles) {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 12, minZoom: 4, opacity: 0.9,
@@ -30,8 +34,8 @@ export default function SiteMap({ sites = [], onSelect, showRegions = true, heig
     }
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
-    setTimeout(() => map.invalidateSize(), 120)
-    return () => { map.remove(); mapRef.current = null }
+    const tid = setTimeout(() => { if (mapRef.current === map) { try { map.invalidateSize() } catch { /* démonté */ } } }, 120)
+    return () => { clearTimeout(tid); mapRef.current = null; try { map.remove() } catch { /* déjà retiré */ } }
   }, [tiles, showRegions])
 
   useEffect(() => {
@@ -57,9 +61,10 @@ export default function SiteMap({ sites = [], onSelect, showRegions = true, heig
       pts.push([s.lat, s.lng])
     })
     if (pts.length) {
-      try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 8 }) } catch { /* single point */ }
+      try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 8, animate: false }) } catch { /* single point */ }
     }
-    setTimeout(() => map.invalidateSize(), 60)
+    const tid = setTimeout(() => { if (mapRef.current === map) { try { map.invalidateSize() } catch { /* démonté */ } } }, 60)
+    return () => clearTimeout(tid)
   }, [sites, onSelect])
 
   return <div ref={elRef} style={{ height }} className="rounded-xl2 border border-line shadow-card" />
