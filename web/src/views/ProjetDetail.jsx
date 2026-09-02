@@ -25,13 +25,15 @@ import { LogframePanel } from './panels/Logframe.jsx'
 import { ActivityBoard } from './panels/Activities.jsx'
 import { IndicatorPanel } from './panels/Indicators.jsx'
 import { BudgetPanel } from './panels/Budget.jsx'
+import { MonitoringGrid } from './PlanSuivi.jsx'
+import { MrePanel } from './Mre.jsx'
 
 export default function ProjetDetail() {
   const { id } = useParams()
   const nav = useNavigate()
   const { canEdit } = useCan()
   const store = useStore((s) => s)
-  const { projects, programmes, partners, users, activities, budgetLines, beneficiaries, sites, visits, indicators, objectives, results } = store
+  const { projects, programmes, partners, users, activities, budgetLines, beneficiaries, sites, visits, indicators, objectives, results, mreActivities } = store
   const [tab, setTab] = useState('apercu')
   const [editing, setEditing] = useState(false)
 
@@ -58,7 +60,9 @@ export default function ProjetDetail() {
     { value: 'indicateurs', label: 'Indicateurs', count: projInd.length },
     { value: 'budget', label: 'Budget' },
     { value: 'sites', label: 'Sites', count: projSites.length },
+    { value: 'plansuivi', label: 'Plan de suivi' },
     { value: 'suivi', label: 'Suivi', count: projVisits.length },
+    { value: 'mre', label: 'Plan MRE', count: mreActivities.filter((m) => m.projectId === p.id).length },
     { value: 'equipe', label: 'Équipe' },
   ]
 
@@ -105,7 +109,9 @@ export default function ProjetDetail() {
       {tab === 'indicateurs' && <IndicatorPanel projectId={p.id} />}
       {tab === 'budget' && <BudgetPanel projectId={p.id} />}
       {tab === 'sites' && <SitesTab sites={projSites} />}
+      {tab === 'plansuivi' && <MonitoringGrid fixedProject={p.id} />}
       {tab === 'suivi' && <SuiviTab visits={projVisits} sites={sites} users={users} cov={cov} comp={comp} />}
+      {tab === 'mre' && <MrePanel fixedProject={p.id} />}
       {tab === 'equipe' && <TeamTab project={p} users={users} activities={activities.filter((a) => a.projectId === p.id)} />}
 
       {editing && <ProjectForm project={p} onClose={() => setEditing(false)} />}

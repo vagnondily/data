@@ -1,5 +1,6 @@
 // ============================================================================
 // Plan MRE — plan de suivi-évaluation & budget (activités de S&E)
+// MrePanel est réutilisé dans le détail d'un projet (fixedProject).
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { ClipboardList, Plus } from 'lucide-react'
@@ -12,19 +13,20 @@ import {
   useConfirm, Progress,
 } from '../components/ui.jsx'
 
-export default function Mre() {
+export function MrePanel({ fixedProject }) {
   const { mreActivities, projects, users, add, update, remove, log } = useStore((s) => s)
   const { canEdit } = useCan()
   const [projectId, setProjectId] = useState('')
   const [status, setStatus] = useState('')
   const [editing, setEditing] = useState(null)
   const { confirm, node } = useConfirm()
+  const effectiveProject = fixedProject || projectId
 
   const rows = useMemo(() => mreActivities.filter((m) => {
-    if (projectId && m.projectId !== projectId) return false
+    if (effectiveProject && m.projectId !== effectiveProject) return false
     if (status && m.status !== status) return false
     return true
-  }), [mreActivities, projectId, status])
+  }), [mreActivities, effectiveProject, status])
 
   const totals = useMemo(() => ({
     planned: rows.reduce((n, m) => n + (m.costPlanned || 0), 0),
@@ -41,12 +43,11 @@ export default function Mre() {
   return (
     <div>
       {node}
-      <PageHeader icon={ClipboardList} title="Plan MRE" subtitle="Plan de suivi-évaluation, redevabilité et son budget"
-        actions={<>
-          <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto"><option value="">Tous statuts</option>{Object.entries(MRE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select>
-          {canEdit && <Button icon={Plus} onClick={() => setEditing({ projectId: projectId || projects[0]?.id, status: 'planifie', type: 'suivi' })}>Nouvelle activité</Button>}
-        </>} />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {!fixedProject && <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>}
+        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto"><option value="">Tous statuts</option>{Object.entries(MRE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select>
+        {canEdit && <Button className="ml-auto" icon={Plus} onClick={() => setEditing({ projectId: effectiveProject || projects[0]?.id, status: 'planifie', type: 'suivi' })}>Nouvelle activité</Button>}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Activités MRE" value={rows.length} icon={ClipboardList} tone="brand" />
@@ -61,7 +62,7 @@ export default function Mre() {
           rows={rows}
           columns={[
             { key: 'name', label: 'Activité', render: (m) => <span className="font-semibold text-ink">{m.name}</span> },
-            { key: 'project', label: 'Projet', render: (m) => <Badge tone="ink">{byId(projects, m.projectId)?.code || '—'}</Badge> },
+            !fixedProject && { key: 'project', label: 'Projet', render: (m) => <Badge tone="ink">{byId(projects, m.projectId)?.code || '—'}</Badge> },
             { key: 'type', label: 'Type', render: (m) => <span className="text-xs text-ink-soft">{MRE_TYPES[m.type]?.label || m.type}</span> },
             { key: 'period', label: 'Période', render: (m) => <span className="font-mono text-xs">{m.period}</span> },
             { key: 'resp', label: 'Responsable', render: (m) => byId(users, m.responsibleId)?.name?.split(' ')[0] || '—' },
@@ -69,11 +70,8 @@ export default function Mre() {
             { key: 'actual', label: 'Réalisé', align: 'right', render: (m) => <span className="tabnum font-semibold">{money(m.costActual)}</span> },
             { key: 'conso', label: 'Conso.', width: 120, render: (m) => { const b = m.costPlanned ? (m.costActual / m.costPlanned) * 100 : 0; return <Progress value={b} tone={b > 100 ? 'bad' : b > 80 ? 'warn' : 'ok'} showValue /> } },
             { key: 'status', label: 'Statut', render: (m) => <StatusBadge map={MRE_STATUS} value={m.status} /> },
-            {
-              key: 'act', label: '', width: 110, align: 'right',
-              render: (m) => canEdit ? <RowActions onEdit={() => setEditing(m)} onDelete={() => del(m)} /> : null,
-            },
-          ]}
+            canEdit && { key: 'act', label: '', width: 110, align: 'right', render: (m) => <RowActions onEdit={() => setEditing(m)} onDelete={() => del(m)} /> },
+          ].filter(Boolean)}
         />
       </div>
 
@@ -84,6 +82,15 @@ export default function Mre() {
           else { add('mreActivities', rec); log('cree', 'MRE', `Nouvelle activité MRE : ${rec.name}`) }
           setEditing(null)
         }} />}
+    </div>
+  )
+}
+
+export default function Mre() {
+  return (
+    <div>
+      <PageHeader icon={ClipboardList} title="Plan MRE" subtitle="Plan de suivi-évaluation, redevabilité et son budget" />
+      <MrePanel />
     </div>
   )
 }

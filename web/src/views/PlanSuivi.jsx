@@ -1,7 +1,6 @@
 // ============================================================================
 // Plan de suivi des sites — grille mensuelle (sites × mois), couverture MMR
-// Cliquer une case (droit d'édition) : planifie / retire une visite ; les
-// visites réalisées sont en lecture seule.
+// MonitoringGrid est réutilisé dans le détail d'un projet (fixedProject).
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { CalendarCheck, Check, Clock } from 'lucide-react'
@@ -11,11 +10,12 @@ import { REGIONS, MMR_TARGET } from '../lib/constants.js'
 import { pct } from '../lib/format.js'
 import { PageHeader, Card, Select, Badge, EmptyState, cx } from '../components/ui.jsx'
 
-export default function PlanSuivi() {
+export function MonitoringGrid({ fixedProject }) {
   const { sites, visits, projects, organization, currentUserId, add, remove, log } = useStore((s) => s)
   const { canEdit } = useCan()
   const [projectId, setProjectId] = useState('')
   const [region, setRegion] = useState('')
+  const effectiveProject = fixedProject || projectId
 
   const year = organization.fiscalYear || 2025
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => ({
@@ -25,8 +25,8 @@ export default function PlanSuivi() {
 
   const activeSites = useMemo(() => sites.filter((s) =>
     s.status === 'actif'
-    && (!projectId || (s.projectIds || []).includes(projectId))
-    && (!region || s.pcode === region)), [sites, projectId, region])
+    && (!effectiveProject || (s.projectIds || []).includes(effectiveProject))
+    && (!region || s.pcode === region)), [sites, effectiveProject, region])
 
   const visitsFor = (siteId, ym) => visits.filter((v) => v.siteId === siteId && (v.date || '').slice(0, 7) === ym)
   const pick = (arr) => arr.find((v) => v.status === 'realise') || arr[0]
@@ -34,7 +34,7 @@ export default function PlanSuivi() {
   const onCell = (site, ym, existing) => {
     if (!canEdit) return
     if (!existing) {
-      add('visits', { siteId: site.id, projectId: site.projectIds?.[0] || '', date: `${ym}-15`, monitorId: currentUserId, type: 'routine', status: 'planifie', score: null, findings: '', recommendations: '', mmr: true })
+      add('visits', { siteId: site.id, projectId: effectiveProject || site.projectIds?.[0] || '', date: `${ym}-15`, monitorId: currentUserId, type: 'routine', status: 'planifie', score: null, findings: '', recommendations: '', mmr: true })
       log('cree', 'visite', `Visite planifiée (${ym}) : ${site.name}`)
     } else if (existing.status === 'planifie') {
       remove('visits', existing.id)
@@ -51,22 +51,23 @@ export default function PlanSuivi() {
 
   return (
     <div>
-      <PageHeader icon={CalendarCheck} title="Plan de suivi des sites"
-        subtitle={`Grille mensuelle ${year} · exigence minimale de suivi (MMR)`}
-        actions={<>
-          <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>
-          <Select value={region} onChange={(e) => setRegion(e.target.value)} className="w-auto"><option value="">Toutes les régions</option>{REGIONS.map((r) => <option key={r.pcode} value={r.pcode}>{r.name}</option>)}</Select>
-        </>} />
-
-      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-ink-soft">
-        <span className="flex items-center gap-1.5"><span className="grid h-4 w-4 place-items-center rounded bg-ok-tint text-ok"><Check size={11} /></span> Réalisée</span>
-        <span className="flex items-center gap-1.5"><span className="grid h-4 w-4 place-items-center rounded bg-brand-tint text-brand-d"><Clock size={11} /></span> Planifiée</span>
-        <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded border border-line bg-surface" /> Non planifiée</span>
-        {canEdit && <span className="text-ink-mute">· cliquez une case vide pour planifier, une case planifiée pour la retirer</span>}
-        <span className="ml-auto">Planifiées <b className="tabnum">{totalPlanned}</b> · Réalisées <b className="tabnum text-ok">{totalDone}</b></span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {!fixedProject && (
+          <>
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>
+            <Select value={region} onChange={(e) => setRegion(e.target.value)} className="w-auto"><option value="">Toutes les régions</option>{REGIONS.map((r) => <option key={r.pcode} value={r.pcode}>{r.name}</option>)}</Select>
+          </>
+        )}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+          <span className="flex items-center gap-1.5"><span className="grid h-4 w-4 place-items-center rounded bg-ok-tint text-ok"><Check size={11} /></span> Réalisée</span>
+          <span className="flex items-center gap-1.5"><span className="grid h-4 w-4 place-items-center rounded bg-brand-tint text-brand-d"><Clock size={11} /></span> Planifiée</span>
+          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded border border-line bg-surface" /> Non planifiée</span>
+        </div>
+        <span className="ml-auto text-xs text-ink-mute">Planifiées <b className="tabnum text-ink-soft">{totalPlanned}</b> · Réalisées <b className="tabnum text-ok">{totalDone}</b></span>
       </div>
+      {canEdit && <p className="mb-2 text-xs text-ink-mute">Cliquez une case vide pour planifier une visite, une case planifiée pour la retirer.</p>}
 
-      {activeSites.length === 0 ? <EmptyState title="Aucun site actif" hint="Ajustez les filtres." icon={CalendarCheck} /> : (
+      {activeSites.length === 0 ? <EmptyState title="Aucun site actif" hint="Ajustez les filtres ou rattachez des sites." icon={CalendarCheck} /> : (
         <Card pad={false} className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -105,7 +106,6 @@ export default function PlanSuivi() {
                     </tr>
                   )
                 })}
-                {/* Ligne couverture */}
                 <tr className="border-t-2 border-line bg-surface-2/60">
                   <td className="sticky left-0 z-10 bg-surface-2 px-4 py-2 text-xs font-bold uppercase tracking-wide text-ink-soft">Couverture / {MMR_TARGET}%</td>
                   {coverage.map((c, i) => (
@@ -119,6 +119,17 @@ export default function PlanSuivi() {
           </div>
         </Card>
       )}
+    </div>
+  )
+}
+
+export default function PlanSuivi() {
+  const year = useStore((s) => s.organization.fiscalYear) || 2025
+  return (
+    <div>
+      <PageHeader icon={CalendarCheck} title="Plan de suivi des sites"
+        subtitle={`Grille mensuelle ${year} · exigence minimale de suivi (MMR)`} />
+      <MonitoringGrid />
     </div>
   )
 }
