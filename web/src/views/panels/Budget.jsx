@@ -9,7 +9,7 @@ import { budgetForProject, budgetByKey } from '../../lib/compute.js'
 import { C } from '../../lib/constants.js'
 import { money, moneyShort, pct } from '../../lib/format.js'
 import {
-  Card, Badge, Button, Progress, Modal, Field, Input, Select, RowActions, DataTable, useConfirm,
+  Card, Badge, Button, Progress, Modal, Field, Input, Select, RowActions, DataTable, useConfirm, EditableCell,
 } from '../../components/ui.jsx'
 import { ChartBars } from '../../components/charts.jsx'
 
@@ -61,9 +61,18 @@ export function BudgetPanel({ projectId }) {
         columns={[
           { key: 'category', label: 'Catégorie', render: (r) => <span className="font-semibold text-ink">{r.category}</span> },
           { key: 'donor', label: 'Bailleur', render: (r) => <Badge tone="ink">{byId(partners, r.donorId)?.acronym || '—'}</Badge> },
-          { key: 'planned', label: 'Prévu', align: 'right', render: (r) => <span className="tabnum">{money(r.planned)}</span> },
-          { key: 'committed', label: 'Engagé', align: 'right', render: (r) => <span className="tabnum text-ink-mute">{money(r.committed)}</span> },
-          { key: 'spent', label: 'Dépensé', align: 'right', render: (r) => <span className="tabnum font-semibold">{money(r.spent)}</span> },
+          { key: 'planned', label: 'Prévu', align: 'right', sortValue: (r) => r.planned, render: (r) => canEdit
+            ? <EditableCell value={r.planned} type="number" align="right" display={(v) => money(v)}
+                onSave={(v) => { update('budgetLines', r.id, { planned: v }); log('modifie', 'budget', `Prévu modifié : ${r.category}`) }} />
+            : <span className="tabnum">{money(r.planned)}</span> },
+          { key: 'committed', label: 'Engagé', align: 'right', sortValue: (r) => r.committed, render: (r) => canEdit
+            ? <EditableCell value={r.committed} type="number" align="right" display={(v) => money(v)}
+                onSave={(v) => { update('budgetLines', r.id, { committed: v }); log('modifie', 'budget', `Engagé modifié : ${r.category}`) }} />
+            : <span className="tabnum text-ink-mute">{money(r.committed)}</span> },
+          { key: 'spent', label: 'Dépensé', align: 'right', sortValue: (r) => r.spent, render: (r) => canEdit
+            ? <EditableCell value={r.spent} type="number" align="right" display={(v) => money(v)}
+                onSave={(v) => { update('budgetLines', r.id, { spent: v }); log('modifie', 'budget', `Dépensé modifié : ${r.category}`) }} />
+            : <span className="tabnum font-semibold">{money(r.spent)}</span> },
           {
             key: 'burn', label: 'Conso.', width: 130, render: (r) => {
               const burn = r.planned ? (r.spent / r.planned) * 100 : 0

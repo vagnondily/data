@@ -11,7 +11,7 @@ import { num } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import {
   PageHeader, Segmented, Select, Button, Card, Badge, StatusBadge, DataTable, SearchInput,
-  Modal, Field, Input, RowActions, useConfirm, EmptyState,
+  Modal, Field, Input, RowActions, useConfirm, EmptyState, EditableCell,
 } from '../components/ui.jsx'
 import SiteMap from '../components/Map.jsx'
 import { useOpenOnNew } from '../lib/hooks.js'
@@ -110,7 +110,10 @@ export default function Sites() {
             { key: 'name', label: 'Site', render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
             { key: 'region', label: 'Région', render: (r) => <span className="text-ink-soft">{r.district}</span> },
             { key: 'projects', label: 'Projets', render: (r) => <div className="flex flex-wrap gap-1">{(r.projectIds || []).map((id) => <Badge key={id} tone="ink">{byId(projects, id)?.code}</Badge>)}</div> },
-            { key: 'pop', label: 'Population', align: 'right', render: (r) => <span className="tabnum">{num(r.population)}</span> },
+            { key: 'pop', label: 'Population', align: 'right', sortValue: (r) => r.population, render: (r) => canEdit
+              ? <EditableCell value={r.population} type="number" align="right" display={(v) => num(v)}
+                  onSave={(v) => { update('sites', r.id, { population: v }); log('modifie', 'site', `Population modifiée : ${r.name}`) }} />
+              : <span className="tabnum">{num(r.population)}</span> },
             { key: 'security', label: 'Sécurité', render: (r) => <StatusBadge map={SECURITY} value={r.security} /> },
             { key: 'status', label: 'Statut', render: (r) => <StatusBadge map={SITE_STATUS} value={r.status} dot={false} /> },
             canEdit && {

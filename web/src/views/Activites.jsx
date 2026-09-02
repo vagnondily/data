@@ -9,11 +9,11 @@ import { useCan } from '../lib/perms.js'
 import { ACTIVITY_STATUS, PRIORITY } from '../lib/constants.js'
 import { exportRowsXlsx } from '../lib/docs.js'
 import { fmtDate, moneyShort } from '../lib/format.js'
-import { PageHeader, Segmented, Select, Badge, Avatar, Progress, DataTable, StatusBadge, SearchInput, RowActions, useConfirm } from '../components/ui.jsx'
+import { PageHeader, Segmented, Select, Badge, Avatar, Progress, DataTable, StatusBadge, SearchInput, RowActions, useConfirm, EditableCell } from '../components/ui.jsx'
 import { ActivityBoard, ActivityModal } from './panels/Activities.jsx'
 
 export default function Activites() {
-  const { projects, activities, users, results, sites, remove, log } = useStore((s) => s)
+  const { projects, activities, users, results, sites, update, remove, log } = useStore((s) => s)
   const { canEdit } = useCan()
   const nav = useNavigate()
   const { confirm, node } = useConfirm()
@@ -92,9 +92,21 @@ export default function Activites() {
               { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.code}</span> },
               { key: 'name', label: 'Activité', render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
               { key: 'project', label: 'Projet', render: (r) => <span className="text-xs text-ink-mute">{byId(projects, r.projectId)?.code}</span> },
-              { key: 'status', label: 'Statut', render: (r) => <StatusBadge map={ACTIVITY_STATUS} value={r.status} /> },
+              { key: 'status', label: 'Statut', sortValue: (r) => r.status, render: (r) => canEdit
+                ? <EditableCell value={r.status} type="select"
+                    options={Object.entries(ACTIVITY_STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
+                    display={(v) => <StatusBadge map={ACTIVITY_STATUS} value={v} />}
+                    onSave={(v) => { update('activities', r.id, { status: v }); log('modifie', 'activité', `Statut modifié : ${r.name}`) }} />
+                : <StatusBadge map={ACTIVITY_STATUS} value={r.status} /> },
               { key: 'priority', label: 'Priorité', render: (r) => <Badge tone={PRIORITY[r.priority]?.tone || 'ink'}>{PRIORITY[r.priority]?.label}</Badge> },
-              { key: 'prog', label: 'Avancement', width: 130, render: (r) => <Progress value={r.status === 'done' ? 100 : r.progress} tone={r.status === 'blocked' ? 'bad' : 'brand'} showValue /> },
+              { key: 'prog', label: 'Avancement', width: 150, sortValue: (r) => (r.status === 'done' ? 100 : r.progress), render: (r) => {
+                const p = r.status === 'done' ? 100 : r.progress
+                const bar = <div className="flex items-center gap-2"><Progress value={p} tone={r.status === 'blocked' ? 'bad' : 'brand'} className="max-w-[90px]" /><span className="text-xs tabnum">{p}%</span></div>
+                return canEdit
+                  ? <EditableCell value={p} type="number" display={() => bar}
+                      onSave={(v) => { const n = Math.max(0, Math.min(100, v)); update('activities', r.id, { progress: n }); log('modifie', 'activité', `Avancement : ${r.name} → ${n}%`) }} />
+                  : bar
+              } },
               { key: 'resp', label: 'Responsable', render: (r) => { const u = byId(users, r.responsibleId); return u ? <span className="flex items-center gap-1.5"><Avatar name={u.name} size={22} tone="ink" /><span className="text-xs">{u.name.split(' ')[0]}</span></span> : '—' } },
               { key: 'end', label: 'Échéance', align: 'right', render: (r) => <span className="text-xs">{fmtDate(r.endDate)}</span> },
               {

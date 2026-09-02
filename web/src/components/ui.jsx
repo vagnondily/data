@@ -408,6 +408,52 @@ export function RowActions({ onOpen, onEdit, onDelete, onDuplicate, openLabel = 
   )
 }
 
+// ---- Cellule éditable en ligne (clic pour modifier sur place) ---------------
+// type: 'text' | 'number' | 'select'. onSave(newValue) est appelé au commit.
+// display: rendu de la valeur en lecture ; options: [{value,label}] pour select.
+export function EditableCell({ value, type = 'text', options = [], onSave, display, align = 'left', suffix, disabled }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(value)
+  const ref = useRef(null)
+  useEffect(() => { setVal(value) }, [value])
+  useEffect(() => { if (editing && ref.current) { ref.current.focus(); if (ref.current.select) ref.current.select() } }, [editing])
+
+  const shown = display ? display(value) : (value === '' || value == null ? '—' : value)
+  if (disabled) return <span className={cx(align === 'right' && 'block text-right')}>{shown}</span>
+
+  const commit = () => {
+    setEditing(false)
+    let out = val
+    if (type === 'number') out = val === '' ? 0 : Number(val)
+    if (out !== value) onSave?.(out)
+  }
+  const cancel = () => { setEditing(false); setVal(value) }
+  const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } else if (e.key === 'Escape') { e.preventDefault(); cancel() } }
+  const stop = (e) => e.stopPropagation()
+
+  if (editing) {
+    const common = { ref, onClick: stop, onKeyDown: onKey, onBlur: commit,
+      className: 'w-full rounded-md border border-brand bg-surface px-2 py-1 text-sm text-ink outline-none ring-2 ring-brand/20' }
+    if (type === 'select') {
+      return (
+        <select {...common} value={val} onChange={(e) => setVal(e.target.value)}>
+          {options.map((o) => <option key={o.value} value={o.value}>{tr(o.label)}</option>)}
+        </select>
+      )
+    }
+    return <input {...common} type={type} value={val ?? ''} onChange={(e) => setVal(e.target.value)}
+      className={cx(common.className, align === 'right' && 'text-right tabnum')} />
+  }
+  return (
+    <button type="button" onClick={(e) => { stop(e); setEditing(true) }} title={t('Modifier')}
+      className={cx('group inline-flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-sm transition hover:bg-brand-tint/50',
+        align === 'right' && 'justify-end text-right')}>
+      <span className={cx('truncate', align === 'right' && 'tabnum')}>{shown}{suffix}</span>
+      <Pencil size={12} className="flex-none text-ink-mute/0 transition group-hover:text-ink-mute" />
+    </button>
+  )
+}
+
 // ---- Empty state -----------------------------------------------------------
 export function EmptyState({ title = 'Rien à afficher', hint, icon: Icon = Inbox, action }) {
   return (
