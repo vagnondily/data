@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import Dashboard from './views/Dashboard.jsx'
 import Programmes from './views/Programmes.jsx'
+import ProgrammeDetail from './views/ProgrammeDetail.jsx'
 import Projets from './views/Projets.jsx'
 import ProjetDetail from './views/ProjetDetail.jsx'
 import Activites from './views/Activites.jsx'
@@ -9,7 +10,9 @@ import Planning from './views/Planning.jsx'
 import Indicateurs from './views/Indicateurs.jsx'
 import Budget from './views/Budget.jsx'
 import Sites from './views/Sites.jsx'
+import PlanSuivi from './views/PlanSuivi.jsx'
 import Suivi from './views/Suivi.jsx'
+import Mre from './views/Mre.jsx'
 import Beneficiaires from './views/Beneficiaires.jsx'
 import Tpm from './views/Tpm.jsx'
 import Rapports from './views/Rapports.jsx'
@@ -25,6 +28,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/programmes" element={<Programmes />} />
+          <Route path="/programmes/:id" element={<ProgrammeDetail />} />
           <Route path="/projets" element={<Projets />} />
           <Route path="/projets/:id" element={<ProjetDetail />} />
           <Route path="/activites" element={<Activites />} />
@@ -32,7 +36,9 @@ export default function App() {
           <Route path="/indicateurs" element={<Indicateurs />} />
           <Route path="/budget" element={<Budget />} />
           <Route path="/sites" element={<Sites />} />
+          <Route path="/plan-suivi" element={<PlanSuivi />} />
           <Route path="/suivi" element={<Suivi />} />
+          <Route path="/mre" element={<Mre />} />
           <Route path="/beneficiaires" element={<Beneficiaires />} />
           <Route path="/tpm" element={<Tpm />} />
           <Route path="/import" element={<Import />} />

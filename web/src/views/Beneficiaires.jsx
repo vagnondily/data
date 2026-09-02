@@ -10,7 +10,7 @@ import { C } from '../lib/constants.js'
 import { num, pct } from '../lib/format.js'
 import {
   PageHeader, Kpi, Card, SectionTitle, Select, Button, Badge, Progress, DataTable, Modal, Field, Input,
-  Dropdown, MenuItem, useConfirm,
+  RowActions, useConfirm,
 } from '../components/ui.jsx'
 import { ChartBars, ChartDonut, Legendette } from '../components/charts.jsx'
 
@@ -82,12 +82,8 @@ export default function Beneficiaires() {
           { key: 'rate', label: 'Taux', width: 140, render: (r) => { const rt = r.plannedTotal ? (r.reachedTotal / r.plannedTotal) * 100 : 0; return <div className="flex items-center gap-2"><Progress value={rt} tone={rt >= 90 ? 'ok' : rt >= 70 ? 'warn' : 'bad'} /><span className="w-9 text-right text-xs tabnum">{pct(rt)}</span></div> } },
           { key: 'gender', label: 'F / H', align: 'right', render: (r) => <span className="text-xs text-ink-mute tabnum">{num(r.reachedF)} / {num(r.reachedM)}</span> },
           canEdit && {
-            key: 'act', label: '', width: 40, render: (r) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={16} /></button>}>
-                <MenuItem icon={Pencil} onClick={() => setEditing(r)}>Modifier</MenuItem>
-                <MenuItem icon={Trash2} tone="bad" onClick={() => del(r)}>Supprimer</MenuItem>
-              </Dropdown>
-            ),
+            key: 'act', label: '', width: 110, align: 'right',
+            render: (r) => <RowActions onEdit={() => setEditing(r)} onDelete={() => del(r)} />,
           },
         ].filter(Boolean)}
       />

@@ -8,7 +8,7 @@ import { useStore, byId } from '../lib/store.js'
 import { indicatorAchievement, indicatorActual, achievementTone } from '../lib/compute.js'
 import { INDICATOR_LEVEL } from '../lib/constants.js'
 import { num, pct } from '../lib/format.js'
-import { PageHeader, Select, Kpi, DataTable, Badge, Progress } from '../components/ui.jsx'
+import { PageHeader, Select, Kpi, DataTable, Badge, Progress, RowActions } from '../components/ui.jsx'
 import { IndicatorPanel } from './panels/Indicators.jsx'
 
 const LEVEL_TONE = { impact: 'brand', outcome: 'ok', output: 'warn', process: 'ink' }
@@ -55,6 +55,7 @@ export default function Indicateurs() {
             { key: 'target', label: 'Cible', align: 'right', render: (r) => <span className="tabnum font-semibold">{num(r.target)}</span> },
             { key: 'actual', label: 'Réalisé', align: 'right', render: (r) => <span className="tabnum">{num(indicatorActual(r))}</span> },
             { key: 'ach', label: 'Atteinte', width: 150, render: (r) => { const a = indicatorAchievement(r); return <div className="flex items-center gap-2"><Progress value={a} tone={achievementTone(a)} /><span className="w-11 text-right text-xs font-bold tabnum">{a == null ? '—' : pct(a)}</span></div> } },
+            { key: 'act', label: '', width: 120, align: 'right', render: (r) => <RowActions onOpen={() => nav(`/projets/${r.projectId}`)} openLabel="Projet" /> },
           ]}
         />
       ) : (

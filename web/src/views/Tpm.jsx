@@ -2,14 +2,14 @@
 // Suivi tiers (TPM) — contrats de prestataires, missions, dépenses, validation
 // ============================================================================
 import { useMemo, useState } from 'react'
-import { Handshake, Plus, MoreVertical, Pencil, Trash2, FileText, Coins } from 'lucide-react'
+import { Handshake, Plus, FileText, Coins, CheckCircle2 } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { TPM_STATUS, REGIONS } from '../lib/constants.js'
 import { money, moneyShort, fmtDate, pct } from '../lib/format.js'
 import {
   PageHeader, Kpi, Card, Badge, Button, StatusBadge, DataTable, Modal, Field, Input, Select, Textarea,
-  Dropdown, MenuItem, Progress, SectionTitle, useConfirm, EmptyState,
+  RowActions, Progress, SectionTitle, useConfirm, EmptyState,
 } from '../components/ui.jsx'
 
 export default function Tpm() {
@@ -61,13 +61,11 @@ export default function Tpm() {
           { key: 'ceiling', label: 'Plafond', align: 'right', render: (c) => <span className="tabnum">{money(c.ceiling)}</span> },
           { key: 'spent', label: 'Consommé', width: 150, render: (c) => { const s = spentOf(c.id); const b = c.ceiling ? (s / c.ceiling) * 100 : 0; return <div className="flex items-center gap-2"><Progress value={b} tone={b > 90 ? 'bad' : b > 75 ? 'warn' : 'ok'} /><span className="w-9 text-right text-xs tabnum">{pct(b)}</span></div> } },
           { key: 'status', label: 'Statut', render: (c) => <StatusBadge map={TPM_STATUS} value={c.status} /> },
-          canEdit && {
-            key: 'act', label: '', width: 40, render: (c) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink" onClick={(e) => e.stopPropagation()}><MoreVertical size={16} /></button>}>
-                <MenuItem icon={Pencil} onClick={() => setEditContract(c)}>Modifier</MenuItem>
-                <MenuItem icon={Trash2} tone="bad" onClick={() => del(c)}>Supprimer</MenuItem>
-              </Dropdown>
-            ),
+          {
+            key: 'act', label: '', width: 190, align: 'right',
+            render: (c) => <RowActions onOpen={() => setDetail(c)}
+              onEdit={canEdit ? () => setEditContract(c) : undefined}
+              onDelete={canEdit ? () => del(c) : undefined} />,
           },
         ].filter(Boolean)}
       />
@@ -127,12 +125,13 @@ function ContractDetail({ contract, onClose }) {
           { key: 'budget', label: 'Budget', align: 'right', render: (m) => <span className="tabnum">{money(m.budget)}</span> },
           { key: 'status', label: 'Statut', render: (m) => <StatusBadge map={TPM_STATUS} value={m.status} /> },
           (canEdit || canValidate) && {
-            key: 'act', label: '', width: 36, render: (m) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={15} /></button>}>
-                {canValidate && m.status !== 'valide_pays' && <MenuItem onClick={() => { update('tpmMissions', m.id, { status: 'valide_pays' }); log('valide', 'TPM', `Mission validée : ${m.period}`) }}>Valider (pays)</MenuItem>}
-                {canEdit && <MenuItem icon={Pencil} onClick={() => setMissionForm(m)}>Modifier</MenuItem>}
-                {canEdit && <MenuItem icon={Trash2} tone="bad" onClick={() => remove('tpmMissions', m.id)}>Supprimer</MenuItem>}
-              </Dropdown>
+            key: 'act', label: '', width: 150, align: 'right', render: (m) => (
+              <div className="flex items-center justify-end gap-1">
+                {canValidate && m.status !== 'valide_pays' && (
+                  <button title="Valider (pays)" onClick={() => { update('tpmMissions', m.id, { status: 'valide_pays' }); log('valide', 'TPM', `Mission validée : ${m.period}`) }} className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-ok-tint hover:text-ok"><CheckCircle2 size={15} /></button>
+                )}
+                <RowActions onEdit={canEdit ? () => setMissionForm(m) : undefined} onDelete={canEdit ? () => remove('tpmMissions', m.id) : undefined} />
+              </div>
             ),
           },
         ].filter(Boolean)}
@@ -150,7 +149,7 @@ function ContractDetail({ contract, onClose }) {
           { key: 'label', label: 'Libellé', render: (e) => <span className="font-semibold text-ink">{e.label}</span> },
           { key: 'amount', label: 'Montant', align: 'right', render: (e) => <span className="tabnum">{money(e.amount)}</span> },
           { key: 'status', label: 'Statut', render: (e) => <Badge tone={e.status === 'valide' ? 'ok' : 'warn'}>{e.status}</Badge> },
-          canEdit && { key: 'act', label: '', width: 36, render: (e) => <button className="text-ink-mute hover:text-bad" onClick={() => remove('tpmExpenses', e.id)}><Trash2 size={15} /></button> },
+          canEdit && { key: 'act', label: '', width: 70, align: 'right', render: (e) => <RowActions onDelete={() => remove('tpmExpenses', e.id)} /> },
         ].filter(Boolean)}
       />
 

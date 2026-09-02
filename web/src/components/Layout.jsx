@@ -7,6 +7,7 @@ import {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog,
   Settings, Menu, X, Bell, ChevronDown, Search, RefreshCw, Download, LogIn, Building2,
+  CalendarCheck, ClipboardList,
 } from 'lucide-react'
 import { NAV, ROLES } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
@@ -17,6 +18,7 @@ import { fromNow } from '../lib/format.js'
 const ICONS = {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog, Settings,
+  CalendarCheck, ClipboardList,
 }
 
 export default function Layout() {

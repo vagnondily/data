@@ -296,12 +296,24 @@ export function buildSeed() {
     { id: 'au_5', date: new Date(now - 3600e3 * 52).toISOString(), userId: 'u_miora', action: 'alerte', entity: 'visite', summary: 'Action urgente signalée à Toamasina II (score 47)' },
   ]
 
+  // ---- Plan MRE (activités de suivi-évaluation & budget) ------------------
+  const mreActivities = [
+    { id: 'mre_1', projectId: 'pr_gs1', name: 'Enquête post-distribution (PDM) — T3', type: 'enquete', period: '2025-T3', responsibleId: 'u_hery', costPlanned: 18000, costActual: 16500, status: 'realise' },
+    { id: 'mre_2', projectId: 'pr_gs1', name: 'Suivi de routine mensuel des sites', type: 'suivi', period: '2025', responsibleId: 'u_fara', costPlanned: 24000, costActual: 15000, status: 'en_cours' },
+    { id: 'mre_3', projectId: 'pr_gs2', name: 'Évaluation à mi-parcours', type: 'evaluation', period: '2025-T4', responsibleId: 'u_hery', costPlanned: 35000, costActual: 0, status: 'planifie' },
+    { id: 'mre_4', projectId: 'pr_nut1', name: 'Enquête SQUEAC (couverture)', type: 'enquete', period: '2025-T3', responsibleId: 'u_hery', costPlanned: 22000, costActual: 20000, status: 'realise' },
+    { id: 'mre_5', projectId: 'pr_nut1', name: 'TPM nutrition — vérification tierce', type: 'tpm', period: '2025-T3', responsibleId: 'u_miora', costPlanned: 12000, costActual: 8600, status: 'en_cours' },
+    { id: 'mre_6', projectId: 'pr_shock', name: 'Mécanisme de plaintes & redevabilité (CFM)', type: 'redevabilite', period: '2025', responsibleId: 'u_hery', costPlanned: 9000, costActual: 5000, status: 'en_cours' },
+    { id: 'mre_7', projectId: 'pr_gs1', name: 'Atelier de capitalisation annuel', type: 'capitalisation', period: '2025-T4', responsibleId: 'u_tiana', costPlanned: 14000, costActual: 0, status: 'planifie' },
+  ]
+
   return {
     organization: { ...ORG_DEFAULT },
     users, offices, partners, programmes, projects,
     objectives, results, indicators, activities, sites,
     budgetLines, beneficiaries, visits,
     tpmContracts, tpmMissions, tpmExpenses, imports, audit,
+    mreActivities,
     currentUserId: 'u_armi',
     seededAt: new Date().toISOString(),
   }

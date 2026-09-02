@@ -9,7 +9,7 @@ import { INDICATOR_LEVEL, POLARITY, PERIODS, C } from '../../lib/constants.js'
 import { indicatorAchievement, indicatorActual, plannedToDate, achievementTone } from '../../lib/compute.js'
 import { num, pct } from '../../lib/format.js'
 import {
-  Badge, Button, Progress, Modal, Field, Input, Select, Textarea, Dropdown, MenuItem,
+  Badge, Button, Progress, Modal, Field, Input, Select, Textarea, RowActions,
   DataTable, useConfirm, EmptyState,
 } from '../../components/ui.jsx'
 import { ChartBars, Sparkline } from '../../components/charts.jsx'
@@ -66,13 +66,11 @@ export function IndicatorPanel({ projectId, showAdd = true }) {
               return data.length > 1 ? <Sparkline data={data} color={C.brand} /> : <span className="text-ink-mute">—</span>
             },
           },
-          canEdit && {
-            key: 'act', label: '', width: 40, render: (r) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink" onClick={(e) => e.stopPropagation()}><MoreVertical size={16} /></button>}>
-                <MenuItem icon={Pencil} onClick={() => setEditDef(r)}>Modifier la définition</MenuItem>
-                <MenuItem icon={Trash2} tone="bad" onClick={() => del(r)}>Supprimer</MenuItem>
-              </Dropdown>
-            ),
+          {
+            key: 'act', label: '', width: 180, align: 'right',
+            render: (r) => <RowActions onOpen={() => setEditVals(r)} openLabel="Saisie"
+              onEdit={canEdit ? () => setEditDef(r) : undefined}
+              onDelete={canEdit ? () => del(r) : undefined} />,
           },
         ].filter(Boolean)}
       />

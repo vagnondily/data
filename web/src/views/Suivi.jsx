@@ -10,7 +10,7 @@ import { VISIT_STATUS, VISIT_TYPE, COMPLIANCE_BANDS, complianceBand, MMR_TARGET 
 import { fmtDate, pct, todayISO } from '../lib/format.js'
 import {
   PageHeader, Kpi, Card, Ring, Badge, Button, Select, StatusBadge, DataTable, Modal, Field, Input,
-  Textarea, Dropdown, MenuItem, useConfirm, SectionTitle,
+  Textarea, RowActions, useConfirm, SectionTitle,
 } from '../components/ui.jsx'
 
 export default function Suivi() {
@@ -122,12 +122,13 @@ export default function Suivi() {
           { key: 'score', label: 'Score', align: 'right', render: (r) => r.score == null ? '—' : <span className={`font-bold tabnum ${r.score >= 65 ? 'text-ok' : r.score >= 50 ? 'text-warn' : 'text-bad'}`}>{r.score}</span> },
           { key: 'monitor', label: 'Suivi par', render: (r) => byId(users, r.monitorId)?.name?.split(' ')[0] || '—' },
           (canEdit || canValidate) && {
-            key: 'act', label: '', width: 40, render: (r) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={16} /></button>}>
-                {canValidate && r.status === 'planifie' && <MenuItem icon={CheckCircle2} onClick={() => validate(r)}>Marquer réalisée</MenuItem>}
-                {canEdit && <MenuItem icon={Pencil} onClick={() => setEditing(r)}>Modifier</MenuItem>}
-                {canEdit && <MenuItem icon={Trash2} tone="bad" onClick={() => del(r)}>Supprimer</MenuItem>}
-              </Dropdown>
+            key: 'act', label: '', width: 150, align: 'right', render: (r) => (
+              <div className="flex items-center justify-end gap-1">
+                {canValidate && r.status === 'planifie' && (
+                  <button title="Marquer réalisée" onClick={() => validate(r)} className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-ok-tint hover:text-ok"><CheckCircle2 size={16} /></button>
+                )}
+                <RowActions onEdit={canEdit ? () => setEditing(r) : undefined} onDelete={canEdit ? () => del(r) : undefined} />
+              </div>
             ),
           },
         ].filter(Boolean)}

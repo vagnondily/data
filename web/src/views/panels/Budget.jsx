@@ -9,7 +9,7 @@ import { budgetForProject, budgetByKey } from '../../lib/compute.js'
 import { C } from '../../lib/constants.js'
 import { money, moneyShort, pct } from '../../lib/format.js'
 import {
-  Card, Badge, Button, Progress, Modal, Field, Input, Select, Dropdown, MenuItem, DataTable, useConfirm,
+  Card, Badge, Button, Progress, Modal, Field, Input, Select, RowActions, DataTable, useConfirm,
 } from '../../components/ui.jsx'
 import { ChartBars } from '../../components/charts.jsx'
 
@@ -71,12 +71,8 @@ export function BudgetPanel({ projectId }) {
             },
           },
           canEdit && {
-            key: 'act', label: '', width: 40, render: (r) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={16} /></button>}>
-                <MenuItem icon={Pencil} onClick={() => setEditing(r)}>Modifier</MenuItem>
-                <MenuItem icon={Trash2} tone="bad" onClick={() => del(r)}>Supprimer</MenuItem>
-              </Dropdown>
-            ),
+            key: 'act', label: '', width: 110, align: 'right',
+            render: (r) => <RowActions onEdit={() => setEditing(r)} onDelete={() => del(r)} />,
           },
         ].filter(Boolean)}
       />

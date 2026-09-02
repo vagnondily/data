@@ -112,6 +112,22 @@ export const IMPORT_STATUS = {
   rejete: { label: 'Rejeté', tone: 'bad' },
 }
 
+// --- Plan MRE (suivi-évaluation & budget) ------------------------------------
+export const MRE_TYPES = {
+  enquete: { label: 'Enquête / PDM' },
+  evaluation: { label: 'Évaluation' },
+  tpm: { label: 'TPM' },
+  suivi: { label: 'Suivi de routine' },
+  redevabilite: { label: 'Redevabilité (CFM)' },
+  capitalisation: { label: 'Capitalisation / apprentissage' },
+}
+export const MRE_STATUS = {
+  planifie: { label: 'Planifié', tone: 'brand' },
+  en_cours: { label: 'En cours', tone: 'warn' },
+  realise: { label: 'Réalisé', tone: 'ok' },
+  annule: { label: 'Annulé', tone: 'ink' },
+}
+
 // --- Indice de conformité /100 (bandes reprises de la maquette bailleur) ------
 export const COMPLIANCE_BANDS = [
   { key: 'exc', label: 'Excellent', min: 80, color: '#3F7D0E' },
@@ -206,7 +222,9 @@ export const NAV = [
     group: 'Terrain & suivi',
     items: [
       { to: '/sites', label: 'Sites & carte', icon: 'MapPin' },
+      { to: '/plan-suivi', label: 'Plan de suivi', icon: 'CalendarCheck' },
       { to: '/suivi', label: 'Suivi & visites', icon: 'ClipboardCheck' },
+      { to: '/mre', label: 'Plan MRE', icon: 'ClipboardList' },
       { to: '/beneficiaires', label: 'Bénéficiaires', icon: 'Users' },
       { to: '/tpm', label: 'Suivi tiers (TPM)', icon: 'Handshake' },
     ],

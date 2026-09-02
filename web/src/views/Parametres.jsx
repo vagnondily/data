@@ -8,7 +8,7 @@ import { useCan } from '../lib/perms.js'
 import { SECTORS, REGIONS } from '../lib/constants.js'
 import { exportJSON } from '../lib/export.js'
 import {
-  PageHeader, Card, Tabs, Field, Input, Select, Button, Badge, DataTable, Modal, Dropdown, MenuItem,
+  PageHeader, Card, Tabs, Field, Input, Select, Button, Badge, DataTable, Modal, RowActions,
   SectionTitle, useConfirm,
 } from '../components/ui.jsx'
 
@@ -71,7 +71,7 @@ function PartnersTab({ canAdmin }) {
           { key: 'name', label: 'Nom', render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
           { key: 'acronym', label: 'Acronyme', render: (r) => <span className="font-mono text-xs text-brand-d">{r.acronym}</span> },
           { key: 'type', label: 'Type', render: (r) => <Badge tone={r.type === 'bailleur' ? 'brand' : r.type === 'prestataire' ? 'warn' : 'ink'}>{PARTNER_TYPES[r.type]}</Badge> },
-          canAdmin && { key: 'act', label: '', width: 40, render: (r) => <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={16} /></button>}><MenuItem icon={Pencil} onClick={() => setEditing(r)}>Modifier</MenuItem><MenuItem icon={Trash2} tone="bad" onClick={() => del(r)}>Supprimer</MenuItem></Dropdown> },
+          canAdmin && { key: 'act', label: '', width: 110, align: 'right', render: (r) => <RowActions onEdit={() => setEditing(r)} onDelete={() => del(r)} /> },
         ].filter(Boolean)}
       />
       {editing && <PartnerModal partner={editing} onClose={() => setEditing(null)} onSave={(data) => { if (editing.id) { update('partners', editing.id, data); log('modifie', 'partenaire', `Modifié : ${data.name}`) } else { add('partners', data); log('cree', 'partenaire', `Nouveau : ${data.name}`) } setEditing(null) }} />}
@@ -107,7 +107,7 @@ function OfficesTab({ canAdmin }) {
           { key: 'type', label: 'Type', render: (r) => <Badge tone="ink">{r.type}</Badge> },
           { key: 'parent', label: 'Rattaché à', render: (r) => byId(offices, r.parentId)?.name || '—' },
           { key: 'scope', label: 'Périmètre', render: (r) => <Badge tone={r.scopeMode === 'national' ? 'brand' : 'ink'}>{r.scopeMode === 'national' ? 'National' : 'Bureau'}</Badge> },
-          canAdmin && { key: 'act', label: '', width: 40, render: (r) => <button className="text-ink-mute hover:text-brand" onClick={() => setEditing(r)}><Pencil size={15} /></button> },
+          canAdmin && { key: 'act', label: '', width: 90, align: 'right', render: (r) => <RowActions onEdit={() => setEditing(r)} /> },
         ].filter(Boolean)}
       />
       {editing && <OfficeModal office={editing} offices={offices} onClose={() => setEditing(null)} onSave={(data) => { if (editing.id) update('offices', editing.id, data); else add('offices', data); log(editing.id ? 'modifie' : 'cree', 'bureau', data.name); setEditing(null) }} />}

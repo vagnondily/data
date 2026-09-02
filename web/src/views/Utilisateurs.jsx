@@ -8,7 +8,7 @@ import { useCan } from '../lib/perms.js'
 import { ROLES, ROLE_KEYS } from '../lib/constants.js'
 import {
   PageHeader, Card, SectionTitle, Button, Badge, Avatar, DataTable, Modal, Field, Input, Select,
-  Dropdown, MenuItem, useConfirm,
+  RowActions, useConfirm,
 } from '../components/ui.jsx'
 
 const CAN_LABEL = { view: 'Consulter', edit: 'Modifier', validate: 'Valider', admin: 'Administrer', super: 'Console instance' }
@@ -42,12 +42,8 @@ export default function Utilisateurs() {
           { key: 'office', label: 'Bureau', render: (u) => <span className="text-xs text-ink-soft">{byId(offices, u.officeId)?.name || '—'}</span> },
           { key: 'active', label: 'État', render: (u) => <Badge tone={u.active ? 'ok' : 'ink'} dot>{u.active ? 'Actif' : 'Inactif'}</Badge> },
           canAdmin && {
-            key: 'act', label: '', width: 40, render: (u) => (
-              <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={16} /></button>}>
-                <MenuItem icon={Pencil} onClick={() => setEditing(u)}>Modifier</MenuItem>
-                {u.id !== currentUserId && <MenuItem icon={Trash2} tone="bad" onClick={() => del(u)}>Supprimer</MenuItem>}
-              </Dropdown>
-            ),
+            key: 'act', label: '', width: 110, align: 'right',
+            render: (u) => <RowActions onEdit={() => setEditing(u)} onDelete={u.id !== currentUserId ? () => del(u) : undefined} />,
           },
         ].filter(Boolean)}
       />

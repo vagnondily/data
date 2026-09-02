@@ -9,7 +9,7 @@ import { REGIONS, SECURITY, SITE_STATUS } from '../lib/constants.js'
 import { num } from '../lib/format.js'
 import {
   PageHeader, Segmented, Select, Button, Card, Badge, StatusBadge, DataTable, SearchInput,
-  Modal, Field, Input, Dropdown, MenuItem, useConfirm, EmptyState,
+  Modal, Field, Input, RowActions, useConfirm, EmptyState,
 } from '../components/ui.jsx'
 import SiteMap from '../components/Map.jsx'
 
@@ -91,12 +91,8 @@ export default function Sites() {
             { key: 'security', label: 'Sécurité', render: (r) => <StatusBadge map={SECURITY} value={r.security} /> },
             { key: 'status', label: 'Statut', render: (r) => <StatusBadge map={SITE_STATUS} value={r.status} dot={false} /> },
             canEdit && {
-              key: 'act', label: '', width: 40, render: (r) => (
-                <Dropdown trigger={<button className="text-ink-mute hover:text-ink"><MoreVertical size={16} /></button>}>
-                  <MenuItem icon={Pencil} onClick={() => setEditing(r)}>Modifier</MenuItem>
-                  <MenuItem icon={Trash2} tone="bad" onClick={() => del(r)}>Supprimer</MenuItem>
-                </Dropdown>
-              ),
+              key: 'act', label: '', width: 110, align: 'right',
+              render: (r) => <RowActions onEdit={() => setEditing(r)} onDelete={() => del(r)} />,
             },
           ].filter(Boolean)}
         />
