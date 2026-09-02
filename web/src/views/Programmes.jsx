@@ -1,17 +1,17 @@
 // ============================================================================
-// Programmes / portefeuilles — regroupement de projets
+// Programmes / portefeuilles — liste (tableau) avec actions de ligne
 // ============================================================================
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FolderKanban, Plus, Pencil, Trash2, MoreVertical, ArrowRight } from 'lucide-react'
+import { FolderKanban, Plus } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { budgetForProject } from '../lib/compute.js'
 import { PROGRAMME_STATUS, SECTORS } from '../lib/constants.js'
-import { money, moneyShort, fmtDate, pct } from '../lib/format.js'
+import { moneyShort, pct } from '../lib/format.js'
 import {
-  Card, Badge, Button, PageHeader, Progress, Avatar, Modal, Field, Input, Textarea, Select,
-  Dropdown, MenuItem, StatusBadge, useConfirm, EmptyState,
+  Badge, Button, PageHeader, Progress, Modal, Field, Input, Textarea, Select,
+  StatusBadge, DataTable, RowActions, useConfirm, EmptyState,
 } from '../components/ui.jsx'
 
 export default function Programmes() {
@@ -24,14 +24,17 @@ export default function Programmes() {
   const rows = useMemo(() => programmes.map((pg) => {
     const projs = projects.filter((p) => p.programmeId === pg.id)
     const spent = projs.reduce((n, p) => n + budgetForProject(budgetLines, p.id).spent, 0)
-    return { pg, projs, spent }
+    const burn = pg.budget ? (spent / pg.budget) * 100 : 0
+    return { id: pg.id, pg, count: projs.length, burn }
   }), [programmes, projects, budgetLines])
+
+  const open = (pg) => nav(`/projets?prog=${pg.id}`)
 
   const onDelete = async (pg) => {
     const count = projects.filter((p) => p.programmeId === pg.id).length
     if (await confirm({
       title: 'Supprimer le programme',
-      message: count ? `Ce programme contient ${count} projet(s) qui ne seront pas supprimés mais deviendront non rattachés. Continuer ?` : 'Confirmer la suppression de ce programme ?',
+      message: count ? `Ce programme contient ${count} projet(s) qui deviendront non rattachés (ils ne sont pas supprimés). Continuer ?` : 'Confirmer la suppression de ce programme ?',
       danger: true, confirmLabel: 'Supprimer',
     })) {
       remove('programmes', pg.id)
@@ -42,64 +45,32 @@ export default function Programmes() {
   return (
     <div>
       {node}
-      <PageHeader icon={FolderKanban} title="Programmes" subtitle={`${programmes.length} portefeuille(s) · logique de gestion par programme`}
+      <PageHeader icon={FolderKanban} title="Programmes" subtitle={`${programmes.length} portefeuille(s) · gestion par programme`}
         actions={canEdit && <Button icon={Plus} onClick={() => setEditing({})}>Nouveau programme</Button>} />
 
       {rows.length === 0 ? (
         <EmptyState title="Aucun programme" hint="Créez un premier programme pour regrouper vos projets."
           action={canEdit && <Button icon={Plus} onClick={() => setEditing({})}>Nouveau programme</Button>} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map(({ pg, projs, spent }) => {
-            const donor = byId(partners, pg.donorId)
-            const mgr = byId(users, pg.managerId)
-            const burn = pg.budget ? (spent / pg.budget) * 100 : 0
-            return (
-              <Card key={pg.id} className="flex flex-col">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-brand-d">{pg.code}</span>
-                    <StatusBadge map={PROGRAMME_STATUS} value={pg.status} />
-                  </div>
-                  {canEdit && (
-                    <Dropdown trigger={<button className="grid h-7 w-7 place-items-center rounded-md text-ink-mute hover:bg-surface-2"><MoreVertical size={16} /></button>}>
-                      <MenuItem icon={Pencil} onClick={() => setEditing(pg)}>Modifier</MenuItem>
-                      <MenuItem icon={Trash2} tone="bad" onClick={() => onDelete(pg)}>Supprimer</MenuItem>
-                    </Dropdown>
-                  )}
-                </div>
-                <h3 className="mt-2 text-base font-bold leading-snug text-ink">{pg.name}</h3>
-                <p className="mt-1 line-clamp-2 text-xs text-ink-mute">{pg.description}</p>
-
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {(pg.sectors || []).slice(0, 3).map((s) => <Badge key={s} tone="ink">{s}</Badge>)}
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div><div className="text-xs text-ink-mute">Bailleur</div><div className="font-semibold text-ink">{donor?.acronym || '—'}</div></div>
-                  <div><div className="text-xs text-ink-mute">Projets</div><div className="font-semibold text-ink">{projs.length}</div></div>
-                  <div><div className="text-xs text-ink-mute">Budget</div><div className="font-semibold text-ink tabnum">{moneyShort(pg.budget, pg.currency)}</div></div>
-                  <div><div className="text-xs text-ink-mute">Période</div><div className="text-xs font-semibold text-ink-soft">{fmtDate(pg.startDate)} → {fmtDate(pg.endDate)}</div></div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="mb-1 flex justify-between text-xs text-ink-mute"><span>Consommation budgétaire</span><span className="font-semibold tabnum">{pct(burn)}</span></div>
-                  <Progress value={burn} tone={burn > 90 ? 'bad' : burn > 75 ? 'warn' : 'ok'} />
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-line-soft pt-3">
-                  <div className="flex items-center gap-2">
-                    <Avatar name={mgr?.name} size={26} tone="ink" />
-                    <span className="text-xs text-ink-soft">{mgr?.name || '—'}</span>
-                  </div>
-                  <button onClick={() => nav(`/projets?prog=${pg.id}`)} className="flex items-center gap-1 text-xs font-semibold text-brand hover:underline">
-                    Voir les projets <ArrowRight size={13} />
-                  </button>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+        <DataTable
+          onRowClick={(r) => open(r.pg)}
+          rows={rows}
+          columns={[
+            { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.pg.code}</span> },
+            { key: 'name', label: 'Programme', render: (r) => (<div><div className="font-semibold text-ink">{r.pg.name}</div><div className="line-clamp-1 text-xs text-ink-mute">{r.pg.description}</div></div>) },
+            { key: 'donor', label: 'Bailleur', render: (r) => <Badge tone="ink">{byId(partners, r.pg.donorId)?.acronym || '—'}</Badge> },
+            { key: 'count', label: 'Projets', align: 'right', render: (r) => <span className="tabnum font-semibold">{r.count}</span> },
+            { key: 'budget', label: 'Budget', align: 'right', render: (r) => <span className="tabnum">{moneyShort(r.pg.budget, r.pg.currency)}</span> },
+            { key: 'burn', label: 'Consommation', width: 150, render: (r) => <div className="flex items-center gap-2"><Progress value={r.burn} tone={r.burn > 90 ? 'bad' : r.burn > 75 ? 'warn' : 'ok'} /><span className="w-9 text-right text-xs tabnum">{pct(r.burn)}</span></div> },
+            { key: 'status', label: 'Statut', render: (r) => <StatusBadge map={PROGRAMME_STATUS} value={r.pg.status} /> },
+            {
+              key: 'act', label: '', width: 210, align: 'right',
+              render: (r) => <RowActions onOpen={() => open(r.pg)} openLabel="Projets"
+                onEdit={canEdit ? () => setEditing(r.pg) : undefined}
+                onDelete={canEdit ? () => onDelete(r.pg) : undefined} />,
+            },
+          ]}
+        />
       )}
 
       {editing && (

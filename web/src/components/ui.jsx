@@ -2,7 +2,7 @@
 // Kit d'interface MEMS — primitives réutilisables (charte WFP, style appli PM)
 // ============================================================================
 import { useEffect, useRef, useState } from 'react'
-import { X, ChevronDown, Search, Inbox } from 'lucide-react'
+import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { initials, clamp } from '../lib/format.js'
 
 export const cx = (...a) => a.filter(Boolean).join(' ')
@@ -257,6 +257,29 @@ export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée',
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ---- Actions de ligne (colonne de droite dans les tableaux) ----------------
+export function RowActions({ onOpen, onEdit, onDelete, openLabel = 'Ouvrir' }) {
+  const stop = (fn) => (e) => { e.stopPropagation(); fn?.() }
+  return (
+    <div className="flex items-center justify-end gap-1">
+      {onEdit && (
+        <button title="Modifier" onClick={stop(onEdit)}
+          className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-surface-2 hover:text-brand-d"><Pencil size={15} /></button>
+      )}
+      {onDelete && (
+        <button title="Supprimer" onClick={stop(onDelete)}
+          className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-bad-tint hover:text-bad"><Trash2 size={15} /></button>
+      )}
+      {onOpen && (
+        <button onClick={stop(onOpen)}
+          className="ml-1 inline-flex h-8 items-center gap-1 rounded-lg border border-line bg-surface px-2.5 text-xs font-semibold text-brand-d transition hover:border-brand/50 hover:bg-brand-tint">
+          {openLabel}<ChevronRight size={14} />
+        </button>
+      )}
     </div>
   )
 }

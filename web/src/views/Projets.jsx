@@ -11,7 +11,7 @@ import { PROJECT_STATUS, PRIORITY, SECTORS, REGIONS } from '../lib/constants.js'
 import { moneyShort, fmtDate, pct, num } from '../lib/format.js'
 import {
   Card, Badge, Button, PageHeader, Progress, Avatar, Segmented, StatusBadge, SearchInput, Select,
-  DataTable, EmptyState,
+  DataTable, EmptyState, RowActions, useConfirm,
 } from '../components/ui.jsx'
 import { ProjectForm } from './ProjectForm.jsx'
 
@@ -20,12 +20,25 @@ export default function Projets() {
   const { projects, programmes, partners, users, activities, budgetLines, beneficiaries } = store
   const { canEdit } = useCan()
   const nav = useNavigate()
+  const { confirm, node } = useConfirm()
   const [params, setParams] = useSearchParams()
-  const [view, setView] = useState('cards')
+  const [view, setView] = useState('table')
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState(null)
   const progFilter = params.get('prog') || ''
+
+  const onDelete = async (p) => {
+    if (await confirm({
+      title: 'Supprimer le projet',
+      message: `Supprimer « ${p.name} » et toutes ses données rattachées (cadre logique, activités, indicateurs, budget, bénéficiaires, visites) ?`,
+      danger: true, confirmLabel: 'Supprimer',
+    })) {
+      store.deleteProject(p.id)
+      store.log('supprime', 'projet', `Projet supprimé : ${p.name}`)
+    }
+  }
 
   const enriched = useMemo(() => projects.map((p) => {
     const prog = projectProgress(activities, p.id)
@@ -45,6 +58,7 @@ export default function Projets() {
 
   return (
     <div>
+      {node}
       <PageHeader icon={Briefcase} title="Projets"
         subtitle={progName ? `Programme : ${progName}` : `${projects.length} projet(s) dans le portefeuille`}
         actions={canEdit && <Button icon={Plus} onClick={() => setCreating(true)}>Nouveau projet</Button>} />
@@ -134,11 +148,18 @@ export default function Projets() {
             { key: 'budget', label: 'Dépensé', align: 'right', render: (r) => <span className="tabnum">{moneyShort(r.budget.spent)}</span> },
             { key: 'ben', label: 'Bénéf.', align: 'right', render: (r) => <span className="tabnum">{num(r.ben.reached)}</span> },
             { key: 'end', label: 'Échéance', align: 'right', render: (r) => <span className="text-xs">{fmtDate(r.p.endDate)}</span> },
+            {
+              key: 'act', label: '', width: 210, align: 'right',
+              render: (r) => <RowActions onOpen={() => nav(`/projets/${r.p.id}`)}
+                onEdit={canEdit ? () => setEditing(r.p) : undefined}
+                onDelete={canEdit ? () => onDelete(r.p) : undefined} />,
+            },
           ]}
         />
       )}
 
       {creating && <ProjectForm onClose={() => setCreating(false)} />}
+      {editing && <ProjectForm project={editing} onClose={() => setEditing(null)} />}
     </div>
   )
 }

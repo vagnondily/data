@@ -33,6 +33,21 @@ export const useStore = create(
         set((s) => ({ [coll]: s[coll].filter((x) => x.id !== id) }))
       },
 
+      // Suppression d'un projet + cascade sur les entités rattachées
+      deleteProject(id) {
+        set((s) => ({
+          projects: s.projects.filter((p) => p.id !== id),
+          objectives: s.objectives.filter((o) => o.projectId !== id),
+          results: s.results.filter((r) => r.projectId !== id),
+          indicators: s.indicators.filter((i) => i.projectId !== id),
+          activities: s.activities.filter((a) => a.projectId !== id),
+          budgetLines: s.budgetLines.filter((b) => b.projectId !== id),
+          beneficiaries: s.beneficiaries.filter((b) => b.projectId !== id),
+          visits: s.visits.filter((v) => v.projectId !== id),
+          sites: s.sites.map((st) => ({ ...st, projectIds: (st.projectIds || []).filter((pid) => pid !== id) })),
+        }))
+      },
+
       // -------- Journal d'audit --------------------------------------------
       log(action, entity, summary) {
         set((s) => ({
