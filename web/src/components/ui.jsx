@@ -56,7 +56,7 @@ export function Kpi({ label, value, sub, icon: Icon, tone = 'brand', className }
   return (
     <Card className={cx('flex items-start justify-between gap-3', className)}>
       <div className="min-w-0">
-        <div className="text-2xl font-extrabold leading-none text-ink tabnum truncate">{value}</div>
+        <div className="whitespace-nowrap text-2xl font-extrabold leading-none text-ink tabnum">{value}</div>
         <div className="mt-1.5 text-xs font-medium text-ink-mute">{label}</div>
         {sub != null && <div className="mt-1 text-xs text-ink-soft">{sub}</div>}
       </div>

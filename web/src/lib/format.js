@@ -24,8 +24,8 @@ export function moneyShort(n, currency = 'USD') {
   if (n == null || Number.isNaN(n)) return '—'
   const abs = Math.abs(n)
   const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : ''
-  if (abs >= 1e6) return `${sym}${NF1.format(n / 1e6)} M`
-  if (abs >= 1e3) return `${sym}${NF1.format(n / 1e3)} k`
+  if (abs >= 1e6) return `${sym}${NF1.format(n / 1e6)} M`
+  if (abs >= 1e3) return `${sym}${NF1.format(n / 1e3)} k`
   return `${sym}${NF.format(n)}`
 }
 export function pct(n, digits = 0) {

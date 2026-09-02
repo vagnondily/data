@@ -1,6 +1,7 @@
 // ============================================================================
 // Graphiques MEMS — habillage Recharts aux couleurs de la charte
 // ============================================================================
+import { useId } from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -59,12 +60,14 @@ export function ChartBars({ data, xKey, series, height = 240, stacked = false, f
 
 export function ChartLines({ data, xKey, series, height = 240, fmt = num, area = false }) {
   const Comp = area ? AreaChart : LineChart
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const gid = (i) => `grad-${uid}-${i}`
   return (
     <ResponsiveContainer width="100%" height={height}>
       <Comp data={data} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
         <defs>
-          {series.map((s) => (
-            <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+          {series.map((s, i) => (
+            <linearGradient key={s.key} id={gid(i)} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={s.color} stopOpacity={0.28} />
               <stop offset="100%" stopColor={s.color} stopOpacity={0.02} />
             </linearGradient>
@@ -75,10 +78,10 @@ export function ChartLines({ data, xKey, series, height = 240, fmt = num, area =
         <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={fmt} width={44} />
         <Tooltip content={<TooltipBox fmt={fmt} />} />
         {series.length > 1 && <Legend wrapperStyle={legendStyle} iconType="circle" iconSize={8} />}
-        {series.map((s) => (
+        {series.map((s, i) => (
           area ? (
             <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2.4}
-              fill={`url(#grad-${s.key})`} dot={false} activeDot={{ r: 4 }} />
+              fill={`url(#${gid(i)})`} dot={false} activeDot={{ r: 4 }} />
           ) : (
             <Line key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2.4}
               dot={{ r: 2.5, fill: s.color }} activeDot={{ r: 4 }} />
