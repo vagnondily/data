@@ -58,6 +58,7 @@ const EN = {
   // Actions / boutons
   'Enregistrer': 'Save', 'Annuler': 'Cancel', 'Modifier': 'Edit', 'Supprimer': 'Delete', 'Ouvrir': 'Open',
   'Dupliquer': 'Duplicate', 'Créer': 'Create', 'Créer…': 'Create…', 'Fermer': 'Close', 'Valider': 'Validate',
+  'Rétablir': 'Undo', 'Suppression annulée': 'Deletion undone',
   'Rejeter': 'Reject', 'Réinitialiser': 'Reset', 'Confirmer': 'Confirm', 'Retour aux projets': 'Back to projects',
   'Retour aux programmes': 'Back to programs', 'Retour au registre': 'Back to registry',
   'Exporter Excel': 'Export Excel', 'Importer Excel': 'Import Excel', 'Exporter en Excel': 'Export to Excel',

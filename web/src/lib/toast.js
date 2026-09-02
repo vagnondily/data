@@ -28,3 +28,8 @@ export function notify(message, opts = {}) {
 export function notifyAction(action, message) {
   return useToasts.getState().push({ message, kind: TONE[action] || 'brand' })
 }
+// Toast de suppression avec bouton « Annuler » — TTL allongé pour laisser le
+// temps de cliquer ; `undo` est la closure de restauration.
+export function notifyUndo(message, undo) {
+  return useToasts.getState().push({ message, kind: 'warn', ttl: 7000, undo })
+}

@@ -130,7 +130,8 @@ function ContractDetail({ contract, onClose }) {
                 {canValidate && m.status !== 'valide_pays' && (
                   <button title="Valider (pays)" onClick={() => { update('tpmMissions', m.id, { status: 'valide_pays' }); log('valide', 'TPM', `Mission validée : ${m.period}`) }} className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-ok-tint hover:text-ok"><CheckCircle2 size={15} /></button>
                 )}
-                <RowActions onEdit={canEdit ? () => setMissionForm(m) : undefined} onDelete={canEdit ? () => remove('tpmMissions', m.id) : undefined} />
+                <RowActions onEdit={canEdit ? () => setMissionForm(m) : undefined}
+                  onDelete={canEdit ? () => { remove('tpmMissions', m.id); log('supprime', 'TPM', `Mission supprimée : ${m.period}`) } : undefined} />
               </div>
             ),
           },
@@ -149,7 +150,7 @@ function ContractDetail({ contract, onClose }) {
           { key: 'label', label: 'Libellé', render: (e) => <span className="font-semibold text-ink">{e.label}</span> },
           { key: 'amount', label: 'Montant', align: 'right', render: (e) => <span className="tabnum">{money(e.amount)}</span> },
           { key: 'status', label: 'Statut', render: (e) => <Badge tone={e.status === 'valide' ? 'ok' : 'warn'}>{e.status}</Badge> },
-          canEdit && { key: 'act', label: '', width: 70, align: 'right', render: (e) => <RowActions onDelete={() => remove('tpmExpenses', e.id)} /> },
+          canEdit && { key: 'act', label: '', width: 70, align: 'right', render: (e) => <RowActions onDelete={() => { remove('tpmExpenses', e.id); log('supprime', 'TPM', `Dépense supprimée : ${e.label}`) }} /> },
         ].filter(Boolean)}
       />
 
