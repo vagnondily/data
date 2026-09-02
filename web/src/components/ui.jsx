@@ -4,6 +4,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight, ChevronsUpDown, Copy } from 'lucide-react'
 import { initials, clamp } from '../lib/format.js'
+import { t } from '../lib/i18n.js'
+
+const tr = (v) => (typeof v === 'string' ? t(v) : v)
 
 export const cx = (...a) => a.filter(Boolean).join(' ')
 
@@ -35,7 +38,7 @@ export function Badge({ tone = 'ink', children, dot = false, className }) {
 export function StatusBadge({ map, value, dot = true }) {
   const s = map?.[value]
   if (!s) return <Badge tone="ink">{value || '—'}</Badge>
-  return <Badge tone={s.tone} dot={dot}>{s.label}</Badge>
+  return <Badge tone={s.tone} dot={dot}>{t(s.label)}</Badge>
 }
 
 // ---- Card ------------------------------------------------------------------
@@ -57,7 +60,7 @@ export function Kpi({ label, value, sub, icon: Icon, tone = 'brand', className }
     <Card className={cx('flex items-start justify-between gap-3', className)}>
       <div className="min-w-0">
         <div className="whitespace-nowrap text-2xl font-extrabold leading-none text-ink tabnum">{value}</div>
-        <div className="mt-1.5 text-xs font-medium text-ink-mute">{label}</div>
+        <div className="mt-1.5 text-xs font-medium text-ink-mute">{tr(label)}</div>
         {sub != null && <div className="mt-1 text-xs text-ink-soft">{sub}</div>}
       </div>
       {Icon && (
@@ -120,7 +123,7 @@ export function Button({ variant = 'primary', size = 'md', icon: Icon, children,
       {...rest}
     >
       {Icon && <Icon size={size === 'sm' ? 14 : 16} strokeWidth={2.2} />}
-      {children}
+      {tr(children)}
     </button>
   )
 }
@@ -150,7 +153,7 @@ export function Field({ label, hint, required, children, className }) {
     <label className={cx('block', className)}>
       {label && (
         <span className="mb-1 flex items-center gap-1 text-xs font-semibold text-ink-soft">
-          {label}{required && <span className="text-bad">*</span>}
+          {tr(label)}{required && <span className="text-bad">*</span>}
         </span>
       )}
       {children}
@@ -178,7 +181,7 @@ export function Segmented({ options, value, onChange, className }) {
         <button key={o.value} onClick={() => onChange(o.value)}
           className={cx('inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition',
             value === o.value ? 'bg-brand text-white shadow-card' : 'text-ink-soft hover:text-ink')}>
-          {o.icon && <o.icon size={14} />}{o.label}
+          {o.icon && <o.icon size={14} />}{tr(o.label)}
         </button>
       ))}
     </div>
@@ -189,12 +192,12 @@ export function Segmented({ options, value, onChange, className }) {
 export function Tabs({ tabs, value, onChange, className }) {
   return (
     <div className={cx('flex gap-1 overflow-x-auto no-scrollbar border-b border-line', className)}>
-      {tabs.map((t) => (
-        <button key={t.value} onClick={() => onChange(t.value)}
+      {tabs.map((tb) => (
+        <button key={tb.value} onClick={() => onChange(tb.value)}
           className={cx('relative whitespace-nowrap px-3.5 py-2.5 text-sm font-semibold transition',
-            value === t.value ? 'text-brand' : 'text-ink-mute hover:text-ink-soft')}>
-          {t.label}{t.count != null && <span className="ml-1.5 rounded-full bg-inset px-1.5 py-0.5 text-[10px] text-ink-soft">{t.count}</span>}
-          {value === t.value && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand" />}
+            value === tb.value ? 'text-brand' : 'text-ink-mute hover:text-ink-soft')}>
+          {tr(tb.label)}{tb.count != null && <span className="ml-1.5 rounded-full bg-inset px-1.5 py-0.5 text-[10px] text-ink-soft">{tb.count}</span>}
+          {value === tb.value && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand" />}
         </button>
       ))}
     </div>
@@ -208,8 +211,8 @@ export function PageHeader({ title, subtitle, icon: Icon, actions, children }) {
       <div className="flex items-start gap-3">
         {Icon && <span className="mt-0.5 grid h-10 w-10 flex-none place-items-center rounded-xl2 bg-brand-tint text-brand-d"><Icon size={20} /></span>}
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-ink">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-sm text-ink-mute">{subtitle}</p>}
+          <h1 className="text-xl font-extrabold tracking-tight text-ink">{tr(title)}</h1>
+          {subtitle && <p className="mt-0.5 text-sm text-ink-mute">{tr(subtitle)}</p>}
           {children}
         </div>
       </div>
@@ -221,7 +224,7 @@ export function PageHeader({ title, subtitle, icon: Icon, actions, children }) {
 export function SectionTitle({ children, action, className }) {
   return (
     <div className={cx('mb-3 flex items-center justify-between gap-2', className)}>
-      <h3 className="text-sm font-bold uppercase tracking-wide text-ink-soft">{children}</h3>
+      <h3 className="text-sm font-bold uppercase tracking-wide text-ink-soft">{tr(children)}</h3>
       {action}
     </div>
   )
@@ -267,7 +270,7 @@ export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée',
                     c.align === 'right' && 'text-right', c.align === 'center' && 'text-center',
                     sortable && 'cursor-pointer select-none transition hover:text-ink')} style={c.width ? { width: c.width } : undefined}>
                   <span className={cx('inline-flex items-center gap-1', c.align === 'right' && 'flex-row-reverse')}>
-                    {c.label}
+                    {tr(c.label)}
                     {sortable && (active
                       ? <span className="text-brand">{sort.dir === 'asc' ? '▲' : '▼'}</span>
                       : <ChevronsUpDown size={11} className="text-ink-mute/40" />)}
@@ -301,21 +304,21 @@ export function RowActions({ onOpen, onEdit, onDelete, onDuplicate, openLabel = 
   return (
     <div className="flex items-center justify-end gap-1">
       {onDuplicate && (
-        <button title="Dupliquer" onClick={stop(onDuplicate)}
+        <button title={t('Dupliquer')} onClick={stop(onDuplicate)}
           className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-surface-2 hover:text-brand-d"><Copy size={15} /></button>
       )}
       {onEdit && (
-        <button title="Modifier" onClick={stop(onEdit)}
+        <button title={t('Modifier')} onClick={stop(onEdit)}
           className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-surface-2 hover:text-brand-d"><Pencil size={15} /></button>
       )}
       {onDelete && (
-        <button title="Supprimer" onClick={stop(onDelete)}
+        <button title={t('Supprimer')} onClick={stop(onDelete)}
           className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-bad-tint hover:text-bad"><Trash2 size={15} /></button>
       )}
       {onOpen && (
         <button onClick={stop(onOpen)}
           className="ml-1 inline-flex h-8 items-center gap-1 rounded-lg border border-line bg-surface px-2.5 text-xs font-semibold text-brand-d transition hover:border-brand/50 hover:bg-brand-tint">
-          {openLabel}<ChevronRight size={14} />
+          {tr(openLabel)}<ChevronRight size={14} />
         </button>
       )}
     </div>
@@ -327,8 +330,8 @@ export function EmptyState({ title = 'Rien à afficher', hint, icon: Icon = Inbo
   return (
     <div className="grid place-items-center rounded-xl2 border border-dashed border-line bg-surface/60 px-6 py-14 text-center">
       <span className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-inset text-ink-mute"><Icon size={22} /></span>
-      <p className="text-sm font-semibold text-ink-soft">{title}</p>
-      {hint && <p className="mt-1 max-w-sm text-xs text-ink-mute">{hint}</p>}
+      <p className="text-sm font-semibold text-ink-soft">{tr(title)}</p>
+      {hint && <p className="mt-1 max-w-sm text-xs text-ink-mute">{tr(hint)}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -339,7 +342,7 @@ export function SearchInput({ value, onChange, placeholder = 'Rechercher…', cl
   return (
     <div className={cx('relative', className)}>
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={tr(placeholder)}
         className={cx(INPUT, 'pl-9')} />
     </div>
   )
@@ -362,8 +365,8 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
       <div className={cx('my-4 w-full rounded-xl2 border border-line bg-surface shadow-pop', w)}>
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 className="text-base font-extrabold text-ink">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-xs text-ink-mute">{subtitle}</p>}
+            <h2 className="text-base font-extrabold text-ink">{tr(title)}</h2>
+            {subtitle && <p className="mt-0.5 text-xs text-ink-mute">{tr(subtitle)}</p>}
           </div>
           <IconButton icon={X} onClick={onClose} className="-mr-2" />
         </div>
@@ -416,7 +419,7 @@ export function MenuItem({ icon: Icon, children, onClick, tone = 'ink' }) {
     <button onClick={onClick}
       className={cx('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition hover:bg-surface-2',
         tone === 'bad' ? 'text-bad' : 'text-ink-soft')}>
-      {Icon && <Icon size={15} />}{children}
+      {Icon && <Icon size={15} />}{tr(children)}
     </button>
   )
 }

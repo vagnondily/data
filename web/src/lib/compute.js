@@ -4,6 +4,7 @@
 // ============================================================================
 import { clamp } from './format.js'
 import { complianceBand, MMR_TARGET } from './constants.js'
+import { t } from './i18n.js'
 
 // ---- Indicateurs -----------------------------------------------------------
 export function latestActual(ind) {
@@ -70,16 +71,16 @@ export function projectProgress(activities, projectId) {
   return Math.round(total / acts.length)
 }
 export function projectHealth(project, progress, budget) {
-  if (['cloture', 'annule'].includes(project.status)) return { key: 'neutre', label: 'Terminé', tone: 'ink' }
+  if (['cloture', 'annule'].includes(project.status)) return { key: 'neutre', label: t('Terminé'), tone: 'ink' }
   if (project.status === 'planification' || project.status === 'identification')
-    return { key: 'prep', label: 'En préparation', tone: 'brand' }
+    return { key: 'prep', label: t('En préparation'), tone: 'brand' }
   const elapsed = timeElapsedPct(project)
   const gap = progress - elapsed
   const burnGap = (budget?.burn || 0) - elapsed
   let key, label, tone
-  if (gap >= -10 && burnGap <= 20) { key = 'vert'; label = 'Sur la bonne voie'; tone = 'ok' }
-  else if (gap >= -25 && burnGap <= 35) { key = 'orange'; label = 'À surveiller'; tone = 'warn' }
-  else { key = 'rouge'; label = 'En retard'; tone = 'bad' }
+  if (gap >= -10 && burnGap <= 20) { key = 'vert'; label = t('Sur la bonne voie'); tone = 'ok' }
+  else if (gap >= -25 && burnGap <= 35) { key = 'orange'; label = t('À surveiller'); tone = 'warn' }
+  else { key = 'rouge'; label = t('En retard'); tone = 'bad' }
   return { key, label, tone, gap: Math.round(gap) }
 }
 

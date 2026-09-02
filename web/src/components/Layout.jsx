@@ -16,6 +16,7 @@ import { useCan } from '../lib/perms.js'
 import { exportJSON } from '../lib/export.js'
 import { cx, Avatar, Badge, Dropdown, MenuItem, IconButton, useConfirm } from './ui.jsx'
 import { fromNow } from '../lib/format.js'
+import { t, useLang } from '../lib/i18n.js'
 import Toaster from './Toaster.jsx'
 import CommandPalette from './CommandPalette.jsx'
 
@@ -30,6 +31,7 @@ export default function Layout() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('mems-collapsed') === '1' } catch { return false } })
   const org = useStore((s) => s.organization)
+  const lang = useLang((s) => s.lang)
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('mems-collapsed', n ? '1' : '0') } catch { /* ignore */ } return n })
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function Layout() {
   }, [paletteOpen])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-ground">
+    <div key={lang} className="flex h-screen overflow-hidden bg-ground">
       {mobileOpen && <div className="fixed inset-0 z-30 bg-brand-deep/40 lg:hidden" onClick={() => setMobileOpen(false)} />}
       <Sidebar org={org} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -94,7 +96,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
           if (!s.items) {
             return (
               <NavLink key={s.to} to={s.to} end={s.to === '/'} onClick={onClose} className={itemCls}>
-                <Icon size={17} strokeWidth={2} className="flex-none" /><span>{s.label}</span>
+                <Icon size={17} strokeWidth={2} className="flex-none" /><span>{t(s.label)}</span>
               </NavLink>
             )
           }
@@ -105,7 +107,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
                 className={cx('flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition',
                   i === activeIdx ? 'text-white' : 'text-[#c9e3f3]/90 hover:bg-white/10 hover:text-white')}>
                 <Icon size={17} strokeWidth={2} className="flex-none" />
-                <span className="flex-1 text-left">{s.label}</span>
+                <span className="flex-1 text-left">{t(s.label)}</span>
                 <ChevronRight size={15} className={cx('flex-none text-[#6f97ad] transition-transform', isOpen && 'rotate-90')} />
               </button>
               {isOpen && (
@@ -114,7 +116,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
                     const SubIcon = ICONS[it.icon] || Briefcase
                     return (
                       <NavLink key={it.to} to={it.to} onClick={onClose} className={itemCls}>
-                        <SubIcon size={16} strokeWidth={2} className="flex-none" /><span>{it.label}</span>
+                        <SubIcon size={16} strokeWidth={2} className="flex-none" /><span>{t(it.label)}</span>
                       </NavLink>
                     )
                   })}
@@ -130,7 +132,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
         {NAV_LEAVES.map((it) => {
           const Icon = ICONS[it.icon] || Briefcase
           return (
-            <NavLink key={it.to} to={it.to} end={it.to === '/'} title={it.label}
+            <NavLink key={it.to} to={it.to} end={it.to === '/'} title={t(it.label)}
               className={({ isActive }) => cx('flex items-center justify-center rounded-lg py-2.5 transition',
                 isActive ? 'bg-brand text-white shadow-card' : 'text-[#c9e3f3]/85 hover:bg-white/10 hover:text-white')}>
               <Icon size={18} strokeWidth={2} />
@@ -142,7 +144,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
       <div className="border-t border-white/10 px-3 py-2">
         <button onClick={onToggleCollapse} title={collapsed ? 'Déplier' : 'Replier'}
           className={cx('hidden w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[#a9d3ec] transition hover:bg-white/10 hover:text-white lg:flex', collapsed && 'lg:justify-center lg:px-0')}>
-          {collapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>Replier le menu</span></>}
+          {collapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>{t('Replier le menu')}</span></>}
         </button>
         <div className={cx('flex items-center gap-2 px-1.5 py-1 text-[#a9d3ec]', collapsed && 'lg:hidden')}>
           <Building2 size={15} className="flex-none" /><span className="truncate text-xs">{org.name}</span>
@@ -158,11 +160,24 @@ function Topbar({ onMenu, onPalette }) {
       <IconButton icon={Menu} onClick={onMenu} className="lg:hidden" />
       <GlobalSearch onPalette={onPalette} />
       <div className="ml-auto flex items-center gap-1.5">
+        <LangToggle />
         <QuickCreate />
         <Notifications />
         <AccountMenu />
       </div>
     </header>
+  )
+}
+
+function LangToggle() {
+  const { lang, setLang } = useLang()
+  return (
+    <div className="hidden items-center rounded-lg border border-line bg-inset p-0.5 sm:flex">
+      {['fr', 'en'].map((l) => (
+        <button key={l} onClick={() => setLang(l)}
+          className={cx('rounded px-2 py-1 text-[11px] font-bold uppercase transition', lang === l ? 'bg-brand text-white shadow-card' : 'text-ink-mute hover:text-ink')}>{l}</button>
+      ))}
+    </div>
   )
 }
 
@@ -173,9 +188,9 @@ function QuickCreate() {
   return (
     <Dropdown trigger={
       <button className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-d">
-        <Plus size={16} strokeWidth={2.4} /><span className="hidden sm:inline">Créer</span>
+        <Plus size={16} strokeWidth={2.4} /><span className="hidden sm:inline">{t('Créer')}</span>
       </button>}>
-      <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-mute">Créer…</div>
+      <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-mute">{t('Créer…')}</div>
       <MenuItem icon={Briefcase} onClick={() => nav('/projets?new=1')}>Nouveau projet</MenuItem>
       <MenuItem icon={FolderKanban} onClick={() => nav('/programmes?new=1')}>Nouveau programme</MenuItem>
       <MenuItem icon={MapPin} onClick={() => nav('/sites?new=1')}>Nouveau site</MenuItem>
@@ -203,7 +218,7 @@ function GlobalSearch({ onPalette }) {
   return (
     <div className="relative w-full max-w-md">
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
-      <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…"
+      <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Rechercher…')}
         className="w-full rounded-lg border border-line bg-inset py-2 pl-9 pr-14 text-sm outline-none transition placeholder:text-ink-mute focus:border-brand focus:bg-surface focus:ring-2 focus:ring-brand/15" />
       <button onClick={onPalette} title="Palette de commandes (⌘K)" className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-mute transition hover:border-brand hover:text-brand-d sm:block">⌘K</button>
       {results.length > 0 && (
@@ -230,7 +245,7 @@ function Notifications() {
         <Bell size={18} />
         {recent.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-bad" />}
       </button>}>
-      <div className="px-2.5 py-2 text-xs font-bold uppercase tracking-wide text-ink-mute">Activité récente</div>
+      <div className="px-2.5 py-2 text-xs font-bold uppercase tracking-wide text-ink-mute">{t('Activité récente')}</div>
       {recent.map((a) => (
         <div key={a.id} className="rounded-lg px-2.5 py-2 hover:bg-surface-2">
           <div className="text-sm text-ink-soft">{a.summary}</div>
@@ -272,7 +287,7 @@ function AccountMenu() {
           <div className="mt-1"><Badge tone={role?.color || 'ink'}>{role?.label}</Badge></div>
         </div>
         <div className="my-1 border-t border-line" />
-        <div className="px-2.5 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-ink-mute">Se connecter en tant que (démo)</div>
+        <div className="px-2.5 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-ink-mute">{t('Se connecter en tant que (démo)')}</div>
         {users.map((u) => (
           <MenuItem key={u.id} icon={u.id === currentUserId ? LogIn : undefined} onClick={() => setCurrentUser(u.id)}>
             <span className={cx(u.id === currentUserId && 'font-bold text-brand-d')}>{u.name}</span>
