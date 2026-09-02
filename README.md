@@ -4,7 +4,7 @@
 inspirée du descriptif produit MEMS et de la logique de gestion de projet.
 Première version **fonctionnelle**, **front‑end uniquement** : elle tourne sans
 serveur ni base de données — les données sont persistées **dans le navigateur**
-(localStorage). Interface **intégralement en français**, charte **WFP** (bleu `#007DBC`).
+(localStorage). Interface **bilingue FR/EN**, **thème clair/sombre**, charte **WFP** (bleu `#007DBC`).
 
 > Pilote de démonstration : bureau pays **Madagascar (PAM)** avec un portefeuille
 > réaliste (2 programmes, 5 projets, cadres logiques, indicateurs, activités, sites,
@@ -39,12 +39,32 @@ tableaux Kanban, chronogramme, cartes, tableaux de bord).
 - **Suivi tiers (TPM)** — contrats de prestataires, missions mensuelles, dépenses, circuit de validation.
 
 ### Exploitation
-- **Import de données** — barrière **Aperçu → Dépôt (en attente) → Validation** (parsing CSV réel).
-- **Rapports** — extraction **CSV/Excel** de tout jeu de données + **générateur de rapport** imprimable (HTML → PDF).
+- **Import de données** — barrière **Aperçu → Dépôt (en attente) → Validation**.
+- **Rapports** — extraction **Excel (.xlsx)** de tout jeu de données + **générateur de rapport** imprimable (HTML → PDF).
+- **Registres versionnés** — plan de suivi & PDD par version : tableau filtrable par bureau, **export/remplissage/réimport Excel**.
 
 ### Administration
 - **Utilisateurs & rôles** — 6 rôles (`super`, `admin`, `validator`, `editor`, `viewer`, `dashboard`).
 - **Paramètres** — organisation, partenaires, bureaux, référentiels, sauvegarde/restauration JSON.
+
+---
+
+## 🧭 Ergonomie & confort d'utilisation
+
+Pensé pour être piloté par une personne non technique :
+
+- **Bilingue FR/EN** — bascule instantanée (barre haute, ou menu compte sur mobile) ; dates et libellés suivent la langue.
+- **Thème clair / sombre** — bascule ☀️/🌙, mémorisée, sans clignotement au chargement.
+- **Visite guidée** — au premier lancement et via le bouton **?** : met en évidence navigation, création, recherche, thème/langue (bilingue).
+- **Bouton « + Créer » global** — ouvre directement le bon formulaire (projet, programme, site, plan de suivi, PDD).
+- **Tableaux** — tri par colonne, en‑têtes collants, **actions par ligne** (Ouvrir · Modifier · Supprimer · Dupliquer).
+- **Sélection multiple + actions groupées** — export **Excel** de la sélection et **suppression en lot**.
+- **Édition en ligne** — modifier une valeur directement dans le tableau (statut, avancement, budget, population).
+- **Annulation** — toute suppression peut être **rétablie** en un clic (toast « Rétablir »).
+- **Palette de commandes** (`⌘K` / `Ctrl+K`) et raccourci `/` pour la recherche.
+- **Barre latérale en accordéon** repliable ; préférences mémorisées.
+- **Mobile** — barre latérale escamotable, formulaires en une colonne, tableaux défilables.
+- **Exports Excel (.xlsx)** — jeux de données et documents (plan de suivi, PDD) : téléchargeables, remplissables puis réimportables.
 
 ---
 
@@ -111,6 +131,8 @@ modification, un validateur peut valider les visites et les imports, etc.).
 | État | **Zustand** + middleware `persist` (localStorage) |
 | Graphiques | **Recharts** |
 | Cartographie | **Leaflet** (marqueurs vectoriels ; fond de tuiles optionnel) |
+| Excel | **SheetJS (xlsx)** — import/export `.xlsx` (chargé à la demande) |
+| Bilingue / thème | dictionnaire i18n FR/EN + variables CSS clair/sombre (magasins `mems-lang` / `mems-theme`) |
 | Icônes / police | **lucide‑react** · **Open Sans** embarquée (`@fontsource`) |
 
 Aucun service tiers requis au chargement ; **Open Sans est embarquée**. Les fonds de
@@ -128,12 +150,14 @@ web/
 │   ├── main.jsx · App.jsx            # point d'entrée + routeur (HashRouter)
 │   ├── lib/
 │   │   ├── constants.js              # charte WFP, rôles, statuts, régions, navigation
-│   │   ├── store.js                  # store Zustand + CRUD + persistance
+│   │   ├── store.js                  # store Zustand + CRUD + persistance + annulation
 │   │   ├── seed.js                   # données de démonstration
 │   │   ├── compute.js                # métriques dérivées (atteinte, santé, MMR, budget)
-│   │   ├── format.js · id.js · perms.js · export.js
-│   ├── components/                   # kit UI, graphiques, carte, coquille (sidebar/topbar)
-│   └── views/                        # une vue par module (+ views/panels réutilisables)
+│   │   ├── i18n.js · theme.js · tour.js · toast.js   # bilingue · thème · visite guidée · notifications
+│   │   ├── docs.js                   # registres versionnés + export/import Excel (.xlsx)
+│   │   ├── format.js · id.js · perms.js · export.js · hooks.js
+│   ├── components/                   # kit UI (DataTable, EditableCell…), graphiques, carte, coquille, Tour, Toaster, palette ⌘K
+│   └── views/                        # une vue par module (+ views/panels & views/docs réutilisables)
 ```
 
 ---
