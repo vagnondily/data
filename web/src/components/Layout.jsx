@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog,
   Settings, Menu, X, Bell, ChevronDown, ChevronRight, Search, RefreshCw, Download, LogIn, Building2,
-  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus, Sun, Moon,
+  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus, Sun, Moon, HelpCircle,
 } from 'lucide-react'
 import { NAV, NAV_LEAVES, ROLES } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
@@ -18,7 +18,9 @@ import { cx, Avatar, Badge, Dropdown, MenuItem, IconButton, useConfirm } from '.
 import { fromNow } from '../lib/format.js'
 import { t, useLang } from '../lib/i18n.js'
 import { useTheme } from '../lib/theme.js'
+import { useTour, TOUR_SEEN_KEY } from '../lib/tour.js'
 import Toaster from './Toaster.jsx'
+import Tour from './Tour.jsx'
 import CommandPalette from './CommandPalette.jsx'
 
 const ICONS = {
@@ -36,7 +38,21 @@ export default function Layout() {
   const theme = useTheme((s) => s.theme)
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('mems-collapsed', n ? '1' : '0') } catch { /* ignore */ } return n })
 
+  const startTour = useTour((s) => s.start)
+
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
+
+  // Visite guidée au premier lancement (une seule fois).
+  useEffect(() => {
+    let seen = true
+    try { seen = localStorage.getItem(TOUR_SEEN_KEY) === '1' } catch { /* ignore */ }
+    if (seen) return
+    const id = setTimeout(() => {
+      try { localStorage.setItem(TOUR_SEEN_KEY, '1') } catch { /* ignore */ }
+      startTour()
+    }, 700)
+    return () => clearTimeout(id)
+  }, [startTour])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -55,11 +71,12 @@ export default function Layout() {
       <Sidebar org={org} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={() => setMobileOpen(true)} onPalette={() => setPaletteOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
+        <main data-tour="content" className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-7 sm:py-7"><Outlet /></div>
         </main>
       </div>
       <Toaster />
+      <Tour />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
@@ -77,7 +94,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
     isActive ? 'bg-brand text-white shadow-card' : 'text-[#c9e3f3]/85 hover:bg-white/10 hover:text-white')
 
   return (
-    <aside className={cx(
+    <aside data-tour="nav" className={cx(
       'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-brand-deep text-white transition-all lg:static lg:translate-x-0',
       collapsed && 'lg:w-16', mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
       {/* Logo */}
@@ -164,8 +181,11 @@ function Topbar({ onMenu, onPalette }) {
       <IconButton icon={Menu} onClick={onMenu} className="lg:hidden" />
       <GlobalSearch onPalette={onPalette} />
       <div className="ml-auto flex items-center gap-1.5">
-        <LangToggle />
-        <ThemeToggle />
+        <div data-tour="theme" className="flex items-center gap-1.5">
+          <LangToggle />
+          <ThemeToggle />
+        </div>
+        <HelpButton />
         <QuickCreate />
         <Notifications />
         <AccountMenu />
@@ -177,6 +197,11 @@ function Topbar({ onMenu, onPalette }) {
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
   return <IconButton icon={theme === 'dark' ? Sun : Moon} onClick={toggle} title={theme === 'dark' ? t('Thème clair') : t('Thème sombre')} />
+}
+
+function HelpButton() {
+  const start = useTour((s) => s.start)
+  return <IconButton icon={HelpCircle} onClick={start} title={t('Aide — visite guidée')} />
 }
 
 function LangToggle() {
@@ -197,7 +222,7 @@ function QuickCreate() {
   if (!canEdit) return null
   return (
     <Dropdown trigger={
-      <button className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-d">
+      <button data-tour="create" className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-d">
         <Plus size={16} strokeWidth={2.4} /><span className="hidden sm:inline">{t('Créer')}</span>
       </button>}>
       <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-mute">{t('Créer…')}</div>
@@ -226,7 +251,7 @@ function GlobalSearch({ onPalette }) {
   }, [q, projects, sites, indicators])
 
   return (
-    <div className="relative w-full max-w-md">
+    <div data-tour="search" className="relative w-full max-w-md">
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
       <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Rechercher…')}
         className="w-full rounded-lg border border-line bg-inset py-2 pl-9 pr-14 text-sm outline-none transition placeholder:text-ink-mute focus:border-brand focus:bg-surface focus:ring-2 focus:ring-brand/15" />

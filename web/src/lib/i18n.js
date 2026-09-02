@@ -61,6 +61,7 @@ const EN = {
   'Rétablir': 'Undo', 'Suppression annulée': 'Deletion undone',
   'sélectionné(s)': 'selected', 'Désélectionner': 'Clear', 'Tout sélectionner': 'Select all',
   'Sélectionner la ligne': 'Select row', 'Exporter la sélection': 'Export selection',
+  'Aide — visite guidée': 'Help — guided tour',
   'Rejeter': 'Reject', 'Réinitialiser': 'Reset', 'Confirmer': 'Confirm', 'Retour aux projets': 'Back to projects',
   'Retour aux programmes': 'Back to programs', 'Retour au registre': 'Back to registry',
   'Exporter Excel': 'Export Excel', 'Importer Excel': 'Import Excel', 'Exporter en Excel': 'Export to Excel',
