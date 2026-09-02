@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { color-scheme: light; }
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: theme('colors.ground');
+    color: theme('colors.ink.DEFAULT');
+    font-family: theme('fontFamily.sans');
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  * { box-sizing: border-box; }
+  ::selection { background: theme('colors.brand.DEFAULT'); color: #fff; }
+}
+
+@layer utilities {
+  .tabnum { font-variant-numeric: tabular-nums; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* Leaflet container needs an explicit height */
+.leaflet-container { height: 100%; width: 100%; background: #dbe7f0; font-family: inherit; }
