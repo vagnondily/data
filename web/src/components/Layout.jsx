@@ -103,7 +103,7 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
         <div className="flex items-center justify-between">
           <div>
             <div className={cx('font-display text-2xl font-extrabold tracking-tight', collapsed && 'lg:hidden')}>MEM<span className="text-[#54b6e6]">S</span></div>
-            <div className={cx('mt-0.5 text-[11px] font-medium text-[#a9d3ec]', collapsed && 'lg:hidden')}>Suivi &amp; Évaluation</div>
+            <div className={cx('mt-0.5 text-[11px] font-medium text-[#a9d3ec]', collapsed && 'lg:hidden')}>{t('Suivi & Évaluation')}</div>
             {collapsed && <div className="hidden font-display text-2xl font-extrabold lg:block">M<span className="text-[#54b6e6]">S</span></div>}
           </div>
           <IconButton icon={X} onClick={onClose} className="text-white hover:bg-white/10 lg:hidden" />
@@ -312,7 +312,7 @@ function AccountMenu() {
           <Avatar name={me?.name} size={32} />
           <div className="hidden text-left sm:block">
             <div className="text-xs font-bold leading-tight text-ink">{me?.name}</div>
-            <div className="text-[11px] leading-tight text-ink-mute">{role?.label}</div>
+            <div className="text-[11px] leading-tight text-ink-mute">{t(role?.label)}</div>
           </div>
           <ChevronDown size={15} className="text-ink-mute" />
         </button>}>

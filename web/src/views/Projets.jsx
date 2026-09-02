@@ -10,6 +10,7 @@ import { budgetForProject, projectProgress, projectHealth, beneficiaryRollup } f
 import { exportRowsXlsx } from '../lib/docs.js'
 import { PROJECT_STATUS, PRIORITY, SECTORS, REGIONS } from '../lib/constants.js'
 import { moneyShort, fmtDate, pct, num } from '../lib/format.js'
+import { t } from '../lib/i18n.js'
 import {
   Card, Badge, Button, PageHeader, Progress, Avatar, Segmented, StatusBadge, SearchInput, Select,
   DataTable, EmptyState, RowActions, useConfirm,
@@ -93,7 +94,7 @@ export default function Projets() {
     <div>
       {node}
       <PageHeader icon={Briefcase} title="Projets"
-        subtitle={progName ? `Programme : ${progName}` : `${projects.length} projet(s) dans le portefeuille`}
+        subtitle={progName ? `${t('Programme :')} ${progName}` : `${projects.length} ${t('projet(s) dans le portefeuille')}`}
         actions={canEdit && <Button icon={Plus} onClick={() => setCreating(true)}>Nouveau projet</Button>} />
 
       {/* Filtres */}

@@ -15,6 +15,7 @@ import { PERIODS, C, CHART_COLORS } from '../lib/constants.js'
 import { money, moneyShort, num, pct, clamp, fromNow } from '../lib/format.js'
 import { Card, Kpi, Ring, Progress, Badge, SectionTitle, PageHeader, Avatar } from '../components/ui.jsx'
 import { ChartBars, ChartLines, ChartDonut, Legendette } from '../components/charts.jsx'
+import { t } from '../lib/i18n.js'
 
 export default function Dashboard() {
   const state = useStore((s) => s)
@@ -68,14 +69,14 @@ export default function Dashboard() {
   return (
     <div>
       <PageHeader icon={Gauge} title="Tableau de bord"
-        subtitle={`${organization.name} · vue d'ensemble du portefeuille`} />
+        subtitle={`${organization.name} · ${t("vue d'ensemble du portefeuille")}`} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <Kpi label="Projets actifs" value={kpi.projectsActive} sub={`sur ${kpi.projectsTotal} au total`} icon={Briefcase} tone="brand" />
+        <Kpi label="Projets actifs" value={kpi.projectsActive} sub={`${t('sur')} ${kpi.projectsTotal} ${t('au total')}`} icon={Briefcase} tone="brand" />
         <Kpi label="Bénéficiaires atteints" value={num(kpi.beneficiariesReached)} sub={pct(kpi.beneficiaryRate)} icon={Users} tone="ok" />
-        <Kpi label="Budget dépensé" value={moneyShort(kpi.budgetSpent)} sub={`${pct(kpi.budgetBurn)} du prévu`} icon={Wallet} tone="brand" />
-        <Kpi label="Couverture suivi" value={pct(cov.coverage)} sub={`cible ${cov.target} %`} icon={ClipboardCheck} tone={cov.coverage >= 80 ? 'ok' : cov.coverage >= 60 ? 'warn' : 'bad'} />
+        <Kpi label="Budget dépensé" value={moneyShort(kpi.budgetSpent)} sub={`${pct(kpi.budgetBurn)} ${t('du prévu')}`} icon={Wallet} tone="brand" />
+        <Kpi label="Couverture suivi" value={pct(cov.coverage)} sub={`${t('cible')} ${cov.target} %`} icon={ClipboardCheck} tone={cov.coverage >= 80 ? 'ok' : cov.coverage >= 60 ? 'warn' : 'bad'} />
         <Kpi label="Conformité /100" value={comp.avg ?? '—'} sub={comp.band.label} icon={Target} tone={comp.avg >= 65 ? 'ok' : comp.avg >= 50 ? 'warn' : 'bad'} />
         <Kpi label="Atteinte indicateurs" value={kpi.avgAchievement != null ? pct(kpi.avgAchievement) : '—'} sub="moyenne pondérée" icon={TrendingUp} tone="brand" />
       </div>
@@ -85,23 +86,23 @@ export default function Dashboard() {
         <Card className="lg:col-span-2">
           <SectionTitle>Budget prévu vs dépensé — par projet</SectionTitle>
           <ChartBars data={budgetByProject} xKey="name" fmt={(v) => moneyShort(v)}
-            series={[{ key: 'Prévu', label: 'Prévu', color: C.brand }, { key: 'Dépensé', label: 'Dépensé', color: C.ok }]} height={260} />
+            series={[{ key: 'Prévu', label: t('Prévu'), color: C.brand }, { key: 'Dépensé', label: t('Dépensé'), color: C.ok }]} height={260} />
         </Card>
         <Card>
           <SectionTitle>Suivi & conformité</SectionTitle>
           <div className="flex items-center justify-around py-2">
             <div className="text-center">
-              <Ring value={cov.coverage} tone={cov.coverage >= 80 ? 'ok' : 'warn'} sub="couverture" />
-              <div className="mt-2 text-xs text-ink-mute">Sites suivis {cov.monitored}/{cov.required}</div>
+              <Ring value={cov.coverage} tone={cov.coverage >= 80 ? 'ok' : 'warn'} sub={t('couverture')} />
+              <div className="mt-2 text-xs text-ink-mute">{t('Sites suivis')} {cov.monitored}/{cov.required}</div>
             </div>
             <div className="text-center">
               <Ring value={comp.avg || 0} tone={comp.avg >= 65 ? 'ok' : comp.avg >= 50 ? 'warn' : 'bad'} label={comp.avg ?? '—'} sub="/100" />
-              <div className="mt-2"><Badge tone={comp.band.tone || 'ink'} dot>{comp.band.label}</Badge></div>
+              <div className="mt-2"><Badge tone={comp.band.tone || 'ink'} dot>{t(comp.band.label)}</Badge></div>
             </div>
           </div>
           {comp.urgent > 0 && (
             <div className="mt-2 flex items-center gap-2 rounded-lg bg-bad-tint px-3 py-2 text-xs font-semibold text-bad">
-              <AlertTriangle size={15} /> {comp.urgent} site(s) en action urgente (score &lt; 50)
+              <AlertTriangle size={15} /> {comp.urgent} {t('site(s) en action urgente (score < 50)')}
             </div>
           )}
         </Card>
@@ -112,11 +113,11 @@ export default function Dashboard() {
         <Card className="lg:col-span-2">
           <SectionTitle>Taux d’atteinte moyen des indicateurs</SectionTitle>
           <ChartLines data={trend} xKey="period" area fmt={(v) => `${v}%`}
-            series={[{ key: 'Taux d’atteinte', label: 'Taux d’atteinte (%)', color: C.brand }]} height={230} />
+            series={[{ key: 'Taux d’atteinte', label: t('Taux d’atteinte (%)'), color: C.brand }]} height={230} />
         </Card>
         <Card>
           <SectionTitle>Budget par programme</SectionTitle>
-          <ChartDonut data={budgetByProg} centerSub="prévu total" fmt={(v) => moneyShort(v)} height={200} />
+          <ChartDonut data={budgetByProg} centerSub={t('prévu total')} fmt={(v) => moneyShort(v)} height={200} />
           <div className="mt-2"><Legendette items={budgetByProg.map((d) => ({ label: d.name, color: d.color, value: moneyShort(d.value) }))} /></div>
         </Card>
       </div>
@@ -124,10 +125,10 @@ export default function Dashboard() {
       {/* Bottom row */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <SectionTitle action={<button onClick={() => nav('/projets')} className="flex items-center gap-1 text-xs font-semibold text-brand hover:underline">Tous les projets <ArrowRight size={13} /></button>}>
+          <SectionTitle action={<button onClick={() => nav('/projets')} className="flex items-center gap-1 text-xs font-semibold text-brand hover:underline">{t('Tous les projets')} <ArrowRight size={13} /></button>}>
             Projets à surveiller
           </SectionTitle>
-          {watchlist.length === 0 && <p className="py-6 text-center text-sm text-ink-mute">Tous les projets actifs sont sur la bonne voie 👍</p>}
+          {watchlist.length === 0 && <p className="py-6 text-center text-sm text-ink-mute">{t('Tous les projets actifs sont sur la bonne voie 👍')}</p>}
           <div className="space-y-2.5">
             {watchlist.map(({ p, prog, health }) => (
               <button key={p.id} onClick={() => nav(`/projets/${p.id}`)}

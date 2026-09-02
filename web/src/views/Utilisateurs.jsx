@@ -6,6 +6,7 @@ import { UserCog, Plus, Pencil, Trash2, MoreVertical, ShieldCheck, Download } fr
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { exportRowsXlsx } from '../lib/docs.js'
+import { t } from '../lib/i18n.js'
 import { ROLES, ROLE_KEYS } from '../lib/constants.js'
 import {
   PageHeader, Card, SectionTitle, Button, Badge, Avatar, DataTable, Modal, Field, Input, Select,
@@ -51,7 +52,7 @@ export default function Utilisateurs() {
   return (
     <div>
       {node}
-      <PageHeader icon={UserCog} title="Utilisateurs & rôles" subtitle={`${users.length} compte(s) · le rôle dit ce qu'on peut faire, le bureau dit où`}
+      <PageHeader icon={UserCog} title="Utilisateurs & rôles" subtitle={`${users.length} ${t("compte(s) · le rôle dit ce qu'on peut faire, le bureau dit où")}`}
         actions={canAdmin && <Button icon={Plus} onClick={() => setEditing({ role: 'viewer', active: true })}>Nouvel utilisateur</Button>} />
 
       <DataTable

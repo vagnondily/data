@@ -8,6 +8,7 @@ import { useCan } from '../lib/perms.js'
 import { exportRowsXlsx } from '../lib/docs.js'
 import { REGIONS, SECURITY, SITE_STATUS } from '../lib/constants.js'
 import { num } from '../lib/format.js'
+import { t } from '../lib/i18n.js'
 import {
   PageHeader, Segmented, Select, Button, Card, Badge, StatusBadge, DataTable, SearchInput,
   Modal, Field, Input, RowActions, useConfirm, EmptyState,
@@ -68,7 +69,7 @@ export default function Sites() {
   return (
     <div>
       {node}
-      <PageHeader icon={MapPin} title="Sites & carte" subtitle={`${sites.length} site(s) d'intervention`}
+      <PageHeader icon={MapPin} title="Sites & carte" subtitle={`${sites.length} ${t("site(s) d'intervention")}`}
         actions={<>
           <Segmented value={view} onChange={setView} options={[{ value: 'map', label: 'Carte', icon: MapIcon }, { value: 'table', label: 'Liste', icon: Table2 }]} />
           {canEdit && <Button icon={Plus} onClick={() => setEditing({})}>Nouveau site</Button>}
@@ -80,7 +81,7 @@ export default function Sites() {
         <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>
         {view === 'map' && (
           <div className="ml-auto flex items-center gap-2 text-xs text-ink-mute">
-            Colorer par
+            {t('Colorer par')}
             <Segmented value={colorBy} onChange={setColorBy} options={[{ value: 'security', label: 'Sécurité' }, { value: 'status', label: 'Statut' }]} />
           </div>
         )}

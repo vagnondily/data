@@ -11,6 +11,7 @@ import { exportRowsXlsx } from '../lib/docs.js'
 import { useOpenOnNew } from '../lib/hooks.js'
 import { PROGRAMME_STATUS } from '../lib/constants.js'
 import { moneyShort, pct } from '../lib/format.js'
+import { t } from '../lib/i18n.js'
 import {
   Badge, Button, PageHeader, Progress, StatusBadge, DataTable, RowActions, useConfirm, EmptyState,
 } from '../components/ui.jsx'
@@ -71,7 +72,7 @@ export default function Programmes() {
   return (
     <div>
       {node}
-      <PageHeader icon={FolderKanban} title="Programmes" subtitle={`${programmes.length} portefeuille(s) · gestion par programme`}
+      <PageHeader icon={FolderKanban} title="Programmes" subtitle={`${programmes.length} ${t('portefeuille(s) · gestion par programme')}`}
         actions={canEdit && <Button icon={Plus} onClick={() => setEditing({})}>Nouveau programme</Button>} />
 
       {rows.length === 0 ? (

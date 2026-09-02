@@ -113,6 +113,41 @@ const EN = {
   'Périmètre (bureau)': 'Scope (office)', 'Tous les bureaux': 'All offices',
   // Palette
   'Page': 'Page', 'Indicateur': 'Indicator', 'Document': 'Document', 'Général': 'General',
+  // Sous-titres de pages (statiques + fragments dynamiques)
+  'projet(s) dans le portefeuille': 'project(s) in the portfolio',
+  'portefeuille(s) · gestion par programme': 'portfolio(s) · program management',
+  "site(s) d'intervention": 'intervention site(s)',
+  "compte(s) · le rôle dit ce qu'on peut faire, le bureau dit où": 'account(s) · the role says what you can do, the office says where',
+  'Ciblage de la population et personnes atteintes': 'Population targeting and people reached',
+  'Cadre de mesure du portefeuille — référence, cible, réalisé': 'Portfolio measurement framework — baseline, target, actual',
+  'Planification et exécution des activités du portefeuille': 'Planning and execution of portfolio activities',
+  'Suivi & évaluation des projets humanitaires': 'Monitoring & evaluation of humanitarian projects',
+  'Programme :': 'Program:',
+  // Filtres additionnels
+  'Tous les projets': 'All projects', 'Tous les bureaux': 'All offices', 'Colorer par': 'Color by',
+  'Toutes les régions': 'All regions', 'Projet :': 'Project:',
+  "vue d'ensemble du portefeuille": 'portfolio overview',
+  // Dashboard — titres de sections & cartes
+  'Budget prévu vs dépensé — par projet': 'Planned vs spent budget — by project',
+  'Suivi & conformité': 'Monitoring & compliance', 'Taux d’atteinte moyen des indicateurs': 'Average indicator achievement',
+  'Budget par programme': 'Budget by program', 'Projets à surveiller': 'Projects to watch',
+  'Alertes': 'Alerts', 'Activité récente du portefeuille': 'Recent portfolio activity',
+  'Prévu': 'Planned', 'Dépensé': 'Spent', 'Ciblé': 'Targeted', 'Atteint': 'Reached',
+  'Projets actifs': 'Active projects', 'Bénéficiaires atteints': 'Beneficiaries reached',
+  'Budget dépensé': 'Budget spent', 'Couverture suivi': 'Monitoring coverage', 'Conformité': 'Compliance',
+  'Conformité /100': 'Compliance /100', 'Atteinte indicateurs': 'Indicator achievement',
+  'Meilleurs indicateurs': 'Top indicators', 'moyenne pondérée': 'weighted average',
+  'Activité récente': 'Recent activity', 'Taux d’atteinte (%)': 'Achievement rate (%)',
+  'couverture': 'coverage', 'Sites suivis': 'Sites monitored',
+  'site(s) en action urgente (score < 50)': 'site(s) needing urgent action (score < 50)',
+  // Bandes de conformité
+  'Excellent': 'Excellent', 'Satisfaisant': 'Satisfactory', 'À améliorer': 'Needs improvement',
+  'Action urgente': 'Urgent action', 'Non évalué': 'Not assessed',
+  // Sous-libellés KPI (fragments)
+  'sur': 'of', 'au total': 'total', 'du prévu': 'of planned', 'cible': 'target',
+  'prévu total': 'planned total', 'Suivi & Évaluation': 'Monitoring & Evaluation',
+  'Projets à surveiller': 'Projects to watch',
+  'Tous les projets actifs sont sur la bonne voie 👍': 'All active projects are on track 👍',
 }
 
 export function t(s) {

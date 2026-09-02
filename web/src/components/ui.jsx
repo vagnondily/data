@@ -1,7 +1,7 @@
 // ============================================================================
 // Kit d'interface MEMS — primitives réutilisables (charte WFP, style appli PM)
 // ============================================================================
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, Children, cloneElement, isValidElement } from 'react'
 import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight, ChevronsUpDown, Copy, Check, Minus } from 'lucide-react'
 import { initials, clamp } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
@@ -61,7 +61,7 @@ export function Kpi({ label, value, sub, icon: Icon, tone = 'brand', className }
       <div className="min-w-0">
         <div className="whitespace-nowrap text-2xl font-extrabold leading-none text-ink tabnum">{value}</div>
         <div className="mt-1.5 text-xs font-medium text-ink-mute">{tr(label)}</div>
-        {sub != null && <div className="mt-1 text-xs text-ink-soft">{sub}</div>}
+        {sub != null && <div className="mt-1 text-xs text-ink-soft">{tr(sub)}</div>}
       </div>
       {Icon && (
         <span className={cx('grid h-9 w-9 flex-none place-items-center rounded-lg', BADGE[tone])}>
@@ -165,9 +165,17 @@ const INPUT = 'w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm
 export function Input({ className, ...rest }) { return <input className={cx(INPUT, className)} {...rest} /> }
 export function Textarea({ className, ...rest }) { return <textarea className={cx(INPUT, 'min-h-[80px] resize-y', className)} {...rest} /> }
 export function Select({ className, children, ...rest }) {
+  // Traduit automatiquement le libellé des <option> statiques (chaîne simple).
+  // Les libellés dynamiques (codes projet, noms…) ne sont pas dans le
+  // dictionnaire, donc t() les renvoie inchangés — sûr.
+  const kids = Children.map(children, (c) => (
+    isValidElement(c) && c.type === 'option' && typeof c.props.children === 'string'
+      ? cloneElement(c, {}, t(c.props.children))
+      : c
+  ))
   return (
     <div className="relative">
-      <select className={cx(INPUT, 'appearance-none pr-9', className)} {...rest}>{children}</select>
+      <select className={cx(INPUT, 'appearance-none pr-9', className)} {...rest}>{kids}</select>
       <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute" />
     </div>
   )
