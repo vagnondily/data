@@ -14,6 +14,7 @@ import {
   DataTable, EmptyState, RowActions, useConfirm,
 } from '../components/ui.jsx'
 import { ProjectForm } from './ProjectForm.jsx'
+import { useOpenOnNew } from '../lib/hooks.js'
 
 export default function Projets() {
   const store = useStore((s) => s)
@@ -29,6 +30,7 @@ export default function Projets() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState(null)
   const progFilter = params.get('prog') || ''
+  useOpenOnNew(() => setCreating(true), canEdit)
 
   const onDelete = async (p) => {
     if (await confirm({

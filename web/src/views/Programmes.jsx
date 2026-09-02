@@ -7,6 +7,7 @@ import { FolderKanban, Plus } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { budgetForProject } from '../lib/compute.js'
+import { useOpenOnNew } from '../lib/hooks.js'
 import { PROGRAMME_STATUS } from '../lib/constants.js'
 import { moneyShort, pct } from '../lib/format.js'
 import {
@@ -20,6 +21,7 @@ export default function Programmes() {
   const nav = useNavigate()
   const [editing, setEditing] = useState(null)
   const { confirm, node } = useConfirm()
+  useOpenOnNew(() => setEditing({}), canEdit)
 
   const rows = useMemo(() => programmes.map((pg) => {
     const projs = projects.filter((p) => p.programmeId === pg.id)

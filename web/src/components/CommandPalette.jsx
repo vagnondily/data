@@ -8,7 +8,9 @@ import { NAV } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
 import { cx, Badge } from './ui.jsx'
 
-const PAGES = NAV.flatMap((g) => g.items.map((it) => ({ label: it.label, sub: g.group, to: it.to, type: 'Page' })))
+const PAGES = NAV.flatMap((s) => (s.items
+  ? s.items.map((it) => ({ label: it.label, sub: s.label, to: it.to, type: 'Page' }))
+  : [{ label: s.label, sub: 'Général', to: s.to, type: 'Page' }]))
 
 export default function CommandPalette({ open, onClose }) {
   const nav = useNavigate()

@@ -199,49 +199,51 @@ export function regionByPcode(pcode) {
 // --- Périodes (trimestres) pour la saisie des indicateurs --------------------
 export const PERIODS = ['2025-T1', '2025-T2', '2025-T3', '2025-T4']
 
-// --- Navigation (groupée façon appli de gestion de projet) -------------------
+// --- Navigation : 7 sections repliables (accordéon), sous-éléments imbriqués -
 export const NAV = [
+  { label: 'Tableau de bord', icon: 'LayoutDashboard', to: '/' },
   {
-    group: 'Pilotage',
-    items: [
-      { to: '/', label: 'Tableau de bord', icon: 'LayoutDashboard' },
+    label: 'Programmes & projets', icon: 'FolderKanban', items: [
       { to: '/programmes', label: 'Programmes', icon: 'FolderKanban' },
       { to: '/projets', label: 'Projets', icon: 'Briefcase' },
     ],
   },
   {
-    group: 'Cadre & mise en œuvre',
-    items: [
+    label: 'Mise en œuvre', icon: 'ListChecks', items: [
       { to: '/activites', label: 'Activités', icon: 'ListChecks' },
       { to: '/planning', label: 'Planning', icon: 'CalendarRange' },
-      { to: '/indicateurs', label: 'Indicateurs', icon: 'Target' },
-      { to: '/pdd', label: 'Plan de distribution', icon: 'Boxes' },
       { to: '/budget', label: 'Budget', icon: 'Wallet' },
+      { to: '/pdd', label: 'Plan de distribution', icon: 'Boxes' },
     ],
   },
   {
-    group: 'Terrain & suivi',
-    items: [
-      { to: '/sites', label: 'Sites & carte', icon: 'MapPin' },
+    label: 'Suivi & évaluation', icon: 'Target', items: [
+      { to: '/indicateurs', label: 'Indicateurs', icon: 'Target' },
       { to: '/plan-suivi', label: 'Plan de suivi', icon: 'CalendarCheck' },
       { to: '/suivi', label: 'Suivi & visites', icon: 'ClipboardCheck' },
       { to: '/mre', label: 'Plan MRE', icon: 'ClipboardList' },
       { to: '/beneficiaires', label: 'Bénéficiaires', icon: 'Users' },
+    ],
+  },
+  {
+    label: 'Terrain', icon: 'MapPin', items: [
+      { to: '/sites', label: 'Sites & carte', icon: 'MapPin' },
       { to: '/tpm', label: 'Suivi tiers (TPM)', icon: 'Handshake' },
     ],
   },
   {
-    group: 'Exploitation',
-    items: [
+    label: 'Données & rapports', icon: 'FileBarChart', items: [
       { to: '/import', label: 'Import de données', icon: 'Upload' },
       { to: '/rapports', label: 'Rapports', icon: 'FileBarChart' },
     ],
   },
   {
-    group: 'Administration',
-    items: [
+    label: 'Administration', icon: 'UserCog', items: [
       { to: '/utilisateurs', label: 'Utilisateurs', icon: 'UserCog' },
       { to: '/parametres', label: 'Paramètres', icon: 'Settings' },
     ],
   },
 ]
+
+// Liste à plat de toutes les destinations (mode rail + palette)
+export const NAV_LEAVES = NAV.flatMap((s) => (s.items ? s.items : [{ to: s.to, label: s.label, icon: s.icon }]))

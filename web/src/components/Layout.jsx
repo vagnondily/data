@@ -1,17 +1,18 @@
 // ============================================================================
-// Coquille applicative — barre latérale (repliable) + barre supérieure
-// Raccourcis : ⌘K / Ctrl+K (palette), « / » (recherche). Toasts + palette montés ici.
+// Coquille applicative — barre latérale en accordéon (repliable) + barre haute
+// Raccourcis : ⌘K / Ctrl+K (palette), « / » (recherche). Bouton « + Créer » global.
 // ============================================================================
 import { useEffect, useMemo, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog,
-  Settings, Menu, X, Bell, ChevronDown, Search, RefreshCw, Download, LogIn, Building2,
-  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen,
+  Settings, Menu, X, Bell, ChevronDown, ChevronRight, Search, RefreshCw, Download, LogIn, Building2,
+  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus,
 } from 'lucide-react'
-import { NAV, ROLES } from '../lib/constants.js'
+import { NAV, NAV_LEAVES, ROLES } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
+import { useCan } from '../lib/perms.js'
 import { exportJSON } from '../lib/export.js'
 import { cx, Avatar, Badge, Dropdown, MenuItem, IconButton, useConfirm } from './ui.jsx'
 import { fromNow } from '../lib/format.js'
@@ -29,7 +30,6 @@ export default function Layout() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('mems-collapsed') === '1' } catch { return false } })
   const org = useStore((s) => s.organization)
-
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('mems-collapsed', n ? '1' : '0') } catch { /* ignore */ } return n })
 
   useEffect(() => {
@@ -50,9 +50,7 @@ export default function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={() => setMobileOpen(true)} onPalette={() => setPaletteOpen(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-7 sm:py-7">
-            <Outlet />
-          </div>
+          <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-7 sm:py-7"><Outlet /></div>
         </main>
       </div>
       <Toaster />
@@ -61,12 +59,22 @@ export default function Layout() {
   )
 }
 
+const matchTo = (to, pathname) => (to === '/' ? pathname === '/' : (pathname === to || pathname.startsWith(to + '/')))
+
 function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
+  const { pathname } = useLocation()
+  const activeIdx = NAV.findIndex((s) => (s.items ? s.items.some((it) => matchTo(it.to, pathname)) : matchTo(s.to, pathname)))
+  const [open, setOpen] = useState(() => new Set())
+  const toggle = (i) => setOpen((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n })
+
+  const itemCls = ({ isActive }) => cx('flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+    isActive ? 'bg-brand text-white shadow-card' : 'text-[#c9e3f3]/85 hover:bg-white/10 hover:text-white')
+
   return (
     <aside className={cx(
       'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-brand-deep text-white transition-all lg:static lg:translate-x-0',
-      collapsed && 'lg:w-16',
-      mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
+      collapsed && 'lg:w-16', mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
+      {/* Logo */}
       <div className="relative overflow-hidden px-5 pb-4 pt-5"
         style={{ background: 'radial-gradient(120% 140% at 88% -10%, rgba(0,125,188,.55), transparent 55%), linear-gradient(160deg,#03293d,#06405f 70%,#085387)' }}>
         <div className="flex items-center justify-between">
@@ -79,27 +87,56 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4">
-        {NAV.map((grp) => (
-          <div key={grp.group} className="mb-4">
-            <div className={cx('px-3 pb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#6f97ad]', collapsed && 'lg:hidden')}>{grp.group}</div>
-            <div className="space-y-0.5">
-              {grp.items.map((it) => {
-                const Icon = ICONS[it.icon] || LayoutDashboard
-                return (
-                  <NavLink key={it.to} to={it.to} end={it.to === '/'} onClick={onClose} title={collapsed ? it.label : undefined}
-                    className={({ isActive }) => cx(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
-                      collapsed && 'lg:justify-center lg:px-0',
-                      isActive ? 'bg-brand text-white shadow-card' : 'text-[#c9e3f3]/85 hover:bg-white/10 hover:text-white')}>
-                    <Icon size={17} strokeWidth={2} className="flex-none" />
-                    <span className={cx(collapsed && 'lg:hidden')}>{it.label}</span>
-                  </NavLink>
-                )
-              })}
+      {/* Accordéon (mobile + desktop déplié) */}
+      <nav className={cx('flex-1 space-y-1 overflow-y-auto no-scrollbar px-3 py-4', collapsed && 'lg:hidden')}>
+        {NAV.map((s, i) => {
+          const Icon = ICONS[s.icon] || LayoutDashboard
+          if (!s.items) {
+            return (
+              <NavLink key={s.to} to={s.to} end={s.to === '/'} onClick={onClose} className={itemCls}>
+                <Icon size={17} strokeWidth={2} className="flex-none" /><span>{s.label}</span>
+              </NavLink>
+            )
+          }
+          const isOpen = open.has(i) || i === activeIdx
+          return (
+            <div key={s.label}>
+              <button onClick={() => toggle(i)}
+                className={cx('flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition',
+                  i === activeIdx ? 'text-white' : 'text-[#c9e3f3]/90 hover:bg-white/10 hover:text-white')}>
+                <Icon size={17} strokeWidth={2} className="flex-none" />
+                <span className="flex-1 text-left">{s.label}</span>
+                <ChevronRight size={15} className={cx('flex-none text-[#6f97ad] transition-transform', isOpen && 'rotate-90')} />
+              </button>
+              {isOpen && (
+                <div className="mb-1 ml-4 mt-0.5 space-y-0.5 border-l border-white/10 pl-2">
+                  {s.items.map((it) => {
+                    const SubIcon = ICONS[it.icon] || Briefcase
+                    return (
+                      <NavLink key={it.to} to={it.to} onClick={onClose} className={itemCls}>
+                        <SubIcon size={16} strokeWidth={2} className="flex-none" /><span>{it.label}</span>
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
+      </nav>
+
+      {/* Rail d'icônes (desktop replié) */}
+      <nav className={cx('hidden flex-1 space-y-1 overflow-y-auto no-scrollbar px-2 py-4', collapsed && 'lg:block')}>
+        {NAV_LEAVES.map((it) => {
+          const Icon = ICONS[it.icon] || Briefcase
+          return (
+            <NavLink key={it.to} to={it.to} end={it.to === '/'} title={it.label}
+              className={({ isActive }) => cx('flex items-center justify-center rounded-lg py-2.5 transition',
+                isActive ? 'bg-brand text-white shadow-card' : 'text-[#c9e3f3]/85 hover:bg-white/10 hover:text-white')}>
+              <Icon size={18} strokeWidth={2} />
+            </NavLink>
+          )
+        })}
       </nav>
 
       <div className="border-t border-white/10 px-3 py-2">
@@ -117,14 +154,34 @@ function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
 
 function Topbar({ onMenu, onPalette }) {
   return (
-    <header className="z-20 flex flex-none items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
+    <header className="z-20 flex flex-none items-center gap-2 border-b border-line bg-surface px-4 py-2.5 sm:gap-3 sm:px-6">
       <IconButton icon={Menu} onClick={onMenu} className="lg:hidden" />
       <GlobalSearch onPalette={onPalette} />
       <div className="ml-auto flex items-center gap-1.5">
+        <QuickCreate />
         <Notifications />
         <AccountMenu />
       </div>
     </header>
+  )
+}
+
+function QuickCreate() {
+  const { canEdit } = useCan()
+  const nav = useNavigate()
+  if (!canEdit) return null
+  return (
+    <Dropdown trigger={
+      <button className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-d">
+        <Plus size={16} strokeWidth={2.4} /><span className="hidden sm:inline">Créer</span>
+      </button>}>
+      <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-mute">Créer…</div>
+      <MenuItem icon={Briefcase} onClick={() => nav('/projets?new=1')}>Nouveau projet</MenuItem>
+      <MenuItem icon={FolderKanban} onClick={() => nav('/programmes?new=1')}>Nouveau programme</MenuItem>
+      <MenuItem icon={MapPin} onClick={() => nav('/sites?new=1')}>Nouveau site</MenuItem>
+      <MenuItem icon={CalendarCheck} onClick={() => nav('/plan-suivi?new=1')}>Nouveau plan de suivi</MenuItem>
+      <MenuItem icon={Boxes} onClick={() => nav('/pdd?new=1')}>Nouveau PDD</MenuItem>
+    </Dropdown>
   )
 }
 
@@ -146,9 +203,9 @@ function GlobalSearch({ onPalette }) {
   return (
     <div className="relative w-full max-w-md">
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
-      <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un projet, un site, un indicateur…"
+      <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…"
         className="w-full rounded-lg border border-line bg-inset py-2 pl-9 pr-14 text-sm outline-none transition placeholder:text-ink-mute focus:border-brand focus:bg-surface focus:ring-2 focus:ring-brand/15" />
-      <button onClick={onPalette} title="Palette de commandes" className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-mute transition hover:border-brand hover:text-brand-d sm:block">⌘K</button>
+      <button onClick={onPalette} title="Palette de commandes (⌘K)" className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-mute transition hover:border-brand hover:text-brand-d sm:block">⌘K</button>
       {results.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-pop">
           {results.map((r, i) => (
@@ -195,9 +252,7 @@ function AccountMenu() {
   const role = ROLES[me?.role]
 
   const doReset = async () => {
-    if (await confirm({ title: 'Réinitialiser la démonstration', message: 'Toutes les modifications locales seront remplacées par le jeu de données de démonstration. Continuer ?', confirmLabel: 'Réinitialiser', danger: true })) {
-      resetDemo()
-    }
+    if (await confirm({ title: 'Réinitialiser la démonstration', message: 'Toutes les modifications locales seront remplacées par le jeu de données de démonstration. Continuer ?', confirmLabel: 'Réinitialiser', danger: true })) resetDemo()
   }
   return (
     <>

@@ -12,6 +12,7 @@ import {
   Modal, Field, Input, RowActions, useConfirm, EmptyState,
 } from '../components/ui.jsx'
 import SiteMap from '../components/Map.jsx'
+import { useOpenOnNew } from '../lib/hooks.js'
 
 export default function Sites() {
   const { sites, projects, offices, add, update, remove, log } = useStore((s) => s)
@@ -23,6 +24,7 @@ export default function Sites() {
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState(null)
   const { confirm, node } = useConfirm()
+  useOpenOnNew(() => setEditing({}), canEdit)
 
   const filtered = useMemo(() => sites.filter((s) => {
     if (region && s.pcode !== region) return false

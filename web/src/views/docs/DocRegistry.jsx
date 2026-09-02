@@ -9,6 +9,7 @@ import { useStore, byId } from '../../lib/store.js'
 import { useCan } from '../../lib/perms.js'
 import { DOC_KINDS, DOC_STATUS, nextVersion } from '../../lib/docs.js'
 import { uid } from '../../lib/id.js'
+import { useOpenOnNew } from '../../lib/hooks.js'
 import { fmtDate } from '../../lib/format.js'
 import {
   PageHeader, Button, Badge, StatusBadge, DataTable, RowActions, Modal, Field, Input, Select,
@@ -24,6 +25,7 @@ export default function DocRegistry({ kind }) {
   const nav = useNavigate()
   const [editing, setEditing] = useState(null)
   const { confirm, node } = useConfirm()
+  useOpenOnNew(() => setEditing({}), canEdit)
   const Icon = ICONS[cfg.icon] || CalendarCheck
 
   const rows = useMemo(() => planDocs.filter((d) => d.kind === kind)
