@@ -10,9 +10,10 @@ import Planning from './views/Planning.jsx'
 import Indicateurs from './views/Indicateurs.jsx'
 import Budget from './views/Budget.jsx'
 import Sites from './views/Sites.jsx'
-import PlanSuivi from './views/PlanSuivi.jsx'
 import Suivi from './views/Suivi.jsx'
 import Mre from './views/Mre.jsx'
+import DocRegistry from './views/docs/DocRegistry.jsx'
+import DocDetail from './views/docs/DocDetail.jsx'
 import Beneficiaires from './views/Beneficiaires.jsx'
 import Tpm from './views/Tpm.jsx'
 import Rapports from './views/Rapports.jsx'
@@ -36,7 +37,10 @@ export default function App() {
           <Route path="/indicateurs" element={<Indicateurs />} />
           <Route path="/budget" element={<Budget />} />
           <Route path="/sites" element={<Sites />} />
-          <Route path="/plan-suivi" element={<PlanSuivi />} />
+          <Route path="/plan-suivi" element={<DocRegistry kind="suivi" />} />
+          <Route path="/plan-suivi/:id" element={<DocDetail kind="suivi" />} />
+          <Route path="/pdd" element={<DocRegistry kind="pdd" />} />
+          <Route path="/pdd/:id" element={<DocDetail kind="pdd" />} />
           <Route path="/suivi" element={<Suivi />} />
           <Route path="/mre" element={<Mre />} />
           <Route path="/beneficiaires" element={<Beneficiaires />} />

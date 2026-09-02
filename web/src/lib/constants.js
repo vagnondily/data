@@ -215,6 +215,7 @@ export const NAV = [
       { to: '/activites', label: 'Activités', icon: 'ListChecks' },
       { to: '/planning', label: 'Planning', icon: 'CalendarRange' },
       { to: '/indicateurs', label: 'Indicateurs', icon: 'Target' },
+      { to: '/pdd', label: 'Plan de distribution', icon: 'Boxes' },
       { to: '/budget', label: 'Budget', icon: 'Wallet' },
     ],
   },

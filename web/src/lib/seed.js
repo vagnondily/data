@@ -307,13 +307,56 @@ export function buildSeed() {
     { id: 'mre_7', projectId: 'pr_gs1', name: 'Atelier de capitalisation annuel', type: 'capitalisation', period: '2025-T4', responsibleId: 'u_tiana', costPlanned: 14000, costActual: 0, status: 'planifie' },
   ]
 
+  // ---- Documents versionnés : registres Plan de suivi & PDD ---------------
+  const planDocs = [
+    {
+      id: 'doc_s1', kind: 'suivi', ref: 'Plan de suivi 1.0', version: '1.0', period: '2025-T3', officeId: '',
+      status: 'valide', riskBased: true, note: 'Plan trimestriel fondé sur le risque.', createdById: 'u_hery',
+      createdAt: iso(2025, 7, 1), updatedAt: iso(2025, 7, 5),
+      rows: [
+        { id: 'r_s1', site: 'Ambovombe Centre', bureau: 'Antenne Grand Sud — Ambovombe', activite: 'Distribution alimentaire générale', risque: 'Élevé', frequence: 'Mensuel', responsable: 'Fara Raharimalala', statut: 'Réalisé' },
+        { id: 'r_s2', site: 'Beloha', bureau: 'Antenne Grand Sud — Ambovombe', activite: 'Distribution alimentaire générale', risque: 'Élevé', frequence: 'Mensuel', responsable: 'Fara Raharimalala', statut: 'Planifié' },
+        { id: 'r_s3', site: 'Amboasary Atsimo', bureau: 'Bureau de terrain Sud — Toliara', activite: 'Création d’actifs (FFA)', risque: 'Moyen', frequence: 'Trimestriel', responsable: 'Naina Andrianina', statut: 'Réalisé' },
+        { id: 'r_s4', site: 'Betioky Atsimo', bureau: 'Bureau de terrain Sud — Toliara', activite: 'Supplémentation (BSFP)', risque: 'Moyen', frequence: 'Trimestriel', responsable: 'Fara Raharimalala', statut: 'Réalisé' },
+        { id: 'r_s5', site: 'Toliara II', bureau: 'Bureau de terrain Sud — Toliara', activite: 'Supplémentation (BSFP)', risque: 'Faible', frequence: 'Semestriel', responsable: 'Fara Raharimalala', statut: 'À faire' },
+      ],
+    },
+    {
+      id: 'doc_s2', kind: 'suivi', ref: 'Plan de suivi 1.1', version: '1.1', period: '2025-T4', officeId: 'of_grandsud',
+      status: 'brouillon', riskBased: true, note: 'Révision T4 — périmètre Grand Sud.', createdById: 'u_hery',
+      createdAt: iso(2025, 9, 20), updatedAt: iso(2025, 9, 28),
+      rows: [
+        { id: 'r_s6', site: 'Ambovombe Centre', bureau: 'Antenne Grand Sud — Ambovombe', activite: 'Transferts monétaires', risque: 'Élevé', frequence: 'Mensuel', responsable: 'Fara Raharimalala', statut: 'Planifié' },
+        { id: 'r_s7', site: 'Tsihombe', bureau: 'Antenne Grand Sud — Ambovombe', activite: 'Distribution alimentaire générale', risque: 'Moyen', frequence: 'Trimestriel', responsable: 'Naina Andrianina', statut: 'À faire' },
+      ],
+    },
+    {
+      id: 'doc_p1', kind: 'pdd', ref: 'PDD 1.0', version: '1.0', period: '2025-T3', officeId: '',
+      status: 'valide', riskBased: false, note: 'Plan de distribution T3.', createdById: 'u_tiana',
+      createdAt: iso(2025, 6, 25), updatedAt: iso(2025, 7, 2),
+      rows: [
+        { id: 'r_p1', site: 'Ambovombe Centre', bureau: 'Antenne Grand Sud — Ambovombe', activite: 'Vivres GFD', modalite: 'Vivres', beneficiaires: 24500, ration: '2100 kcal/j', valeur: 196000, statut: 'Distribué' },
+        { id: 'r_p2', site: 'Amboasary Atsimo', bureau: 'Bureau de terrain Sud — Toliara', activite: 'Transferts monétaires', modalite: 'Cash', beneficiaires: 31000, ration: '16 USD/pers', valeur: 496000, statut: 'Distribué' },
+        { id: 'r_p3', site: 'Betioky Atsimo', bureau: 'Bureau de terrain Sud — Toliara', activite: 'Supplément nutritionnel', modalite: 'Vivres', beneficiaires: 9400, ration: 'CSB++', valeur: 84600, statut: 'En cours' },
+      ],
+    },
+    {
+      id: 'doc_p2', kind: 'pdd', ref: 'PDD 2.0', version: '2.0', period: '2025-T4', officeId: '',
+      status: 'brouillon', riskBased: false, note: 'Plan de distribution T4 (en préparation).', createdById: 'u_tiana',
+      createdAt: iso(2025, 9, 15), updatedAt: iso(2025, 9, 26),
+      rows: [
+        { id: 'r_p4', site: 'Maroantsetra', bureau: 'Bureau de terrain Est — Toamasina', activite: 'Réponse cyclone — rations', modalite: 'Vivres', beneficiaires: 27600, ration: '2100 kcal/j', valeur: 220800, statut: 'Prévu' },
+      ],
+    },
+  ]
+
   return {
     organization: { ...ORG_DEFAULT },
     users, offices, partners, programmes, projects,
     objectives, results, indicators, activities, sites,
     budgetLines, beneficiaries, visits,
     tpmContracts, tpmMissions, tpmExpenses, imports, audit,
-    mreActivities,
+    mreActivities, planDocs,
     currentUserId: 'u_armi',
     seededAt: new Date().toISOString(),
   }

@@ -12,7 +12,7 @@ const DATA_KEYS = [
   'objectives', 'results', 'indicators', 'activities', 'sites',
   'budgetLines', 'beneficiaries', 'visits',
   'tpmContracts', 'tpmMissions', 'tpmExpenses', 'imports', 'audit',
-  'mreActivities',
+  'mreActivities', 'planDocs',
   'currentUserId', 'seededAt',
 ]
 
