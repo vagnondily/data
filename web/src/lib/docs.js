@@ -55,6 +55,21 @@ export function nextVersion(docs, kind) {
 
 function sanitize(s = '') { return String(s).replace(/[^\w.\- ]+/g, '_').trim() || 'document' }
 
+// ---- Export .xlsx générique (jeux de données) ------------------------------
+export async function exportRowsXlsx(filename, rows, columns) {
+  const XLSX = await import('xlsx')
+  const header = columns.map((c) => c.label)
+  const data = rows.map((r) => columns.map((c) => {
+    const v = c.get ? c.get(r) : r[c.key]
+    return v == null ? '' : v
+  }))
+  const ws = XLSX.utils.aoa_to_sheet([header, ...data])
+  ws['!cols'] = columns.map((c) => ({ wch: Math.max(12, String(c.label).length + 2) }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Données')
+  XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`)
+}
+
 // ---- Export .xlsx (SheetJS chargé dynamiquement) ---------------------------
 export async function exportDocXlsx(doc, columns) {
   const XLSX = await import('xlsx')

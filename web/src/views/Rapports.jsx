@@ -1,8 +1,8 @@
 // ============================================================================
-// Rapports — extraction Excel/CSV de jeux de données + générateur de rapport
+// Rapports — extraction Excel (.xlsx) de jeux de données + générateur de rapport
 // ============================================================================
 import { useState } from 'react'
-import { FileBarChart, Download, Printer, FileSpreadsheet } from 'lucide-react'
+import { FileBarChart, Printer, FileSpreadsheet } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import {
   budgetForProject, projectProgress, beneficiaryRollup, coverageStats, complianceStats,
@@ -10,7 +10,8 @@ import {
 } from '../lib/compute.js'
 import { PROJECT_STATUS, INDICATOR_LEVEL, ACTIVITY_STATUS } from '../lib/constants.js'
 import { money, num, pct, fmtDate } from '../lib/format.js'
-import { exportCSV, printReport } from '../lib/export.js'
+import { printReport } from '../lib/export.js'
+import { exportRowsXlsx } from '../lib/docs.js'
 import { PageHeader, Card, SectionTitle, Select, Button, Field } from '../components/ui.jsx'
 
 export default function Rapports() {
@@ -23,7 +24,7 @@ export default function Rapports() {
 
   const doExport = () => {
     const d = DATASETS[dataset](store)
-    exportCSV(`mems-${dataset}-${new Date().toISOString().slice(0, 10)}.csv`, d.rows, d.columns)
+    exportRowsXlsx(`mems-${dataset}-${new Date().toISOString().slice(0, 10)}`, d.rows, d.columns)
   }
 
   const doReport = () => printReport('Rapport MEMS', buildReportHtml(store, scope, sections, narrative))
@@ -35,8 +36,8 @@ export default function Rapports() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Extraction */}
         <Card>
-          <SectionTitle>Extraction (Excel / CSV)</SectionTitle>
-          <p className="mb-3 text-sm text-ink-mute">Exportez n’importe quel jeu de données au format CSV (ouvrable dans Excel, séparateur « ; »).</p>
+          <SectionTitle>Extraction (Excel)</SectionTitle>
+          <p className="mb-3 text-sm text-ink-mute">Exportez n’importe quel jeu de données au format <b>Excel (.xlsx)</b>.</p>
           <Field label="Jeu de données">
             <Select value={dataset} onChange={(e) => setDataset(e.target.value)}>
               <option value="projets">Projets</option>
@@ -50,7 +51,7 @@ export default function Rapports() {
           <div className="mt-3 rounded-lg bg-inset px-3 py-2 text-xs text-ink-mute">
             {DATASETS[dataset](store).rows.length} ligne(s) · {DATASETS[dataset](store).columns.length} colonnes
           </div>
-          <Button className="mt-4" icon={FileSpreadsheet} onClick={doExport}>Exporter en CSV</Button>
+          <Button className="mt-4" icon={FileSpreadsheet} onClick={doExport}>Exporter en Excel</Button>
         </Card>
 
         {/* Générateur */}

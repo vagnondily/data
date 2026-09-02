@@ -1,4 +1,5 @@
-// Export CSV (compatible Excel FR : séparateur ';' + BOM UTF-8), JSON, impression
+// Export : sauvegarde JSON + impression de rapport (les exports tabulaires sont
+// en Excel .xlsx, voir lib/docs.js — exportRowsXlsx / exportDocXlsx).
 export function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -8,26 +9,6 @@ export function downloadBlob(filename, blob) {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
-
-function cell(v) {
-  if (v == null) return ''
-  const s = String(v)
-  if (/[";\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
-
-export function toCSV(rows, columns) {
-  const head = columns.map((c) => cell(c.label)).join(';')
-  const body = rows
-    .map((r) => columns.map((c) => cell(c.get ? c.get(r) : r[c.key])).join(';'))
-    .join('\n')
-  return `﻿${head}\n${body}`
-}
-
-export function exportCSV(filename, rows, columns) {
-  const csv = toCSV(rows, columns)
-  downloadBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
 }
 
 export function exportJSON(filename, data) {
