@@ -8,6 +8,7 @@ import { CalendarCheck, Boxes, Plus } from 'lucide-react'
 import { useStore, byId } from '../../lib/store.js'
 import { useCan } from '../../lib/perms.js'
 import { DOC_KINDS, DOC_STATUS, nextVersion } from '../../lib/docs.js'
+import { uid } from '../../lib/id.js'
 import { fmtDate } from '../../lib/format.js'
 import {
   PageHeader, Button, Badge, StatusBadge, DataTable, RowActions, Modal, Field, Input, Select,
@@ -32,6 +33,15 @@ export default function DocRegistry({ kind }) {
     if (await confirm({ title: `Supprimer le ${cfg.singular}`, message: `Supprimer « ${d.ref} » et son tableau ?`, danger: true, confirmLabel: 'Supprimer' })) {
       remove('planDocs', d.id); log('supprime', 'document', `${cfg.label} supprimé : ${d.ref}`)
     }
+  }
+  const dup = (d) => {
+    const { id, ...rest } = d
+    const now = new Date().toISOString()
+    const rec = add('planDocs', {
+      ...rest, ref: `${rest.ref} (copie)`, version: `${rest.version || ''}-copie`, status: 'brouillon',
+      rows: (d.rows || []).map((r) => ({ ...r, id: uid('row') })), createdById: currentUserId, createdAt: now, updatedAt: now,
+    })
+    log('cree', 'document', `${cfg.label} dupliqué : ${rec.ref}`)
   }
 
   return (
@@ -59,6 +69,7 @@ export default function DocRegistry({ kind }) {
               key: 'act', label: '', width: 200, align: 'right',
               render: (d) => <RowActions onOpen={() => nav(`${cfg.route}/${d.id}`)}
                 onEdit={canEdit ? () => setEditing(d) : undefined}
+                onDuplicate={canEdit ? () => dup(d) : undefined}
                 onDelete={canEdit ? () => del(d) : undefined} />,
             },
           ].filter(Boolean)}

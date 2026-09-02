@@ -34,7 +34,8 @@ export default function ProjetDetail() {
   const { canEdit } = useCan()
   const store = useStore((s) => s)
   const { projects, programmes, partners, users, activities, budgetLines, beneficiaries, sites, visits, indicators, objectives, results, mreActivities } = store
-  const [tab, setTab] = useState('apercu')
+  const [tab, setTabState] = useState(() => { try { return localStorage.getItem('mems-projtab') || 'apercu' } catch { return 'apercu' } })
+  const setTab = (t) => { setTabState(t); try { localStorage.setItem('mems-projtab', t) } catch { /* ignore */ } }
   const [editing, setEditing] = useState(false)
 
   const p = byId(projects, id)

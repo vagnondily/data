@@ -1,8 +1,8 @@
 // ============================================================================
 // Kit d'interface MEMS — primitives réutilisables (charte WFP, style appli PM)
 // ============================================================================
-import { useEffect, useRef, useState } from 'react'
-import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight, ChevronsUpDown, Copy } from 'lucide-react'
 import { initials, clamp } from '../lib/format.js'
 
 export const cx = (...a) => a.filter(Boolean).join(' ')
@@ -229,22 +229,56 @@ export function SectionTitle({ children, action, className }) {
 
 // ---- Table -----------------------------------------------------------------
 export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée', keyField = 'id', className, dense = false }) {
+  const [sort, setSort] = useState(null) // { key, dir }
+  const sortableOf = (c) => c.sortable === false ? false
+    : c.sortValue ? true
+      : (rows.length ? ['string', 'number'].includes(typeof rows[0][c.key]) : false)
+  const valueOf = (c, r) => (c.sortValue ? c.sortValue(r) : r[c.key])
+  const sorted = useMemo(() => {
+    if (!sort) return rows
+    const col = columns.find((c) => c && c.key === sort.key)
+    if (!col) return rows
+    const dir = sort.dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      const va = valueOf(col, a), vb = valueOf(col, b)
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      return String(va).localeCompare(String(vb), 'fr', { numeric: true }) * dir
+    })
+  }, [rows, sort, columns])
+  const toggle = (c) => {
+    if (!sortableOf(c)) return
+    setSort((s) => (s && s.key === c.key ? (s.dir === 'asc' ? { key: c.key, dir: 'desc' } : null) : { key: c.key, dir: 'asc' }))
+  }
   if (!rows.length) return <EmptyState title={empty} />
   return (
     <div className={cx('overflow-x-auto rounded-xl2 border border-line bg-surface shadow-card', className)}>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-line bg-surface-2">
-            {columns.map((c) => (
-              <th key={c.key} className={cx('px-3.5 py-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-soft',
-                c.align === 'right' && 'text-right', c.align === 'center' && 'text-center')} style={c.width ? { width: c.width } : undefined}>
-                {c.label}
-              </th>
-            ))}
+            {columns.map((c) => {
+              const sortable = sortableOf(c)
+              const active = sort && sort.key === c.key
+              return (
+                <th key={c.key} onClick={sortable ? () => toggle(c) : undefined}
+                  className={cx('px-3.5 py-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-soft',
+                    c.align === 'right' && 'text-right', c.align === 'center' && 'text-center',
+                    sortable && 'cursor-pointer select-none transition hover:text-ink')} style={c.width ? { width: c.width } : undefined}>
+                  <span className={cx('inline-flex items-center gap-1', c.align === 'right' && 'flex-row-reverse')}>
+                    {c.label}
+                    {sortable && (active
+                      ? <span className="text-brand">{sort.dir === 'asc' ? '▲' : '▼'}</span>
+                      : <ChevronsUpDown size={11} className="text-ink-mute/40" />)}
+                  </span>
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {sorted.map((r) => (
             <tr key={r[keyField]} onClick={onRowClick ? () => onRowClick(r) : undefined}
               className={cx('border-b border-line-soft last:border-0', onRowClick && 'cursor-pointer hover:bg-surface-2')}>
               {columns.map((c) => (
@@ -262,10 +296,14 @@ export function DataTable({ columns, rows, onRowClick, empty = 'Aucune donnée',
 }
 
 // ---- Actions de ligne (colonne de droite dans les tableaux) ----------------
-export function RowActions({ onOpen, onEdit, onDelete, openLabel = 'Ouvrir' }) {
+export function RowActions({ onOpen, onEdit, onDelete, onDuplicate, openLabel = 'Ouvrir' }) {
   const stop = (fn) => (e) => { e.stopPropagation(); fn?.() }
   return (
     <div className="flex items-center justify-end gap-1">
+      {onDuplicate && (
+        <button title="Dupliquer" onClick={stop(onDuplicate)}
+          className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-surface-2 hover:text-brand-d"><Copy size={15} /></button>
+      )}
       {onEdit && (
         <button title="Modifier" onClick={stop(onEdit)}
           className="grid h-8 w-8 place-items-center rounded-lg text-ink-mute transition hover:bg-surface-2 hover:text-brand-d"><Pencil size={15} /></button>

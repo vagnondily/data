@@ -22,7 +22,8 @@ export default function Projets() {
   const nav = useNavigate()
   const { confirm, node } = useConfirm()
   const [params, setParams] = useSearchParams()
-  const [view, setView] = useState('table')
+  const [view, setViewState] = useState(() => { try { return localStorage.getItem('mems-projview') || 'table' } catch { return 'table' } })
+  const setView = (v) => { setViewState(v); try { localStorage.setItem('mems-projview', v) } catch { /* ignore */ } }
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [creating, setCreating] = useState(false)
@@ -38,6 +39,11 @@ export default function Projets() {
       store.deleteProject(p.id)
       store.log('supprime', 'projet', `Projet supprimé : ${p.name}`)
     }
+  }
+  const dup = (p) => {
+    const { id, ...rest } = p
+    const rec = store.add('projects', { ...rest, code: `${p.code}-C`, name: `${p.name} (copie)`, status: 'planification' })
+    store.log('cree', 'projet', `Projet dupliqué : ${rec.name}`)
   }
 
   const enriched = useMemo(() => projects.map((p) => {
@@ -140,18 +146,19 @@ export default function Projets() {
           keyField="id"
           rows={filtered.map((x) => ({ id: x.p.id, ...x }))}
           columns={[
-            { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.p.code}</span> },
-            { key: 'name', label: 'Projet', render: (r) => <span className="font-semibold text-ink">{r.p.name}</span> },
-            { key: 'status', label: 'Statut', render: (r) => <StatusBadge map={PROJECT_STATUS} value={r.p.status} /> },
-            { key: 'health', label: 'Santé', render: (r) => <Badge tone={r.health.tone} dot>{r.health.label}</Badge> },
+            { key: 'code', label: 'Code', sortValue: (r) => r.p.code, render: (r) => <span className="font-mono text-xs font-bold text-brand-d">{r.p.code}</span> },
+            { key: 'name', label: 'Projet', sortValue: (r) => r.p.name, render: (r) => <span className="font-semibold text-ink">{r.p.name}</span> },
+            { key: 'status', label: 'Statut', sortValue: (r) => r.p.status, render: (r) => <StatusBadge map={PROJECT_STATUS} value={r.p.status} /> },
+            { key: 'health', label: 'Santé', sortValue: (r) => r.prog, render: (r) => <Badge tone={r.health.tone} dot>{r.health.label}</Badge> },
             { key: 'prog', label: 'Avancement', width: 150, render: (r) => <div className="flex items-center gap-2"><Progress value={r.prog} tone={r.health.tone} /><span className="text-xs tabnum">{r.prog}%</span></div> },
-            { key: 'budget', label: 'Dépensé', align: 'right', render: (r) => <span className="tabnum">{moneyShort(r.budget.spent)}</span> },
-            { key: 'ben', label: 'Bénéf.', align: 'right', render: (r) => <span className="tabnum">{num(r.ben.reached)}</span> },
-            { key: 'end', label: 'Échéance', align: 'right', render: (r) => <span className="text-xs">{fmtDate(r.p.endDate)}</span> },
+            { key: 'budget', label: 'Dépensé', align: 'right', sortValue: (r) => r.budget.spent, render: (r) => <span className="tabnum">{moneyShort(r.budget.spent)}</span> },
+            { key: 'ben', label: 'Bénéf.', align: 'right', sortValue: (r) => r.ben.reached, render: (r) => <span className="tabnum">{num(r.ben.reached)}</span> },
+            { key: 'end', label: 'Échéance', align: 'right', sortValue: (r) => r.p.endDate, render: (r) => <span className="text-xs">{fmtDate(r.p.endDate)}</span> },
             {
               key: 'act', label: '', width: 210, align: 'right',
               render: (r) => <RowActions onOpen={() => nav(`/projets/${r.p.id}`)}
                 onEdit={canEdit ? () => setEditing(r.p) : undefined}
+                onDuplicate={canEdit ? () => dup(r.p) : undefined}
                 onDelete={canEdit ? () => onDelete(r.p) : undefined} />,
             },
           ]}

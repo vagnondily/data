@@ -1,19 +1,22 @@
 // ============================================================================
-// Coquille applicative — barre latérale + barre supérieure (style appli PM)
+// Coquille applicative — barre latérale (repliable) + barre supérieure
+// Raccourcis : ⌘K / Ctrl+K (palette), « / » (recherche). Toasts + palette montés ici.
 // ============================================================================
-import { useMemo, useState } from 'react'
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog,
   Settings, Menu, X, Bell, ChevronDown, Search, RefreshCw, Download, LogIn, Building2,
-  CalendarCheck, ClipboardList, Boxes,
+  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { NAV, ROLES } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
 import { exportJSON } from '../lib/export.js'
 import { cx, Avatar, Badge, Dropdown, MenuItem, IconButton, useConfirm } from './ui.jsx'
 import { fromNow } from '../lib/format.js'
+import Toaster from './Toaster.jsx'
+import CommandPalette from './CommandPalette.jsx'
 
 const ICONS = {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
@@ -23,36 +26,54 @@ const ICONS = {
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('mems-collapsed') === '1' } catch { return false } })
   const org = useStore((s) => s.organization)
+
+  const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('mems-collapsed', n ? '1' : '0') } catch { /* ignore */ } return n })
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const el = e.target
+      const typing = /input|textarea|select/i.test(el?.tagName || '') || el?.isContentEditable
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setPaletteOpen((o) => !o) }
+      else if (e.key === '/' && !typing && !paletteOpen) { e.preventDefault(); document.getElementById('global-search')?.focus() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [paletteOpen])
+
   return (
     <div className="flex h-screen overflow-hidden bg-ground">
-      {/* backdrop mobile */}
       {mobileOpen && <div className="fixed inset-0 z-30 bg-brand-deep/40 lg:hidden" onClick={() => setMobileOpen(false)} />}
-      <Sidebar org={org} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <Sidebar org={org} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onMenu={() => setMobileOpen(true)} />
+        <Topbar onMenu={() => setMobileOpen(true)} onPalette={() => setPaletteOpen(true)} />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-7 sm:py-7">
             <Outlet />
           </div>
         </main>
       </div>
+      <Toaster />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }
 
-function Sidebar({ org, mobileOpen, onClose }) {
+function Sidebar({ org, mobileOpen, onClose, collapsed, onToggleCollapse }) {
   return (
     <aside className={cx(
-      'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-brand-deep text-white transition-transform lg:static lg:translate-x-0',
+      'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-brand-deep text-white transition-all lg:static lg:translate-x-0',
+      collapsed && 'lg:w-16',
       mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
-      {/* Logo / bandeau */}
       <div className="relative overflow-hidden px-5 pb-4 pt-5"
         style={{ background: 'radial-gradient(120% 140% at 88% -10%, rgba(0,125,188,.55), transparent 55%), linear-gradient(160deg,#03293d,#06405f 70%,#085387)' }}>
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-display text-2xl font-extrabold tracking-tight">MEM<span className="text-[#54b6e6]">S</span></div>
-            <div className="mt-0.5 text-[11px] font-medium text-[#a9d3ec]">Suivi &amp; Évaluation</div>
+            <div className={cx('font-display text-2xl font-extrabold tracking-tight', collapsed && 'lg:hidden')}>MEM<span className="text-[#54b6e6]">S</span></div>
+            <div className={cx('mt-0.5 text-[11px] font-medium text-[#a9d3ec]', collapsed && 'lg:hidden')}>Suivi &amp; Évaluation</div>
+            {collapsed && <div className="hidden font-display text-2xl font-extrabold lg:block">M<span className="text-[#54b6e6]">S</span></div>}
           </div>
           <IconButton icon={X} onClick={onClose} className="text-white hover:bg-white/10 lg:hidden" />
         </div>
@@ -61,17 +82,18 @@ function Sidebar({ org, mobileOpen, onClose }) {
       <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4">
         {NAV.map((grp) => (
           <div key={grp.group} className="mb-4">
-            <div className="px-3 pb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#6f97ad]">{grp.group}</div>
+            <div className={cx('px-3 pb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#6f97ad]', collapsed && 'lg:hidden')}>{grp.group}</div>
             <div className="space-y-0.5">
               {grp.items.map((it) => {
                 const Icon = ICONS[it.icon] || LayoutDashboard
                 return (
-                  <NavLink key={it.to} to={it.to} end={it.to === '/'} onClick={onClose}
+                  <NavLink key={it.to} to={it.to} end={it.to === '/'} onClick={onClose} title={collapsed ? it.label : undefined}
                     className={({ isActive }) => cx(
                       'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                      collapsed && 'lg:justify-center lg:px-0',
                       isActive ? 'bg-brand text-white shadow-card' : 'text-[#c9e3f3]/85 hover:bg-white/10 hover:text-white')}>
-                    <Icon size={17} strokeWidth={2} />
-                    <span>{it.label}</span>
+                    <Icon size={17} strokeWidth={2} className="flex-none" />
+                    <span className={cx(collapsed && 'lg:hidden')}>{it.label}</span>
                   </NavLink>
                 )
               })}
@@ -80,21 +102,24 @@ function Sidebar({ org, mobileOpen, onClose }) {
         ))}
       </nav>
 
-      <div className="border-t border-white/10 px-4 py-3">
-        <div className="flex items-center gap-2 text-[#a9d3ec]">
-          <Building2 size={15} />
-          <span className="truncate text-xs">{org.name}</span>
+      <div className="border-t border-white/10 px-3 py-2">
+        <button onClick={onToggleCollapse} title={collapsed ? 'Déplier' : 'Replier'}
+          className={cx('hidden w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[#a9d3ec] transition hover:bg-white/10 hover:text-white lg:flex', collapsed && 'lg:justify-center lg:px-0')}>
+          {collapsed ? <PanelLeftOpen size={17} /> : <><PanelLeftClose size={17} /><span>Replier le menu</span></>}
+        </button>
+        <div className={cx('flex items-center gap-2 px-1.5 py-1 text-[#a9d3ec]', collapsed && 'lg:hidden')}>
+          <Building2 size={15} className="flex-none" /><span className="truncate text-xs">{org.name}</span>
         </div>
       </div>
     </aside>
   )
 }
 
-function Topbar({ onMenu }) {
+function Topbar({ onMenu, onPalette }) {
   return (
     <header className="z-20 flex flex-none items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:px-6">
       <IconButton icon={Menu} onClick={onMenu} className="lg:hidden" />
-      <GlobalSearch />
+      <GlobalSearch onPalette={onPalette} />
       <div className="ml-auto flex items-center gap-1.5">
         <Notifications />
         <AccountMenu />
@@ -103,7 +128,7 @@ function Topbar({ onMenu }) {
   )
 }
 
-function GlobalSearch() {
+function GlobalSearch({ onPalette }) {
   const [q, setQ] = useState('')
   const nav = useNavigate()
   const { projects, sites, indicators } = useStore((s) => ({ projects: s.projects, sites: s.sites, indicators: s.indicators }))
@@ -121,8 +146,9 @@ function GlobalSearch() {
   return (
     <div className="relative w-full max-w-md">
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" />
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un projet, un site, un indicateur…"
-        className="w-full rounded-lg border border-line bg-inset py-2 pl-9 pr-3 text-sm outline-none transition placeholder:text-ink-mute focus:border-brand focus:bg-surface focus:ring-2 focus:ring-brand/15" />
+      <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un projet, un site, un indicateur…"
+        className="w-full rounded-lg border border-line bg-inset py-2 pl-9 pr-14 text-sm outline-none transition placeholder:text-ink-mute focus:border-brand focus:bg-surface focus:ring-2 focus:ring-brand/15" />
+      <button onClick={onPalette} title="Palette de commandes" className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-mute transition hover:border-brand hover:text-brand-d sm:block">⌘K</button>
       {results.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-pop">
           {results.map((r, i) => (

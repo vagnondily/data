@@ -25,3 +25,5 @@
 
 /* Leaflet container needs an explicit height */
 .leaflet-container { height: 100%; width: 100%; background: #dbe7f0; font-family: inherit; }
+
+@keyframes mems-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

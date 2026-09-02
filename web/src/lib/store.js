@@ -6,6 +6,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { buildSeed } from './seed.js'
 import { uid } from './id.js'
+import { notifyAction } from './toast.js'
 
 const DATA_KEYS = [
   'organization', 'users', 'offices', 'partners', 'programmes', 'projects',
@@ -57,6 +58,7 @@ export const useStore = create(
             ...s.audit,
           ].slice(0, 250),
         }))
+        try { notifyAction(action, summary) } catch { /* toaster indispo */ }
       },
 
       // -------- Valeurs d'indicateur (upsert par période) ------------------
