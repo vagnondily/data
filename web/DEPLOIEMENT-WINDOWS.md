@@ -32,14 +32,14 @@ Un script PowerShell automatise la création du service NSSM :
 cd C:\apps\data\web
 # PowerShell en tant qu'administrateur
 powershell -ExecutionPolicy Bypass -File .\scripts\install-nssm-service.ps1 `
-  -WebDir "C:\apps\data\web" -Port 4000 -NssmExe "C:\nssm\nssm.exe"
+  -WebDir "C:\apps\data\web" -Port 3000 -NssmExe "C:\nssm\nssm.exe"
 ```
 
 Le script : vérifie la build, repère `node.exe`, crée le service **MEMS** qui lance
 `vite preview` (serveur statique intégré) sur le port choisi, configure le démarrage
 automatique et les journaux, puis démarre le service.
 
-Ouvrez ensuite **http://localhost:4000** (ou `http://IP_DU_SERVEUR:4000` depuis un autre poste).
+Ouvrez ensuite **http://localhost:3000** (ou `http://IP_DU_SERVEUR:3000` depuis un autre poste).
 
 ## 2 bis. Installation manuelle (équivalent, sans le script)
 
@@ -50,7 +50,7 @@ $node = (Get-Command node).Source          # ex. C:\Program Files\nodejs\node.ex
 $vite = "C:\apps\data\web\node_modules\vite\bin\vite.js"
 
 C:\nssm\nssm.exe install MEMS "$node"
-C:\nssm\nssm.exe set MEMS AppParameters "`"$vite`" preview --host --port 4000"
+C:\nssm\nssm.exe set MEMS AppParameters "`"$vite`" preview --host --port 3000"
 C:\nssm\nssm.exe set MEMS AppDirectory "C:\apps\data\web"
 C:\nssm\nssm.exe set MEMS AppStdout "C:\apps\data\web\logs\mems.out.log"
 C:\nssm\nssm.exe set MEMS AppStderr "C:\apps\data\web\logs\mems.err.log"
@@ -82,7 +82,7 @@ nssm restart MEMS
 Ouvrez le port dans le pare‑feu Windows si l'app est consultée depuis d'autres postes :
 
 ```powershell
-New-NetFirewallRule -DisplayName "MEMS 4000" -Direction Inbound -Protocol TCP -LocalPort 4000 -Action Allow
+New-NetFirewallRule -DisplayName "MEMS 3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
 ```
 
 ---

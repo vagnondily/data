@@ -55,7 +55,7 @@ tableaux Kanban, chronogramme, cartes, tableaux de bord).
 ```bash
 cd web
 npm install       # installe les dépendances
-npm run dev       # démarre le serveur de développement → http://localhost:4000
+npm run dev       # démarre le serveur de développement → http://localhost:3000
 ```
 
 Pour une build de production :
@@ -63,7 +63,7 @@ Pour une build de production :
 ```bash
 cd web
 npm run build     # génère web/dist
-npm run preview   # sert la build → http://localhost:4000
+npm run preview   # sert la build → http://localhost:3000
 ```
 
 `web/dist` est un site **statique** : il peut être servi par n'importe quel

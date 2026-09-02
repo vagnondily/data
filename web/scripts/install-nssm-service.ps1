@@ -4,11 +4,11 @@
 #
 # Exemple :
 #   powershell -ExecutionPolicy Bypass -File .\scripts\install-nssm-service.ps1 `
-#     -WebDir "C:\apps\data\web" -Port 4000 -NssmExe "C:\nssm\nssm.exe"
+#     -WebDir "C:\apps\data\web" -Port 3000 -NssmExe "C:\nssm\nssm.exe"
 # ============================================================================
 param(
   [string]$WebDir      = (Split-Path -Parent $PSScriptRoot),  # dossier web/ par défaut
-  [int]   $Port        = 4000,
+  [int]   $Port        = 3000,
   [string]$ServiceName = "MEMS",
   [string]$NssmExe     = "nssm",                              # sur le PATH, ou chemin complet
   [string]$NodeExe     = ""                                    # auto-détecté si vide
