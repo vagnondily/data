@@ -4,7 +4,7 @@
 inspirée du descriptif produit MEMS et de la logique de gestion de projet.
 Première version **fonctionnelle**, **front‑end uniquement** : elle tourne sans
 serveur ni base de données — les données sont persistées **dans le navigateur**
-(localStorage). Interface **bilingue FR/EN**, **thème clair/sombre**, charte **WFP** (bleu `#007DBC`).
+(localStorage). Interface **bilingue FR/EN**, **thème clair/sombre**, charte **Blue** (bleu `#007DBC`).
 
 > Pilote de démonstration : bureau pays **Madagascar (PAM)** avec un portefeuille
 > réaliste (2 programmes, 5 projets, cadres logiques, indicateurs, activités, sites,
@@ -130,7 +130,7 @@ modification, un validateur peut valider les visites et les imports, etc.).
 | Couche | Choix |
 |--------|-------|
 | UI | **React 18** + **Vite 5** |
-| Style | **Tailwind CSS** (charte WFP centralisée) |
+| Style | **Tailwind CSS** (charte Blue centralisée) |
 | État | **Zustand** + middleware `persist` (localStorage) |
 | Graphiques | **Recharts** |
 | Cartographie | **Leaflet** (marqueurs vectoriels ; fond de tuiles optionnel) |
@@ -152,7 +152,7 @@ web/
 ├── src/
 │   ├── main.jsx · App.jsx            # point d'entrée + routeur (HashRouter)
 │   ├── lib/
-│   │   ├── constants.js              # charte WFP, rôles, statuts, régions, navigation
+│   │   ├── constants.js              # charte Blue, rôles, statuts, régions, navigation
 │   │   ├── store.js                  # store Zustand + CRUD + persistance + annulation
 │   │   ├── seed.js                   # données de démonstration
 │   │   ├── compute.js                # métriques dérivées (atteinte, santé, MMR, budget)
