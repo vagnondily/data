@@ -155,6 +155,9 @@ const EN = {
   'Note narrative': 'Narrative note', 'Veuillez autoriser les fenêtres pop-up pour l’impression.': 'Please allow pop-ups to print.',
   'Composez un rapport visuel (graphiques) prêt à imprimer ou exporter en PDF.': 'Build a visual, print/PDF-ready report (charts).',
   'ex. T3 2025, Janvier–Mars…': 'e.g. Q3 2025, Jan–Mar…',
+  'Modèles de rapport': 'Report templates', 'Charger un modèle…': 'Load a template…',
+  'Aucun modèle enregistré': 'No saved template', 'Nom du modèle…': 'Template name…',
+  'Modèle enregistré': 'Template saved', 'Supprimer le modèle': 'Delete template',
   'ligne(s)': 'row(s)', 'colonnes': 'columns', 'Portefeuille complet': 'Full portfolio',
   // Catalogue de rations
   'Catalogue de rations': 'Ration catalog', 'Rations': 'Rations', 'Denrées': 'Commodities',

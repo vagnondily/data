@@ -3,8 +3,9 @@
 // (configuration + aperçu en direct, impression / PDF).
 // ============================================================================
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FileBarChart, Printer, FileSpreadsheet, Download, Check, Image as ImageIcon, RotateCcw, X } from 'lucide-react'
+import { FileBarChart, Printer, FileSpreadsheet, Download, Check, Image as ImageIcon, RotateCcw, X, Save, Trash2 } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
+import { uid } from '../lib/id.js'
 import {
   budgetForProject, projectProgress, beneficiaryRollup,
   indicatorAchievement, indicatorActual,
@@ -38,15 +39,43 @@ const loadCfg = () => {
   } catch { return DEFAULT_CFG }
 }
 
+const TPL_KEY = 'mems-report-templates'
+const loadTpls = () => { try { return JSON.parse(localStorage.getItem(TPL_KEY)) || [] } catch { return [] } }
+const saveTpls = (list) => { try { localStorage.setItem(TPL_KEY, JSON.stringify(list)) } catch { /* quota */ } }
+
 export default function Rapports() {
   const store = useStore((s) => s)
   const lang = useLang((s) => s.lang)
   const { projects } = store
   const [dataset, setDataset] = useState('projets')
   const [cfg, setCfg] = useState(loadCfg)
+  const [tpls, setTpls] = useState(loadTpls)
+  const [tplName, setTplName] = useState('')
+  const [tplId, setTplId] = useState('')
   const logoInput = useRef(null)
   const set = (patch) => setCfg((c) => ({ ...c, ...patch }))
   const setSection = (k, v) => setCfg((c) => ({ ...c, sections: { ...c.sections, [k]: v } }))
+
+  const persistTpls = (list) => { setTpls(list); saveTpls(list) }
+  const saveTemplate = () => {
+    const name = tplName.trim(); if (!name) return
+    const existing = tpls.find((x) => x.name.toLowerCase() === name.toLowerCase())
+    const cfgSnap = JSON.parse(JSON.stringify(cfg))
+    const next = existing
+      ? tpls.map((x) => (x.id === existing.id ? { ...x, cfg: cfgSnap } : x))
+      : [...tpls, { id: uid('tpl'), name, cfg: cfgSnap }]
+    persistTpls(next); setTplName(''); setTplId((existing || next[next.length - 1]).id)
+    notify(t('Modèle enregistré'), { kind: 'ok' })
+  }
+  const loadTemplate = (id) => {
+    setTplId(id)
+    const tpl = tpls.find((x) => x.id === id)
+    if (tpl) setCfg({ ...DEFAULT_CFG, ...tpl.cfg, sections: { ...DEFAULT_CFG.sections, ...(tpl.cfg.sections || {}) } })
+  }
+  const deleteTemplate = () => {
+    if (!tplId) return
+    persistTpls(tpls.filter((x) => x.id !== tplId)); setTplId('')
+  }
 
   // Mémorise les réglages (préréglages) entre les sessions.
   useEffect(() => { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)) } catch { /* quota */ } }, [cfg])
@@ -102,6 +131,23 @@ export default function Rapports() {
         <Card>
           <SectionTitle>Générateur de rapport</SectionTitle>
           <p className="-mt-1 mb-3 text-xs text-ink-mute">{t('Composez un rapport visuel (graphiques) prêt à imprimer ou exporter en PDF.')}</p>
+
+          {/* Modèles enregistrés */}
+          <div className="mb-3 rounded-xl border border-line bg-surface-2/40 p-2.5">
+            <div className="mb-1.5 text-xs font-semibold text-ink-soft">{t('Modèles de rapport')}</div>
+            <div className="flex items-center gap-1.5">
+              <Select value={tplId} onChange={(e) => loadTemplate(e.target.value)} className="flex-1">
+                <option value="">{tpls.length ? t('Charger un modèle…') : t('Aucun modèle enregistré')}</option>
+                {tpls.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </Select>
+              {tplId && <button onClick={deleteTemplate} title={t('Supprimer le modèle')} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-ink-mute transition hover:bg-bad-tint hover:text-bad"><Trash2 size={15} /></button>}
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('Nom du modèle…')} className="flex-1"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveTemplate() } }} />
+              <Button size="sm" variant="outline" icon={Save} onClick={saveTemplate} disabled={!tplName.trim()}>{t('Enregistrer')}</Button>
+            </div>
+          </div>
 
           <Field label="Périmètre">
             <Select value={cfg.scope} onChange={(e) => set({ scope: e.target.value })}>
