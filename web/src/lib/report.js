@@ -130,6 +130,18 @@ function reportBody(store, cfg) {
   const F = (arr, key = 'projectId') => (isPortfolio ? arr : arr.filter((x) => x[key] === cfg.scope))
   let html = ''
 
+  // Sommaire (facultatif) — liste des sections incluses, dans l'ordre de rendu
+  if (S.sommaire) {
+    const order = [
+      ['kpis', 'Indicateurs clés'], ['budget', 'Budget'], ['indicateurs', 'Atteinte des indicateurs'],
+      ['couverture', 'Suivi & conformité'], ['beneficiaires', 'Bénéficiaires'], ['activites', 'Activités'],
+      ['tables', 'Tableaux détaillés'], ['narrative', 'Note narrative'],
+    ].filter(([k]) => S[k] && !(k === 'narrative' && !(cfg.narrative || '').trim()))
+    if (order.length) {
+      html += `<section class="block avoid"><h2>${esc(t('Sommaire'))}</h2><ol class="toc">${order.map(([, label]) => `<li>${esc(t(label))}</li>`).join('')}</ol></section>`
+    }
+  }
+
   // KPIs
   if (S.kpis) {
     let cards = []
@@ -275,10 +287,13 @@ export function buildReportDoc(store, cfg) {
   const org = cfg.org?.trim() || store.organization?.name || ''
   const landscape = cfg.orientation === 'landscape'
   const genLabel = `${t('Généré par')} MEMS — ${new Date().toLocaleString()}`
+  const logo = (typeof cfg.logo === 'string' && cfg.logo.startsWith('data:')) ? cfg.logo : ''
+  const coverMark = logo ? `<img class="cover-logo" src="${logo}" alt="">` : `<div class="brandmark">M<span>S</span></div>`
+  const headMark = logo ? `<img class="head-logo" src="${logo}" alt="">` : `<div class="brandmark sm">M<span>S</span></div>`
 
   const cover = cfg.sections.cover ? `<header class="cover">
       <div class="cover-top">
-        <div class="brandmark">M<span>S</span></div>
+        ${coverMark}
         <div class="org">${esc(org)}</div>
       </div>
       <div class="cover-mid">
@@ -288,7 +303,7 @@ export function buildReportDoc(store, cfg) {
         ${cfg.period?.trim() ? `<p class="period">${esc(t('Période'))} : <b>${esc(cfg.period)}</b></p>` : ''}
       </div>
       <div class="cover-foot">${esc(genLabel)}</div>
-    </header>` : `<header class="head"><div class="brandmark sm">M<span>S</span></div><div><h1>${esc(title)}</h1><p class="sub">${esc(subtitle)}</p></div></header>`
+    </header>` : `<header class="head">${headMark}<div><h1>${esc(title)}</h1><p class="sub">${esc(subtitle)}</p></div></header>`
 
   const body = reportBody(store, cfg)
 
@@ -316,10 +331,14 @@ export function buildReportDoc(store, cfg) {
   .cover-foot{font-size:11px;color:#a9d3ec}
   .brandmark{width:44px;height:44px;border-radius:12px;background:#ffffff1a;border:1px solid #ffffff35;display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff}
   .brandmark span{color:#7cc6ec} .brandmark.sm{width:38px;height:38px;font-size:17px;background:var(--acc);border:none}
+  .cover-logo{max-height:48px;max-width:190px;object-fit:contain;background:#fff;border-radius:9px;padding:7px 11px}
+  .head-logo{max-height:42px;max-width:170px;object-fit:contain}
   .head{display:flex;align-items:center;gap:14px;padding:22px 30px;border-bottom:3px solid var(--acc)}
   .head h1{font-size:22px}
   /* Blocks */
   .block{margin-top:22px}
+  .toc{margin:0;padding-left:20px;columns:2;column-gap:28px;font-size:13px;color:var(--soft)}
+  .toc li{margin:4px 0;break-inside:avoid}
   .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .kpi{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:linear-gradient(180deg,#fff,var(--inset))}
   .kpi .kv{font-size:23px;font-weight:800;color:var(--deep);line-height:1;white-space:nowrap}

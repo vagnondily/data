@@ -2,8 +2,8 @@
 // Rapports — extraction Excel (.xlsx) + générateur de rapport infographique
 // (configuration + aperçu en direct, impression / PDF).
 // ============================================================================
-import { useMemo, useState } from 'react'
-import { FileBarChart, Printer, FileSpreadsheet, Download, Check } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { FileBarChart, Printer, FileSpreadsheet, Download, Check, Image as ImageIcon, RotateCcw, X } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import {
   budgetForProject, projectProgress, beneficiaryRollup,
@@ -15,27 +15,52 @@ import { exportRowsXlsx } from '../lib/docs.js'
 import { buildReportDoc, printReportDoc, ACCENTS } from '../lib/report.js'
 import { PageHeader, Card, SectionTitle, Select, Button, Field, Input, Segmented, cx } from '../components/ui.jsx'
 import { t, useLang } from '../lib/i18n.js'
+import { notify } from '../lib/toast.js'
 
 const SECTION_KEYS = [
-  ['cover', 'Page de couverture'], ['kpis', 'Indicateurs clés'], ['budget', 'Budget'],
+  ['cover', 'Page de couverture'], ['sommaire', 'Sommaire'], ['kpis', 'Indicateurs clés'], ['budget', 'Budget'],
   ['indicateurs', 'Atteinte des indicateurs'], ['couverture', 'Suivi & conformité'],
   ['beneficiaires', 'Bénéficiaires'], ['activites', 'Activités'],
   ['tables', 'Tableaux détaillés'], ['narrative', 'Note narrative'],
 ]
+
+const CFG_KEY = 'mems-report-cfg'
+const DEFAULT_CFG = {
+  title: '', subtitle: '', period: '', org: '', scope: 'portfolio',
+  orientation: 'portrait', accent: 'wfp', logo: '',
+  sections: { cover: true, sommaire: false, kpis: true, budget: true, indicateurs: true, couverture: true, beneficiaires: true, activites: true, tables: false, narrative: true },
+  narrative: '',
+}
+const loadCfg = () => {
+  try {
+    const s = JSON.parse(localStorage.getItem(CFG_KEY))
+    return s ? { ...DEFAULT_CFG, ...s, sections: { ...DEFAULT_CFG.sections, ...(s.sections || {}) } } : DEFAULT_CFG
+  } catch { return DEFAULT_CFG }
+}
 
 export default function Rapports() {
   const store = useStore((s) => s)
   const lang = useLang((s) => s.lang)
   const { projects } = store
   const [dataset, setDataset] = useState('projets')
-  const [cfg, setCfg] = useState({
-    title: '', subtitle: '', period: '', org: '', scope: 'portfolio',
-    orientation: 'portrait', accent: 'wfp',
-    sections: { cover: true, kpis: true, budget: true, indicateurs: true, couverture: true, beneficiaires: true, activites: true, tables: false, narrative: true },
-    narrative: '',
-  })
+  const [cfg, setCfg] = useState(loadCfg)
+  const logoInput = useRef(null)
   const set = (patch) => setCfg((c) => ({ ...c, ...patch }))
   const setSection = (k, v) => setCfg((c) => ({ ...c, sections: { ...c.sections, [k]: v } }))
+
+  // Mémorise les réglages (préréglages) entre les sessions.
+  useEffect(() => { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)) } catch { /* quota */ } }, [cfg])
+
+  const onLogo = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 1_500_000) { notify(t('Image trop lourde (max 1,5 Mo).'), { kind: 'bad' }); e.target.value = ''; return }
+    const rd = new FileReader()
+    rd.onload = () => set({ logo: String(rd.result) })
+    rd.readAsDataURL(file)
+    e.target.value = ''
+  }
+  const resetCfg = () => { setCfg({ ...DEFAULT_CFG }); try { localStorage.removeItem(CFG_KEY) } catch { /* ignore */ } }
 
   const html = useMemo(() => buildReportDoc(store, cfg), [store, cfg, lang])
   const fileBase = `mems-rapport-${new Date().toISOString().slice(0, 10)}`
@@ -94,6 +119,19 @@ export default function Rapports() {
             <Field label="Sous-titre"><Input value={cfg.subtitle} onChange={(e) => set({ subtitle: e.target.value })} placeholder={t('Rapport de suivi-évaluation')} /></Field>
           </div>
 
+          {/* Logo de couverture */}
+          <div className="mt-3">
+            <div className="mb-1.5 text-xs font-semibold text-ink-soft">{t('Logo (couverture)')}</div>
+            <div className="flex items-center gap-2.5">
+              {cfg.logo
+                ? <span className="grid h-11 w-16 flex-none place-items-center overflow-hidden rounded-lg border border-line bg-brand-deep p-1"><img src={cfg.logo} alt="" className="max-h-full max-w-full object-contain" /></span>
+                : <span className="grid h-11 w-16 flex-none place-items-center rounded-lg border border-dashed border-line text-ink-mute"><ImageIcon size={18} /></span>}
+              <input ref={logoInput} type="file" accept="image/*" onChange={onLogo} className="hidden" />
+              <Button size="sm" variant="outline" icon={ImageIcon} onClick={() => logoInput.current?.click()}>{t('Importer un logo')}</Button>
+              {cfg.logo && <button onClick={() => set({ logo: '' })} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-ink-mute transition hover:text-bad"><X size={13} />{t('Retirer')}</button>}
+            </div>
+          </div>
+
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <div className="mb-1.5 text-xs font-semibold text-ink-soft">{t('Orientation')}</div>
@@ -134,9 +172,13 @@ export default function Rapports() {
             </Field>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button icon={Printer} onClick={() => printReportDoc(html)}>Imprimer / PDF</Button>
             <Button variant="outline" icon={Download} onClick={doDownloadHtml}>Télécharger (HTML)</Button>
+            <button onClick={resetCfg} title={t('Réinitialiser les réglages')}
+              className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-mute transition hover:text-ink">
+              <RotateCcw size={14} />{t('Réinitialiser')}
+            </button>
           </div>
         </Card>
 

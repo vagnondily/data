@@ -41,9 +41,10 @@ tableaux Kanban, chronogramme, cartes, tableaux de bord).
 ### Exploitation
 - **Import de données** — barrière **Aperçu → Dépôt (en attente) → Validation**.
 - **Rapports** — extraction **Excel (.xlsx)** de tout jeu de données + **rapport infographique configurable** :
-  graphiques SVG (donuts, barres, anneaux de progression, jauges), page de couverture, périmètre
-  (portefeuille ou projet), sections à la carte, orientation portrait/paysage, accent de marque,
-  **aperçu en direct** et impression **PDF** ; palette validée (contrastes & daltonisme).
+  graphiques SVG (donuts, barres, anneaux de progression), **page de couverture avec logo importable**,
+  **sommaire**, périmètre (portefeuille ou projet), sections à la carte, orientation portrait/paysage,
+  accent de marque, **aperçu en direct**, **préréglages mémorisés** et impression **PDF** ;
+  palette validée (contrastes & daltonisme).
 - **Registres versionnés** — plan de suivi & PDD par version : tableau filtrable par bureau, **export/remplissage/réimport Excel**.
 
 ### Administration

@@ -156,6 +156,9 @@ const EN = {
   'Composez un rapport visuel (graphiques) prêt à imprimer ou exporter en PDF.': 'Build a visual, print/PDF-ready report (charts).',
   'ex. T3 2025, Janvier–Mars…': 'e.g. Q3 2025, Jan–Mar…',
   'ligne(s)': 'row(s)', 'colonnes': 'columns', 'Portefeuille complet': 'Full portfolio',
+  'Sommaire': 'Contents', 'Logo (couverture)': 'Logo (cover)', 'Importer un logo': 'Upload a logo',
+  'Retirer': 'Remove', 'Réinitialiser les réglages': 'Reset settings', 'Réglages enregistrés': 'Settings saved',
+  'PNG (image)': 'PNG (image)', 'Image trop lourde (max 1,5 Mo).': 'Image too large (max 1.5 MB).',
   // Bandes de conformité
   'Excellent': 'Excellent', 'Satisfaisant': 'Satisfactory', 'À améliorer': 'Needs improvement',
   'Action urgente': 'Urgent action', 'Non évalué': 'Not assessed',
