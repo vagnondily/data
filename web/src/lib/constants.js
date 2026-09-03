@@ -252,6 +252,7 @@ export const NAV = [
   {
     label: 'Données & rapports', icon: 'FileBarChart', items: [
       { to: '/import', label: 'Import de données', icon: 'Upload' },
+      { to: '/visualisations', label: 'Mes visualisations', icon: 'BarChart3' },
       { to: '/rapports', label: 'Rapports', icon: 'FileBarChart' },
     ],
   },

@@ -18,6 +18,7 @@ import DocDetail from './views/docs/DocDetail.jsx'
 import Beneficiaires from './views/Beneficiaires.jsx'
 import Tpm from './views/Tpm.jsx'
 import Rapports from './views/Rapports.jsx'
+import Visualisations from './views/Visualisations.jsx'
 import Import from './views/Import.jsx'
 import Parametres from './views/Parametres.jsx'
 import Utilisateurs from './views/Utilisateurs.jsx'
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/tpm" element={<Tpm />} />
           <Route path="/import" element={<Import />} />
           <Route path="/rapports" element={<Rapports />} />
+          <Route path="/visualisations" element={<Visualisations />} />
           <Route path="/utilisateurs" element={<Utilisateurs />} />
           <Route path="/parametres" element={<Parametres />} />
           <Route path="*" element={<div className="py-16"><EmptyState title="Page introuvable" hint="La page demandée n'existe pas." /></div>} />
