@@ -9,6 +9,7 @@ import Activites from './views/Activites.jsx'
 import Planning from './views/Planning.jsx'
 import Indicateurs from './views/Indicateurs.jsx'
 import Budget from './views/Budget.jsx'
+import Rations from './views/Rations.jsx'
 import Sites from './views/Sites.jsx'
 import Suivi from './views/Suivi.jsx'
 import Mre from './views/Mre.jsx'
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/planning" element={<Planning />} />
           <Route path="/indicateurs" element={<Indicateurs />} />
           <Route path="/budget" element={<Budget />} />
+          <Route path="/rations" element={<Rations />} />
           <Route path="/sites" element={<Sites />} />
           <Route path="/plan-suivi" element={<DocRegistry kind="suivi" />} />
           <Route path="/plan-suivi/:id" element={<DocDetail kind="suivi" />} />

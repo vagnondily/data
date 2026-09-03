@@ -350,13 +350,35 @@ export function buildSeed() {
     },
   ]
 
+  // ---- Denrées & rations (catalogue) --------------------------------------
+  const commodities = [
+    { id: 'cm_riz', name: 'Riz', group: 'cereales', kcalPer100g: 360, unit: 'g' },
+    { id: 'cm_farine', name: 'Farine de blé', group: 'cereales', kcalPer100g: 340, unit: 'g' },
+    { id: 'cm_legum', name: 'Légumineuses (pois/haricots)', group: 'legumineuses', kcalPer100g: 335, unit: 'g' },
+    { id: 'cm_huile', name: 'Huile végétale enrichie', group: 'huile', kcalPer100g: 884, unit: 'g' },
+    { id: 'cm_sel', name: 'Sel iodé', group: 'sel', kcalPer100g: 0, unit: 'g' },
+    { id: 'cm_sucre', name: 'Sucre', group: 'sucre', kcalPer100g: 400, unit: 'g' },
+    { id: 'cm_csbpp', name: 'Super Cereal Plus (CSB++)', group: 'melange', kcalPer100g: 410, unit: 'g' },
+    { id: 'cm_csb', name: 'Super Cereal (CSB)', group: 'melange', kcalPer100g: 380, unit: 'g' },
+  ]
+  const rations = [
+    { id: 'rt_gfd', name: 'Ration générale (GFD)', modality: 'vivres', activityTag: 'GFD', daysPerMonth: 30,
+      items: [{ commodityId: 'cm_riz', grams: 400 }, { commodityId: 'cm_legum', grams: 60 }, { commodityId: 'cm_huile', grams: 25 }, { commodityId: 'cm_sel', grams: 5 }],
+      cashPerDay: 0, notes: 'Ration alimentaire générale — cible ~2 100 kcal/personne/jour.' },
+    { id: 'rt_tsfp', name: 'Ration nutritionnelle (TSFP)', modality: 'vivres', activityTag: 'TSFP', daysPerMonth: 30,
+      items: [{ commodityId: 'cm_csbpp', grams: 200 }, { commodityId: 'cm_huile', grams: 20 }, { commodityId: 'cm_sucre', grams: 15 }],
+      cashPerDay: 0, notes: 'Prévention de la malnutrition aiguë modérée (enfants 6-59 mois).' },
+    { id: 'rt_cash', name: 'Transfert monétaire (équivalent panier)', modality: 'cash', activityTag: 'CBT', daysPerMonth: 30,
+      items: [], cashPerDay: 0.35, notes: 'Valeur du panier alimentaire minimum, par personne et par jour (USD).' },
+  ]
+
   return {
     organization: { ...ORG_DEFAULT },
     users, offices, partners, programmes, projects,
     objectives, results, indicators, activities, sites,
     budgetLines, beneficiaries, visits,
     tpmContracts, tpmMissions, tpmExpenses, imports, audit,
-    mreActivities, planDocs,
+    mreActivities, planDocs, commodities, rations,
     currentUserId: 'u_armi',
     seededAt: new Date().toISOString(),
   }

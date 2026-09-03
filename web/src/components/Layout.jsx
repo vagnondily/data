@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog,
   Settings, Menu, X, Bell, ChevronDown, ChevronRight, Search, RefreshCw, Download, LogIn, Building2,
-  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus, Sun, Moon, HelpCircle,
+  CalendarCheck, ClipboardList, Boxes, PanelLeftClose, PanelLeftOpen, Plus, Sun, Moon, HelpCircle, Wheat, Package,
 } from 'lucide-react'
 import { NAV, NAV_LEAVES, ROLES } from '../lib/constants.js'
 import { useStore } from '../lib/store.js'
@@ -26,7 +26,7 @@ import CommandPalette from './CommandPalette.jsx'
 const ICONS = {
   LayoutDashboard, FolderKanban, Briefcase, ListChecks, CalendarRange, Target,
   Wallet, MapPin, ClipboardCheck, Users, Handshake, Upload, FileBarChart, UserCog, Settings,
-  CalendarCheck, ClipboardList, Boxes,
+  CalendarCheck, ClipboardList, Boxes, Wheat, Package,
 }
 
 export default function Layout() {

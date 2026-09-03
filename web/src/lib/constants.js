@@ -67,6 +67,22 @@ export const ACTIVITY_STATUS = {
 }
 export const ACTIVITY_ORDER = ['todo', 'doing', 'blocked', 'done']
 
+// ---- Rations & denrées (catalogue) -----------------------------------------
+export const COMMODITY_GROUPS = {
+  cereales: { label: 'Céréales', tone: 'warn' },
+  legumineuses: { label: 'Légumineuses', tone: 'ok' },
+  huile: { label: 'Huiles & graisses', tone: 'brand' },
+  melange: { label: 'Mélange enrichi', tone: 'brand' },
+  sel: { label: 'Sel', tone: 'ink' },
+  sucre: { label: 'Sucre', tone: 'warn' },
+  autre: { label: 'Autre', tone: 'ink' },
+}
+export const RATION_MODALITY = {
+  vivres: { label: 'Vivres (in-kind)', tone: 'brand' },
+  cash: { label: 'Transfert monétaire', tone: 'ok' },
+  bon: { label: 'Bon (voucher)', tone: 'warn' },
+}
+
 export const PRIORITY = {
   haute: { label: 'Haute', tone: 'bad' },
   moyenne: { label: 'Moyenne', tone: 'warn' },
@@ -214,6 +230,7 @@ export const NAV = [
       { to: '/planning', label: 'Planning', icon: 'CalendarRange' },
       { to: '/budget', label: 'Budget', icon: 'Wallet' },
       { to: '/pdd', label: 'Plan de distribution', icon: 'Boxes' },
+      { to: '/rations', label: 'Catalogue de rations', icon: 'Wheat' },
     ],
   },
   {

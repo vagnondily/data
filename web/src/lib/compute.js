@@ -159,3 +159,25 @@ export function groupCount(list, keyFn) {
   list.forEach((x) => { const k = keyFn(x); map[k] = (map[k] || 0) + 1 })
   return map
 }
+
+// ---- Rations : composition par personne/jour et totaux (kg, kcal, cash) ----
+export function rationPerDay(ration, commodities) {
+  const lut = {}
+  ;(commodities || []).forEach((c) => { lut[c.id] = c })
+  const items = (ration?.items || []).map((it) => {
+    const c = lut[it.commodityId] || {}
+    const grams = Number(it.grams) || 0
+    return { commodityId: it.commodityId, name: c.name || '—', group: c.group, grams, kcal: grams * (Number(c.kcalPer100g) || 0) / 100 }
+  })
+  return {
+    items,
+    kcal: items.reduce((n, x) => n + x.kcal, 0),
+    grams: items.reduce((n, x) => n + x.grams, 0),
+  }
+}
+export function rationTotals(ration, commodities, { persons = 1, days = 30 } = {}) {
+  const per = rationPerDay(ration, commodities)
+  const lines = per.items.map((x) => ({ ...x, kg: (x.grams * persons * days) / 1000 }))
+  const cash = ration && ration.modality !== 'vivres' ? (Number(ration.cashPerDay) || 0) * persons * days : 0
+  return { lines, totalKg: lines.reduce((n, x) => n + x.kg, 0), kcalPerDay: per.kcal, gramsPerDay: per.grams, cash, persons, days }
+}
