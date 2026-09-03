@@ -206,6 +206,7 @@ export const REGIONS = [
   { pcode: 'MG53', name: 'Atsinanana', lat: -18.15, lng: 49.4 },
   { pcode: 'MG61', name: 'Diana', lat: -12.28, lng: 49.29 },
   { pcode: 'MG62', name: 'Sava', lat: -14.27, lng: 50.17 },
+  { pcode: 'MG71', name: 'Ambatosoa', lat: -15.43, lng: 49.74 },
 ]
 export const COUNTRY_CENTER = { lat: -18.9, lng: 46.8, zoom: 5 }
 export function regionByPcode(pcode) {

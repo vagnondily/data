@@ -105,6 +105,15 @@ const EN = {
   'Objectif global': 'Overall objective', 'Zones d’intervention (régions)': 'Intervention areas (regions)',
   'E-mail': 'Email', 'Nom complet': 'Full name', 'Latitude': 'Latitude', 'Longitude': 'Longitude',
   'Population': 'Population', 'Commune': 'Municipality', 'Région': 'Region', 'Projets rattachés': 'Linked projects',
+  // Cascade géographique (région → district → commune)
+  'District': 'District', 'District / Région': 'District / Region', 'Tous les districts': 'All districts',
+  'Toutes les communes': 'All municipalities', '— Choisir —': '— Select —',
+  'Choisir une région d’abord': 'Select a region first', 'Choisir un district d’abord': 'Select a district first',
+  'Découpage géographique': 'Geographic breakdown',
+  'Hiérarchie officielle adm1 → adm2 → adm3 (source PAM 2025). Choisissez une région puis un district pour explorer.':
+    'Official adm1 → adm2 → adm3 hierarchy (WFP 2025 source). Pick a region then a district to explore.',
+  'régions': 'regions', 'districts': 'districts', 'communes': 'municipalities',
+  'ex. Ambovombe Centre': 'e.g. Ambovombe Centre',
   // Filtres / phrases fréquentes
   'Tous les projets': 'All projects', 'Tous les statuts': 'All statuses', 'Tous statuts': 'All statuses',
   'Tous les programmes': 'All programs', 'Toutes les régions': 'All regions', 'Tous les bureaux': 'All offices',

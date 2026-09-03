@@ -6,11 +6,15 @@ import { Settings, Save, Plus, Pencil, Trash2, MoreVertical, Download, Upload, R
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { SECTORS, REGIONS } from '../lib/constants.js'
+import { districtsOf, communesOf, GEO_COUNTS } from '../lib/geo.js'
 import { exportJSON } from '../lib/export.js'
 import {
   PageHeader, Card, Tabs, Field, Input, Select, Button, Badge, DataTable, Modal, RowActions,
   SectionTitle, useConfirm,
 } from '../components/ui.jsx'
+import GeoCascade from '../components/GeoCascade.jsx'
+import { num } from '../lib/format.js'
+import { t } from '../lib/i18n.js'
 
 const PARTNER_TYPES = { bailleur: 'Bailleur', partenaire: 'Partenaire de mise en œuvre', prestataire: 'Prestataire (TPM)' }
 
@@ -139,12 +143,43 @@ function RefTab() {
         <SectionTitle>Secteurs d’activité</SectionTitle>
         <div className="flex flex-wrap gap-1.5">{SECTORS.map((s) => <Badge key={s} tone="brand">{s}</Badge>)}</div>
       </Card>
-      <Card>
-        <SectionTitle>Découpage géographique</SectionTitle>
-        <p className="text-sm text-ink-soft"><b>{REGIONS.length} régions</b> de Madagascar chargées comme socle cartographique. Les communes/districts s’y rattachent par p-code.</p>
-        <div className="mt-2 max-h-40 overflow-y-auto text-xs text-ink-mute">{REGIONS.map((r) => r.name).join(' · ')}</div>
-      </Card>
+      <GeoRefCard />
     </div>
+  )
+}
+
+function GeoRefCard() {
+  const [geo, setGeo] = useState({ region: '', district: '', commune: '' })
+  const dists = districtsOf(geo.region)
+  const comms = communesOf(geo.district)
+  return (
+    <Card>
+      <SectionTitle>Découpage géographique</SectionTitle>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <Badge tone="brand">{num(GEO_COUNTS.regions)} {t('régions')}</Badge>
+        <Badge tone="ink">{num(GEO_COUNTS.districts)} {t('districts')}</Badge>
+        <Badge tone="ink">{num(GEO_COUNTS.communes)} {t('communes')}</Badge>
+      </div>
+      <p className="mb-3 text-xs text-ink-mute">{t('Hiérarchie officielle adm1 → adm2 → adm3 (source PAM 2025). Choisissez une région puis un district pour explorer.')}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <GeoCascade variant="form" region={geo.region} district={geo.district} commune={geo.commune} onChange={setGeo} />
+      </div>
+      {geo.region && (
+        <div className="mt-3 rounded-lg border border-line bg-surface-2 p-3">
+          {!geo.district ? (
+            <>
+              <div className="mb-1.5 text-xs font-semibold text-ink-soft">{num(dists.length)} {t('districts')}</div>
+              <div className="max-h-40 overflow-y-auto text-xs text-ink-mute">{dists.map((d) => d.name).join(' · ')}</div>
+            </>
+          ) : (
+            <>
+              <div className="mb-1.5 text-xs font-semibold text-ink-soft">{num(comms.length)} {t('communes')}</div>
+              <div className="max-h-40 overflow-y-auto text-xs text-ink-mute">{comms.map((c) => c.name).join(' · ')}</div>
+            </>
+          )}
+        </div>
+      )}
+    </Card>
   )
 }
 

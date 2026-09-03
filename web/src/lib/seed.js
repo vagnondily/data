@@ -3,6 +3,7 @@
 // Générées au premier lancement, puis persistées dans le navigateur.
 // ============================================================================
 import { ORG_DEFAULT, REGIONS, PERIODS } from './constants.js'
+import { districtName, communeName } from './geo.js'
 
 const iso = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10)
 const jitter = (v, amt = 0.6) => v + (Math.random() - 0.5) * amt
@@ -169,23 +170,26 @@ export function buildSeed() {
 
   // ---- Sites --------------------------------------------------------------
   const sites = []
+  // districtCode / communeCode : vrais codes adm2 / adm3 (PAM 2025) — cf. lib/geo.js
   const siteDefs = [
-    { id: 'st_amb', name: 'Ambovombe Centre', region: 'MG33', projectIds: ['pr_gs1'], officeId: 'of_grandsud', security: 'orange', status: 'actif', population: 24500 },
-    { id: 'st_bel', name: 'Beloha', region: 'MG33', projectIds: ['pr_gs1'], officeId: 'of_grandsud', security: 'rouge', status: 'actif', population: 12800 },
-    { id: 'st_tsi', name: 'Tsihombe', region: 'MG33', projectIds: ['pr_gs1', 'pr_gs2'], officeId: 'of_grandsud', security: 'orange', status: 'actif', population: 15200 },
-    { id: 'st_amboa', name: 'Amboasary Atsimo', region: 'MG34', projectIds: ['pr_gs1', 'pr_gs2'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 31000 },
-    { id: 'st_taol', name: 'Taolagnaro', region: 'MG34', projectIds: ['pr_gs2'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 46000 },
-    { id: 'st_beto', name: 'Betioky Atsimo', region: 'MG32', projectIds: ['pr_nut1'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 19800 },
-    { id: 'st_ampa', name: 'Ampanihy', region: 'MG32', projectIds: ['pr_nut1'], officeId: 'of_sud', security: 'orange', status: 'actif', population: 22300 },
-    { id: 'st_toli', name: 'Toliara II', region: 'MG32', projectIds: ['pr_nut1'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 38500 },
-    { id: 'st_maro', name: 'Maroantsetra', region: 'MG52', projectIds: ['pr_shock'], officeId: 'of_est', security: 'orange', status: 'actif', population: 27600 },
-    { id: 'st_toam', name: 'Toamasina II', region: 'MG53', projectIds: ['pr_shock'], officeId: 'of_est', security: 'vert', status: 'actif', population: 52000 },
-    { id: 'st_mana', name: 'Manakara', region: 'MG24', projectIds: ['pr_can1'], officeId: 'of_est', security: 'vert', status: 'clos', population: 41200 },
+    { id: 'st_amb', name: 'Ambovombe Centre', region: 'MG33', districtCode: 'MG52516', communeCode: 'MG52516011', projectIds: ['pr_gs1'], officeId: 'of_grandsud', security: 'orange', status: 'actif', population: 24500 },
+    { id: 'st_bel', name: 'Beloha', region: 'MG33', districtCode: 'MG52513', communeCode: 'MG52513010', projectIds: ['pr_gs1'], officeId: 'of_grandsud', security: 'rouge', status: 'actif', population: 12800 },
+    { id: 'st_tsi', name: 'Tsihombe', region: 'MG33', districtCode: 'MG52514', communeCode: 'MG52514011', projectIds: ['pr_gs1', 'pr_gs2'], officeId: 'of_grandsud', security: 'orange', status: 'actif', population: 15200 },
+    { id: 'st_amboa', name: 'Amboasary Atsimo', region: 'MG34', districtCode: 'MG53519', communeCode: 'MG53519010', projectIds: ['pr_gs1', 'pr_gs2'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 31000 },
+    { id: 'st_taol', name: 'Taolagnaro', region: 'MG34', districtCode: 'MG53515', communeCode: 'MG53515010', projectIds: ['pr_gs2'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 46000 },
+    { id: 'st_beto', name: 'Betioky Atsimo', region: 'MG32', districtCode: 'MG51506', communeCode: 'MG51506011', projectIds: ['pr_nut1'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 19800 },
+    { id: 'st_ampa', name: 'Ampanihy', region: 'MG32', districtCode: 'MG51507', communeCode: 'MG51507010', projectIds: ['pr_nut1'], officeId: 'of_sud', security: 'orange', status: 'actif', population: 22300 },
+    { id: 'st_toli', name: 'Toliara II', region: 'MG32', districtCode: 'MG51501', communeCode: 'MG51501001a', projectIds: ['pr_nut1'], officeId: 'of_sud', security: 'vert', status: 'actif', population: 38500 },
+    { id: 'st_maro', name: 'Maroantsetra', region: 'MG71', districtCode: 'MG32303', communeCode: 'MG32303010', projectIds: ['pr_shock'], officeId: 'of_est', security: 'orange', status: 'actif', population: 27600 },
+    { id: 'st_toam', name: 'Toamasina II', region: 'MG53', districtCode: 'MG31301', communeCode: 'MG31301001a', projectIds: ['pr_shock'], officeId: 'of_est', security: 'vert', status: 'actif', population: 52000 },
+    { id: 'st_mana', name: 'Manakara', region: 'MG24', districtCode: 'MG23210', communeCode: 'MG23210010', projectIds: ['pr_can1'], officeId: 'of_est', security: 'vert', status: 'clos', population: 41200 },
   ]
   siteDefs.forEach((s) => {
     const reg = REGIONS.find((r) => r.pcode === s.region)
     sites.push({
-      ...s, pcode: s.region, district: reg?.name, commune: s.name,
+      ...s, pcode: s.region,
+      district: districtName(s.districtCode) || reg?.name,
+      commune: communeName(s.communeCode) || s.name,
       lat: jitter(reg?.lat || -20, 1.1), lng: jitter(reg?.lng || 46, 1.1),
       coverageStatus: s.status === 'clos' ? 'clos' : 'couvert',
     })

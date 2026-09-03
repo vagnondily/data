@@ -6,13 +6,15 @@ import { MapPin, Plus, Map as MapIcon, Table2, Pencil, Trash2, MoreVertical, Dow
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
 import { exportRowsXlsx } from '../lib/docs.js'
-import { REGIONS, SECURITY, SITE_STATUS } from '../lib/constants.js'
+import { REGIONS, COUNTRY_CENTER, SECURITY, SITE_STATUS } from '../lib/constants.js'
+import { districtName, communeName } from '../lib/geo.js'
 import { num } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import {
   PageHeader, Segmented, Select, Button, Card, Badge, StatusBadge, DataTable, SearchInput,
   Modal, Field, Input, RowActions, useConfirm, EmptyState, EditableCell,
 } from '../components/ui.jsx'
+import GeoCascade from '../components/GeoCascade.jsx'
 import SiteMap from '../components/Map.jsx'
 import { useOpenOnNew } from '../lib/hooks.js'
 
@@ -21,7 +23,7 @@ export default function Sites() {
   const { canEdit } = useCan()
   const [view, setView] = useState('map')
   const [colorBy, setColorBy] = useState('security')
-  const [region, setRegion] = useState('')
+  const [geo, setGeo] = useState({ region: '', district: '', commune: '' })
   const [projectId, setProjectId] = useState('')
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState(null)
@@ -29,11 +31,13 @@ export default function Sites() {
   useOpenOnNew(() => setEditing({}), canEdit)
 
   const filtered = useMemo(() => sites.filter((s) => {
-    if (region && s.pcode !== region) return false
+    if (geo.region && s.pcode !== geo.region) return false
+    if (geo.district && s.districtCode !== geo.district) return false
+    if (geo.commune && s.communeCode !== geo.commune) return false
     if (projectId && !(s.projectIds || []).includes(projectId)) return false
     if (q && !s.name.toLowerCase().includes(q.toLowerCase())) return false
     return true
-  }), [sites, region, projectId, q])
+  }), [sites, geo, projectId, q])
 
   const toneOf = (s) => colorBy === 'security' ? (SECURITY[s.security]?.tone || 'brand') : (SITE_STATUS[s.status]?.tone || 'brand')
   const mapped = filtered.map((s) => ({
@@ -52,8 +56,10 @@ export default function Sites() {
     }
   }
   const EXPORT_COLS = [
-    { label: 'Site', get: (r) => r.name }, { label: 'District', get: (r) => r.district },
+    { label: 'Site', get: (r) => r.name },
     { label: 'Région', get: (r) => byId(REGIONS.map((x) => ({ id: x.pcode, ...x })), r.pcode)?.name || r.pcode || '' },
+    { label: 'District', get: (r) => districtName(r.districtCode) || r.district || '' },
+    { label: 'Commune', get: (r) => communeName(r.communeCode) || r.commune || '' },
     { label: 'Projets', get: (r) => (r.projectIds || []).map((id) => byId(projects, id)?.code).filter(Boolean).join(', ') },
     { label: 'Population', get: (r) => r.population },
     { label: 'Sécurité', get: (r) => SECURITY[r.security]?.label || r.security },
@@ -77,7 +83,7 @@ export default function Sites() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <SearchInput value={q} onChange={setQ} placeholder="Rechercher un site…" className="w-full sm:w-56" />
-        <Select value={region} onChange={(e) => setRegion(e.target.value)} className="w-auto"><option value="">Toutes les régions</option>{REGIONS.map((r) => <option key={r.pcode} value={r.pcode}>{r.name}</option>)}</Select>
+        <GeoCascade variant="filter" region={geo.region} district={geo.district} commune={geo.commune} onChange={setGeo} />
         <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>
         {view === 'map' && (
           <div className="ml-auto flex items-center gap-2 text-xs text-ink-mute">
@@ -96,7 +102,7 @@ export default function Sites() {
                 <span className={`h-2.5 w-2.5 flex-none rounded-full ${dotClass(toneOf(s))}`} />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-ink">{s.name}</div>
-                  <div className="text-xs text-ink-mute">{s.district} · {num(s.population)} hab.</div>
+                  <div className="text-xs text-ink-mute">{[s.commune, s.district].filter(Boolean).join(' · ')} · {num(s.population)} hab.</div>
                 </div>
                 <Badge tone={SECURITY[s.security]?.tone || 'ink'}>{SECURITY[s.security]?.label}</Badge>
               </div>
@@ -108,7 +114,12 @@ export default function Sites() {
           rows={filtered}
           columns={[
             { key: 'name', label: 'Site', render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
-            { key: 'region', label: 'Région', render: (r) => <span className="text-ink-soft">{r.district}</span> },
+            { key: 'zone', label: 'District / Région', sortValue: (r) => r.district || '', render: (r) => (
+              <div className="leading-tight">
+                <div className="text-ink-soft">{r.district || '—'}</div>
+                <div className="text-xs text-ink-mute">{byId(REGIONS.map((x) => ({ id: x.pcode, ...x })), r.pcode)?.name || ''}</div>
+              </div>
+            ) },
             { key: 'projects', label: 'Projets', render: (r) => <div className="flex flex-wrap gap-1">{(r.projectIds || []).map((id) => <Badge key={id} tone="ink">{byId(projects, id)?.code}</Badge>)}</div> },
             { key: 'pop', label: 'Population', align: 'right', sortValue: (r) => r.population, render: (r) => canEdit
               ? <EditableCell value={r.population} type="number" align="right" display={(v) => num(v)}
@@ -138,19 +149,39 @@ function dotClass(tone) { return { ok: 'bg-ok-dot', warn: 'bg-warn-dot', bad: 'b
 
 function SiteModal({ site, projects, offices, onClose, onSave }) {
   const [f, setF] = useState({
-    name: '', pcode: REGIONS[0].pcode, district: REGIONS[0].name, commune: '', lat: REGIONS[0].lat, lng: REGIONS[0].lng,
+    name: '', pcode: '', districtCode: '', communeCode: '', district: '', commune: '', lat: '', lng: '',
     status: 'actif', security: 'vert', population: '', projectIds: [], officeId: offices[0]?.id || '', ...site,
   })
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }))
-  const onRegion = (pcode) => { const r = byId(REGIONS.map((x) => ({ id: x.pcode, ...x })), pcode); set('pcode', pcode); setF((p) => ({ ...p, pcode, district: r.name, lat: p.lat || r.lat, lng: p.lng || r.lng })) }
+  const regionOf = (pcode) => byId(REGIONS.map((x) => ({ id: x.pcode, ...x })), pcode)
+  const onGeo = ({ region, district, commune }) => setF((p) => {
+    const moved = region !== p.pcode
+    const r = regionOf(region)
+    return {
+      ...p, pcode: region, districtCode: district, communeCode: commune,
+      district: districtName(district) || r?.name || '',
+      commune: communeName(commune) || '',
+      lat: moved ? (r?.lat ?? p.lat) : p.lat,
+      lng: moved ? (r?.lng ?? p.lng) : p.lng,
+    }
+  })
   const toggleProject = (id) => set('projectIds', f.projectIds.includes(id) ? f.projectIds.filter((x) => x !== id) : [...f.projectIds, id])
+  const save = () => {
+    const r = regionOf(f.pcode)
+    onSave({
+      ...f, population: Number(f.population) || 0,
+      lat: Number(f.lat) || r?.lat || COUNTRY_CENTER.lat,
+      lng: Number(f.lng) || r?.lng || COUNTRY_CENTER.lng,
+    })
+  }
   return (
     <Modal open onClose={onClose} size="lg" title={site.id ? 'Modifier le site' : 'Nouveau site'}
-      footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={() => onSave({ ...f, population: Number(f.population) || 0, lat: Number(f.lat), lng: Number(f.lng) })} disabled={!f.name}>Enregistrer</Button></>}>
+      footer={<><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={!f.name || !f.pcode}>Enregistrer</Button></>}>
       <div className="form-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Nom du site" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
-        <Field label="Région"><Select value={f.pcode} onChange={(e) => onRegion(e.target.value)}>{REGIONS.map((r) => <option key={r.pcode} value={r.pcode}>{r.name}</option>)}</Select></Field>
-        <Field label="Commune"><Input value={f.commune} onChange={(e) => set('commune', e.target.value)} /></Field>
+        <Field label="Nom du site" required className="col-span-2"><Input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="ex. Ambovombe Centre" /></Field>
+        <div className="col-span-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <GeoCascade variant="form" required region={f.pcode} district={f.districtCode} commune={f.communeCode} onChange={onGeo} />
+        </div>
         <Field label="Latitude"><Input type="number" step="0.0001" value={f.lat} onChange={(e) => set('lat', e.target.value)} /></Field>
         <Field label="Longitude"><Input type="number" step="0.0001" value={f.lng} onChange={(e) => set('lng', e.target.value)} /></Field>
         <Field label="Statut"><Select value={f.status} onChange={(e) => set('status', e.target.value)}>{Object.entries(SITE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></Field>

@@ -6,15 +6,16 @@ import { useMemo, useState } from 'react'
 import { CalendarCheck, Check, Clock } from 'lucide-react'
 import { useStore } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
-import { REGIONS, MMR_TARGET } from '../lib/constants.js'
+import { MMR_TARGET } from '../lib/constants.js'
 import { pct } from '../lib/format.js'
 import { PageHeader, Card, Select, Badge, EmptyState, cx } from '../components/ui.jsx'
+import GeoCascade from '../components/GeoCascade.jsx'
 
 export function MonitoringGrid({ fixedProject }) {
   const { sites, visits, projects, organization, currentUserId, add, remove, log } = useStore((s) => s)
   const { canEdit } = useCan()
   const [projectId, setProjectId] = useState('')
-  const [region, setRegion] = useState('')
+  const [geo, setGeo] = useState({ region: '', district: '', commune: '' })
   const effectiveProject = fixedProject || projectId
 
   const year = organization.fiscalYear || 2025
@@ -26,7 +27,9 @@ export function MonitoringGrid({ fixedProject }) {
   const activeSites = useMemo(() => sites.filter((s) =>
     s.status === 'actif'
     && (!effectiveProject || (s.projectIds || []).includes(effectiveProject))
-    && (!region || s.pcode === region)), [sites, effectiveProject, region])
+    && (!geo.region || s.pcode === geo.region)
+    && (!geo.district || s.districtCode === geo.district)
+    && (!geo.commune || s.communeCode === geo.commune)), [sites, effectiveProject, geo])
 
   const visitsFor = (siteId, ym) => visits.filter((v) => v.siteId === siteId && (v.date || '').slice(0, 7) === ym)
   const pick = (arr) => arr.find((v) => v.status === 'realise') || arr[0]
@@ -55,7 +58,7 @@ export function MonitoringGrid({ fixedProject }) {
         {!fixedProject && (
           <>
             <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto"><option value="">Tous les projets</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}</Select>
-            <Select value={region} onChange={(e) => setRegion(e.target.value)} className="w-auto"><option value="">Toutes les régions</option>{REGIONS.map((r) => <option key={r.pcode} value={r.pcode}>{r.name}</option>)}</Select>
+            <GeoCascade variant="filter" withCommune={false} region={geo.region} district={geo.district} onChange={setGeo} />
           </>
         )}
         <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
