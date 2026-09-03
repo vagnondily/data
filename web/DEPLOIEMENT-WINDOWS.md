@@ -87,6 +87,25 @@ New-NetFirewallRule -DisplayName "MEMS 3000" -Direction Inbound -Protocol TCP -L
 
 ---
 
+## Dépannage
+
+**`nssm.exe : Impossible d'ouvrir le service!` (au lancement du script)**
+À la **première** installation le service `MEMS` n'existe pas encore ; sous
+PowerShell 7.4+ le code de retour de `nssm status` était transformé en erreur
+fatale. **Corrigé** dans le script (sonde via `Get-Service`, appels `nssm`
+tolérants). Mettez le dépôt à jour (`git pull`) puis relancez le script — ou
+utilisez l'**installation manuelle** ci‑dessus (§ 2 bis), équivalente.
+
+**`Impossible d'ouvrir le service` / accès refusé** : ouvrez PowerShell **en
+tant qu'administrateur** (clic droit → « Exécuter en tant qu'administrateur »).
+Le script le vérifie désormais et s'arrête avec un message clair sinon.
+
+**Le service ne démarre pas** : consultez `C:\apps\data\web\logs\mems.err.log`,
+vérifiez que la build existe (`web\dist\index.html`) et que le port n'est pas
+déjà pris (`Get-NetTCPConnection -LocalPort 3000`).
+
+---
+
 ## Alternatives au serveur Node
 
 Comme `web/dist` est **100 % statique** (et utilise le routage par `#`, donc **aucune
