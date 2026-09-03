@@ -5,8 +5,9 @@ import { useRef, useState } from 'react'
 import { Settings, Save, Plus, Pencil, Trash2, MoreVertical, Download, Upload, RefreshCw, Trash } from 'lucide-react'
 import { useStore, byId } from '../lib/store.js'
 import { useCan } from '../lib/perms.js'
-import { SECTORS, REGIONS } from '../lib/constants.js'
+import { SECTORS, REGIONS, INDICATOR_LEVEL } from '../lib/constants.js'
 import { districtsOf, communesOf, GEO_COUNTS } from '../lib/geo.js'
+import { MASTERLIST, masterlistByCategory } from '../lib/masterlist.js'
 import { exportJSON } from '../lib/export.js'
 import {
   PageHeader, Card, Tabs, Field, Input, Select, Button, Badge, DataTable, Modal, RowActions,
@@ -144,8 +145,42 @@ function RefTab() {
         <div className="flex flex-wrap gap-1.5">{SECTORS.map((s) => <Badge key={s} tone="brand">{s}</Badge>)}</div>
       </Card>
       <GeoRefCard />
+      <MasterlistCard />
     </div>
   )
+}
+
+function MasterlistCard() {
+  const [cat, setCat] = useState('')
+  const byCat = masterlistByCategory()
+  const cats = [...byCat.keys()]
+  const items = cat ? (byCat.get(cat) || []) : MASTERLIST
+  return (
+    <Card className="md:col-span-2">
+      <SectionTitle>Référentiel d’indicateurs</SectionTitle>
+      <p className="mb-3 text-sm text-ink-soft">
+        <b>{MASTERLIST.length} {t('indicateurs standard')}</b> {t('(cadre de résultats type PAM) — disponibles à la création d’un indicateur.')}
+      </p>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <button onClick={() => setCat('')} className={chipCls(cat === '')}>{t('Tous')} ({MASTERLIST.length})</button>
+        {cats.map((c) => <button key={c} onClick={() => setCat(c)} className={chipCls(cat === c)}>{c} ({byCat.get(c).length})</button>)}
+      </div>
+      <div className="max-h-64 overflow-y-auto rounded-lg border border-line-soft">
+        {items.map((m) => (
+          <div key={m.code} className="flex items-start gap-2 border-b border-line-soft px-3 py-2 last:border-0">
+            <Badge tone={{ impact: 'brand', outcome: 'ok', output: 'warn', process: 'ink' }[m.level]}>{INDICATOR_LEVEL[m.level]?.label}</Badge>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm text-ink">{m.name}</div>
+              <div className="text-xs text-ink-mute">{m.code} · {m.unit} · {m.category}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+function chipCls(active) {
+  return `rounded-full border px-2.5 py-1 text-xs font-medium transition ${active ? 'border-brand bg-brand-tint text-brand-d' : 'border-line text-ink-mute hover:border-brand/40'}`
 }
 
 function GeoRefCard() {

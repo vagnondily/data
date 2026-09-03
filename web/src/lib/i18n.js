@@ -135,6 +135,14 @@ const EN = {
   'Budget planifié': 'Planned budget', 'Engagé': 'Committed', 'Dépensé': 'Spent',
   'Bénéficiaires atteints': 'Beneficiaries reached', 'Bénéficiaires ciblés': 'Beneficiaries targeted',
   'Nombre de visites': 'Number of visits', 'Score moyen': 'Average score',
+  // Masterlist d'indicateurs (référentiel standard)
+  'Partir d’un indicateur standard (référentiel)': 'Start from a standard indicator (catalog)',
+  'indicateurs': 'indicators', 'Rechercher un indicateur…': 'Search an indicator…',
+  'Aucun indicateur ne correspond.': 'No matching indicator.', 'Tous les niveaux': 'All levels',
+  'Référentiel d’indicateurs': 'Indicator catalog', 'indicateurs standard': 'standard indicators',
+  'Ajouter un indicateur': 'Add an indicator', 'Nouvel indicateur': 'New indicator', 'Modifier l’indicateur': 'Edit indicator',
+  '(cadre de résultats type PAM) — disponibles à la création d’un indicateur.': '(WFP-style results framework) — available when creating an indicator.',
+  'Tous': 'All',
   // Filtres / phrases fréquentes
   'Tous les projets': 'All projects', 'Tous les statuts': 'All statuses', 'Tous statuts': 'All statuses',
   'Tous les programmes': 'All programs', 'Toutes les régions': 'All regions', 'Tous les bureaux': 'All offices',
