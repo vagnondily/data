@@ -1,7 +1,7 @@
 // ============================================================================
 // Kit d'interface MEMS — primitives réutilisables (charte WFP, style appli PM)
 // ============================================================================
-import { useEffect, useMemo, useRef, useState, Children, cloneElement, isValidElement } from 'react'
+import { useEffect, useMemo, useRef, useState, useId, Children, cloneElement, isValidElement } from 'react'
 import { X, ChevronDown, Search, Inbox, Pencil, Trash2, ChevronRight, ChevronsUpDown, Copy, Check, Minus } from 'lucide-react'
 import { initials, clamp } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
@@ -479,25 +479,51 @@ export function SearchInput({ value, onChange, placeholder = 'Rechercher…', cl
 
 // ---- Modal -----------------------------------------------------------------
 export function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
+  const panelRef = useRef(null)
+  const titleId = useId()
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose?.()
+    const prevFocus = document.activeElement
+    const panel = panelRef.current
+    const focusables = () => (panel
+      ? [...panel.querySelectorAll('a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+        .filter((el) => el.offsetParent !== null)
+      : [])
+    // Focus initial : premier champ de saisie, sinon premier élément focusable, sinon le panneau.
+    const els = focusables()
+    const firstField = els.find((el) => /input|textarea|select/i.test(el.tagName))
+    ;(firstField || els[0] || panel)?.focus?.()
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { onClose?.(); return }
+      if (e.key !== 'Tab') return
+      const f = focusables()
+      if (!f.length) { e.preventDefault(); panel?.focus?.(); return }
+      const first = f[0], last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+      try { prevFocus?.focus?.() } catch { /* élément disparu */ }
+    }
   }, [open, onClose])
   if (!open) return null
   const w = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }[size]
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-brand-deep/50 p-4 backdrop-blur-sm sm:p-8"
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={cx('my-4 w-full rounded-xl2 border border-line bg-surface shadow-pop', w)}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+        className={cx('my-4 w-full rounded-xl2 border border-line bg-surface shadow-pop outline-none', w)}>
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 className="text-base font-extrabold text-ink">{tr(title)}</h2>
+            <h2 id={titleId} className="text-base font-extrabold text-ink">{tr(title)}</h2>
             {subtitle && <p className="mt-0.5 text-xs text-ink-mute">{tr(subtitle)}</p>}
           </div>
-          <IconButton icon={X} onClick={onClose} className="-mr-2" />
+          <IconButton icon={X} onClick={onClose} className="-mr-2" title={t('Fermer')} />
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
         {footer && <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2/50 px-5 py-3">{footer}</div>}
