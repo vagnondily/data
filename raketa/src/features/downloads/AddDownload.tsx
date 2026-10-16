@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { addBatch, addDownload, probeUrl, type RemoteInfo } from "../../lib/api";
-import { formatBytes } from "../../lib/format";
+import { addBatch, addDownload } from "../../lib/api";
 
 interface Props {
   onAdded: () => void;
@@ -13,7 +12,6 @@ interface Props {
 export function AddDownload({ onAdded, prefillUrl }: Props) {
   const [url, setUrl] = useState(prefillUrl ?? "");
   const [destDir, setDestDir] = useState("");
-  const [info, setInfo] = useState<RemoteInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [batchMode, setBatchMode] = useState(false);
@@ -22,20 +20,6 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
   async function chooseFolder() {
     const selected = await open({ directory: true, multiple: false });
     if (typeof selected === "string") setDestDir(selected);
-  }
-
-  async function analyse() {
-    setError(null);
-    setInfo(null);
-    if (!url.trim()) return;
-    try {
-      setBusy(true);
-      setInfo(await probeUrl(url.trim()));
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function submit() {
@@ -52,7 +36,6 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
       setBusy(true);
       await addDownload({ url: url.trim(), destDir: destDir.trim() });
       setUrl("");
-      setInfo(null);
       onAdded();
     } catch (e) {
       setError(String(e));
@@ -120,7 +103,7 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
             placeholder="Collez une URL https://…"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            onBlur={analyse}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
             aria-label="URL à télécharger"
           />
           <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
@@ -129,19 +112,6 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
           <button className="btn primary" onClick={submit} disabled={busy}>
             Télécharger
           </button>
-        </div>
-      )}
-
-      {info && !batchMode && (
-        <div className="probe-info">
-          <span>
-            <strong>{info.suggested_filename ?? "fichier"}</strong>
-          </span>
-          <span>{formatBytes(info.size)}</span>
-          <span>{info.mime_type ?? "type inconnu"}</span>
-          <span className={info.accept_ranges ? "badge ok" : "badge warn"}>
-            {info.accept_ranges ? "Reprise possible" : "Mono-flux"}
-          </span>
         </div>
       )}
 

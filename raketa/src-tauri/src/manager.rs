@@ -223,7 +223,16 @@ fn spawn_download(
                 }
                 Err(e) => {
                     let code = format!("{e}");
-                    let _ = store.mark_error(&task.id, "engine", &code);
+                    // Les liens debrid/seedbox expirent ou sont à usage unique.
+                    let message = if code.contains("404")
+                        || code.contains("403")
+                        || code.contains("410")
+                    {
+                        format!("{code} — lien probablement expiré ou à usage unique (fréquent avec debrid/seedbox) : régénère le lien")
+                    } else {
+                        code
+                    };
+                    let _ = store.mark_error(&task.id, "engine", &message);
                     let _ = app.emit(
                         EVENT_PROGRESS,
                         &Progress {

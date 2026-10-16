@@ -67,16 +67,12 @@ async fn prepare_task(
 
     let settings = state.settings.lock().await.clone();
 
-    // Nom d'affichage : nom imposé, sinon sonde best-effort, sinon URL.
-    let probed = state
-        .engine
-        .probe(&url)
-        .await
-        .ok()
-        .and_then(|i| i.suggested_filename);
+    // Nom d'affichage : nom imposé, sinon dérivé de l'URL. On NE sonde PAS ici :
+    // les liens debrid/seedbox sont souvent à usage unique et chaque requête
+    // supplémentaire les « consomme » (→ HTTP 404). Le moteur sondera une seule
+    // fois au démarrage du téléchargement.
     let display_name = filename
         .clone()
-        .or(probed)
         .unwrap_or_else(|| raketa_core::filename::from_url(&url));
 
     // Dossier : celui fourni, sinon le dossier par défaut ; + catégorie si activé.
