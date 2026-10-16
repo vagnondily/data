@@ -367,6 +367,31 @@ pub async fn set_settings(state: State<'_, AppState>, settings: Settings) -> Res
 /// pur — fonctionne sur n'importe quelle page sans dépendre de Tauri.
 const NAV_JS: &str = r#"(function(){
   if (window.__raketaNav) return; window.__raketaNav = true;
+
+  // --- 1) Navigateur à fenêtre unique : window.open navigue dans la fenêtre
+  //        courante. Un lien de téléchargement (Content-Disposition) déclenche
+  //        alors le hook on_download et RAKETA capte le fichier, au lieu d'une
+  //        popup bloquée par WebView2. Comportement général de navigateur.
+  try {
+    var _open = window.open;
+    window.open = function(u, n, f){
+      try {
+        if (u) { location.href = new URL(u, location.href).href; return window; }
+      } catch (e) { try { return _open.call(window, u, n, f); } catch (e2) {} }
+      return window;
+    };
+  } catch (e) {}
+
+  // --- 2) Réactive le clic droit / la sélection que certaines pages désactivent
+  //        (copie de lien, menu contextuel). On neutralise leurs gestionnaires
+  //        en phase de capture sans casser les menus légitimes des pages.
+  try {
+    ['contextmenu','selectstart','copy','dragstart'].forEach(function(evt){
+      window.addEventListener(evt, function(e){ e.stopImmediatePropagation(); }, true);
+    });
+  } catch (e) {}
+
+  // --- 3) Barre de navigation (retour / avance / recharger / adresse).
   function build(){
     if (document.getElementById('__raketa_bar')) return;
     var bar = document.createElement('div');
@@ -388,35 +413,15 @@ const NAV_JS: &str = r#"(function(){
   if(document.body){build();}else{document.addEventListener('DOMContentLoaded',build);}
 })();"#;
 
-/// Bloqueur de popups « doux » : autorise `window.open` vers la MÊME origine
-/// (utile pour les vérifications de sécurité / captchas) et ne bloque que les
-/// popups cross-origin (pubs). Retire aussi target=_blank des liens.
-const POPUP_SOFT_JS: &str = r#"(function(){
-  try {
-    var _open = window.open;
-    window.open = function(u, n, f){
-      try { if (u && new URL(u, location.href).origin === location.origin) return _open.call(window, u, n, f); }
-      catch (e) { return _open.call(window, u, n, f); }
-      return null;
-    };
-    document.addEventListener('click', function(e){
-      var a = e.target && e.target.closest ? e.target.closest('a[target=_blank]') : null;
-      if (a) { a.removeAttribute('target'); }
-    }, true);
-  } catch (e) {}
-})();"#;
-
 /// Ouvre une fenêtre navigateur intégrée sur `url`. Les téléchargements lancés
 /// depuis cette fenêtre sont **captés par RAKETA** (envoyés au moteur rapide) ;
 /// les popups sont bloqués si l'option est active.
 #[tauri::command]
 pub async fn open_browser(
     app: AppHandle,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
     url: String,
 ) -> Result<(), String> {
-    let block_popups = state.settings.lock().await.block_popups;
-
     let parsed: url::Url = url.parse().map_err(|_| "URL invalide".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("seuls http/https sont autorisés".into());
@@ -451,13 +456,9 @@ pub async fn open_browser(
             true
         });
 
-    // Toujours la barre de navigation ; le bloqueur de popups (doux) en option.
-    let script = if block_popups {
-        format!("{NAV_JS}\n{POPUP_SOFT_JS}")
-    } else {
-        NAV_JS.to_string()
-    };
-    builder = builder.initialization_script(script);
+    // Barre de navigation + fenêtre unique (window.open → navigation) + clic
+    // droit réactivé. Les téléchargements sont captés par le moteur RAKETA.
+    builder = builder.initialization_script(NAV_JS);
 
     builder.build().map_err(|e| e.to_string())?;
     Ok(())
