@@ -185,6 +185,11 @@ export function openBrowser(url: string): Promise<void> {
   return invoke("open_browser", { url });
 }
 
+// Ouvre une URL dans le navigateur système (pour les sites à vérif. de sécurité).
+export function openExternalUrl(url: string): Promise<void> {
+  return invoke("open_external_url", { url });
+}
+
 export const EVENT_CLIPBOARD = "raketa://clipboard-url";
 
 // URL intéressante copiée dans le presse-papiers (capture façon IDM).

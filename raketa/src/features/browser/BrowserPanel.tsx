@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { openBrowser } from "../../lib/api";
+import { openBrowser, openExternalUrl } from "../../lib/api";
 
 // Accès rapides courants (sites légitimes de contenus volumineux).
 const QUICK_LINKS = [
@@ -14,13 +14,29 @@ export function BrowserPanel() {
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function go(target?: string) {
+  function normalize(target?: string): string {
     let u = (target ?? url).trim();
+    if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+    return u;
+  }
+
+  async function go(target?: string) {
+    const u = normalize(target);
     if (!u) return;
-    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
     try {
       setError(null);
       await openBrowser(u);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function goExternal() {
+    const u = normalize();
+    if (!u) return;
+    try {
+      setError(null);
+      await openExternalUrl(u);
     } catch (e) {
       setError(String(e));
     }
@@ -41,6 +57,13 @@ export function BrowserPanel() {
         <button className="btn primary" onClick={() => go()}>
           Ouvrir
         </button>
+        <button
+          className="btn ghost"
+          onClick={goExternal}
+          title="Ouvrir dans Chrome/Edge (pour les sites à vérification de sécurité)"
+        >
+          Navigateur système
+        </button>
       </div>
 
       <div className="quick-links">
@@ -55,8 +78,13 @@ export function BrowserPanel() {
 
       <p className="browser-note">
         🧲 Les téléchargements lancés dans cette fenêtre sont <strong>captés par
-        RAKETA</strong> (moteur rapide multi-segments). Les popups/pubs intrusives
-        sont bloqués si l'option est active dans les Paramètres.
+        RAKETA</strong> (moteur rapide multi-segments). Une barre de navigation
+        (retour / avance / recharger / adresse) apparaît en haut de la fenêtre.
+        <br />
+        ⚠️ Si un site affiche une <strong>« Vérification de sécurité » qui tourne
+        sans finir</strong>, c'est le webview intégré qui ne lui plaît pas :
+        clique sur <strong>« Navigateur système »</strong> pour l'ouvrir dans
+        Chrome/Edge, ou désactive <em>Bloquer les popups</em> dans les Paramètres.
         <br />
         <span className="hint">
           RAKETA est un téléchargeur généraliste : ne téléchargez que des contenus

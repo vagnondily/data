@@ -343,12 +343,44 @@ pub async fn set_settings(state: State<'_, AppState>, settings: Settings) -> Res
 // Navigateur intégré (intégration « façon IDM », bloqueur de popups)
 // ---------------------------------------------------------------------------
 
-/// Script injecté pour neutraliser les popups et les ouvertures en nouvel onglet.
-const POPUP_BLOCKER_JS: &str = r#"(function(){
+/// Barre de navigation injectée (retour / avance / recharger / adresse), en JS
+/// pur — fonctionne sur n'importe quelle page sans dépendre de Tauri.
+const NAV_JS: &str = r#"(function(){
+  if (window.__raketaNav) return; window.__raketaNav = true;
+  function build(){
+    if (document.getElementById('__raketa_bar')) return;
+    var bar = document.createElement('div');
+    bar.id = '__raketa_bar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:42px;z-index:2147483647;background:#14161a;border-bottom:1px solid #272b33;display:flex;align-items:center;gap:6px;padding:0 8px;font-family:Segoe UI,Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4);';
+    function btn(t,fn){var b=document.createElement('button');b.textContent=t;b.style.cssText='background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:6px;height:28px;min-width:32px;cursor:pointer;font-size:15px;';b.onclick=fn;return b;}
+    var back=btn('◀',function(){history.back();});
+    var fwd=btn('▶',function(){history.forward();});
+    var rel=btn('↻',function(){location.reload();});
+    var addr=document.createElement('input');
+    addr.value=location.href;
+    addr.spellcheck=false;
+    addr.style.cssText='flex:1;height:28px;background:#0a0b0d;color:#e8eaed;border:1px solid #272b33;border-radius:6px;padding:0 10px;font-size:12px;outline:none;';
+    addr.addEventListener('keydown',function(e){if(e.key==='Enter'){var u=addr.value.trim();if(u&&!/^https?:\/\//i.test(u))u='https://'+u;if(u)location.href=u;}});
+    bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(addr);
+    (document.documentElement||document.body).appendChild(bar);
+    try{document.body.style.marginTop='42px';}catch(e){}
+  }
+  if(document.body){build();}else{document.addEventListener('DOMContentLoaded',build);}
+})();"#;
+
+/// Bloqueur de popups « doux » : autorise `window.open` vers la MÊME origine
+/// (utile pour les vérifications de sécurité / captchas) et ne bloque que les
+/// popups cross-origin (pubs). Retire aussi target=_blank des liens.
+const POPUP_SOFT_JS: &str = r#"(function(){
   try {
-    window.open = function(){ return null; };
+    var _open = window.open;
+    window.open = function(u, n, f){
+      try { if (u && new URL(u, location.href).origin === location.origin) return _open.call(window, u, n, f); }
+      catch (e) { return _open.call(window, u, n, f); }
+      return null;
+    };
     document.addEventListener('click', function(e){
-      var a = e.target && e.target.closest ? e.target.closest('a[target="_blank"]') : null;
+      var a = e.target && e.target.closest ? e.target.closest('a[target=_blank]') : null;
       if (a) { a.removeAttribute('target'); }
     }, true);
   } catch (e) {}
@@ -399,10 +431,24 @@ pub async fn open_browser(
             true
         });
 
-    if block_popups {
-        builder = builder.initialization_script(POPUP_BLOCKER_JS);
-    }
+    // Toujours la barre de navigation ; le bloqueur de popups (doux) en option.
+    let script = if block_popups {
+        format!("{NAV_JS}\n{POPUP_SOFT_JS}")
+    } else {
+        NAV_JS.to_string()
+    };
+    builder = builder.initialization_script(script);
 
     builder.build().map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Ouvre une URL dans le navigateur système (Chrome/Edge…), utile pour les
+/// sites dont la vérification de sécurité ne fonctionne pas dans le webview.
+#[tauri::command]
+pub async fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
 }
