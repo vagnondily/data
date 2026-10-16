@@ -28,6 +28,7 @@ uuid = { version = "1", features = ["v4"] }
 directories = "5"
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tiny_http = "0.12"
 
 [features]
 # Permet d'activer les devtools dans les builds de production si besoin.

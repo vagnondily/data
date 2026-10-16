@@ -127,6 +127,23 @@ pub async fn add_download(
     Ok(id)
 }
 
+/// Ajoute un téléchargement à partir d'une simple URL (utilisé par le pont
+/// navigateur). Dossier et nom déduits des préférences.
+pub(crate) async fn add_url(
+    app: AppHandle,
+    state: &AppState,
+    url: String,
+) -> Result<String, String> {
+    let (task, display_name) = prepare_task(state, url, String::new(), None, None).await?;
+    let id = task.id.clone();
+    {
+        let store = state.store.lock().await;
+        store.insert(&task, &display_name).map_err(|e| e.to_string())?;
+    }
+    state.submit(app, task).await;
+    Ok(id)
+}
+
 /// Ajoute un lot de téléchargements depuis un motif `[1-100]` ou une liste
 /// collée (une URL/motif par ligne). Renvoie le nombre de tâches créées.
 #[tauri::command]

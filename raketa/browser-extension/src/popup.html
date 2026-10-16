@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 260px;
+        margin: 0;
+        padding: 14px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #0a0b0d;
+        color: #e8eaed;
+      }
+      h3 {
+        margin: 0 0 10px;
+        background: linear-gradient(90deg, #2fa4e7, #f59e0b);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        letter-spacing: 2px;
+      }
+      .status {
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+      }
+      .ok {
+        background: rgba(76, 175, 130, 0.18);
+        color: #4caf82;
+      }
+      .ko {
+        background: rgba(239, 83, 80, 0.18);
+        color: #ef5350;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .hint {
+        font-size: 11px;
+        color: #9aa0a8;
+        margin-top: 12px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>RAKETA</h3>
+    <div id="status" class="status">Vérification…</div>
+    <label>
+      <input type="checkbox" id="auto" />
+      Capturer automatiquement les téléchargements
+    </label>
+    <p class="hint">
+      Astuce : clic droit sur un lien, une vidéo ou une image →
+      <strong>« Télécharger avec RAKETA »</strong>. L'application RAKETA doit être
+      lancée.
+    </p>
+    <script src="popup.js"></script>
+  </body>
+</html>

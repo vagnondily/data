@@ -1,5 +1,6 @@
 //! Point d'entrée de la bibliothèque applicative RAKETA (Tauri 2).
 
+mod bridge;
 mod commands;
 mod manager;
 mod settings;
@@ -46,6 +47,8 @@ pub fn run() {
             state.spawn_scheduler(app.handle().clone());
             state.spawn_torrent_reporter(app.handle().clone());
             state.spawn_clipboard_watcher(app.handle().clone());
+            // Pont navigateur (extension Chrome/Edge/Firefox).
+            bridge::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

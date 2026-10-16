@@ -1,26 +1,43 @@
-# Extension navigateur RAKETA (P6)
+# Extension navigateur RAKETA (Chrome / Edge / Firefox)
 
-Ébauche de l'extension Chrome/Edge (Manifest V3) qui capture les téléchargements
-et propose de les transférer vers l'application **RAKETA** via **Native Messaging**.
+Intègre RAKETA au navigateur, **façon IDM** :
 
-## État
+- **Clic droit → « Télécharger avec RAKETA »** sur un lien, une image, une
+  vidéo, une page.
+- **Capture automatique** : les téléchargements lancés dans le navigateur sont
+  renvoyés à RAKETA (activable/désactivable depuis la popup).
 
-- ✅ `manifest.json` — permissions minimales (`downloads`, `nativeMessaging`).
-- ✅ `src/background.js` — service worker : écoute `downloads.onCreated` et le clic
-  sur l'icône, envoie un message à l'hôte natif.
-- ⏳ À venir : hôte natif côté application (manifeste d'enregistrement Windows,
-  lecture des messages `stdin`/`stdout` longueur-préfixée), confirmation
-  utilisateur, règles par domaine (`browser_rules`), transfert sécurisé.
+## Comment ça marche
 
-## Principes de sécurité (section 12)
+L'application RAKETA ouvre un petit serveur local sur `http://127.0.0.1:47623`.
+L'extension lui envoie les liens. Pas de « native messaging » à enregistrer :
+il suffit que **RAKETA soit lancé**.
 
-- Jamais d'interception silencieuse : consentement explicite avant transfert.
-- Jamais de cookies/jetons sans accord clair et portée minimale.
-- Validation stricte du format et de la taille des messages côté hôte natif.
-- Si l'application n'est pas installée, le navigateur continue de fonctionner.
+> Sécurité : le serveur n'écoute que sur la boucle locale et n'accepte les
+> ajouts que depuis une origine d'extension — une page web ne peut pas déclencher
+> de téléchargement.
 
-## Charger en développement
+## Installation (Chrome / Edge)
 
-1. `chrome://extensions` → activer le **mode développeur**.
-2. **Charger l'extension non empaquetée** → sélectionner ce dossier.
-3. Installer le manifeste d'hôte natif (fourni avec l'application RAKETA).
+1. Ouvre `chrome://extensions` (ou `edge://extensions`).
+2. Active le **Mode développeur** (en haut à droite).
+3. Clique **Charger l'extension non empaquetée** et sélectionne le dossier
+   `raketa/browser-extension`.
+4. Épingle l'icône RAKETA. Clique dessus : la popup indique si RAKETA est
+   connecté et permet d'activer la capture automatique.
+
+## Installation (Firefox)
+
+1. Ouvre `about:debugging#/runtime/this-firefox`.
+2. **Charger un module complémentaire temporaire…** → sélectionne le fichier
+   `manifest.json` du dossier `raketa/browser-extension`.
+
+## Utilisation
+
+- **RAKETA doit être ouvert.** Lance-le d'abord.
+- Clic droit sur un lien → **« Télécharger avec RAKETA »**.
+- Ou laisse la **capture automatique** active : tout téléchargement part dans
+  RAKETA (son moteur multi-segments reprend la main).
+
+> RAKETA est un téléchargeur généraliste : ne téléchargez que des contenus
+> auxquels vous avez droit.
