@@ -1,0 +1,380 @@
+/* RAKETA — thème sombre premium aux couleurs du logo Smart Service Androy.
+   Bleu zébu #2FA4E7 · Orange raketa #F59E0B · fond nuit. */
+
+:root {
+  --bg: #0a0b0d;
+  --bg-elev: #14161a;
+  --bg-elev-2: #1c1f25;
+  --border: #272b33;
+  --text: #e8eaed;
+  --text-muted: #9aa0a8;
+  --blue: #2fa4e7;
+  --blue-dim: #1d7bb3;
+  --orange: #f59e0b;
+  --orange-dim: #b9760a;
+  --red: #ef5350;
+  --green: #4caf82;
+  --radius: 12px;
+  --radius-sm: 8px;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ---- En-tête / marque ---- */
+.app-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #121419, var(--bg));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  font-size: 30px;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5));
+}
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--orange));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---- Contenu ---- */
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---- Tableau de bord ---- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.stat-tile {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.accent-blue .stat-value {
+  color: var(--blue);
+}
+.accent-orange .stat-value {
+  color: var(--orange);
+}
+.accent-red .stat-value {
+  color: var(--red);
+}
+
+/* ---- Panneau d'ajout ---- */
+.add-panel {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.add-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.input {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.url-input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.btn:hover {
+  border-color: var(--blue);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: linear-gradient(90deg, var(--orange), var(--orange-dim));
+  border-color: transparent;
+  color: #1a1206;
+  font-weight: 600;
+}
+
+.btn.primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.tiny {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn.danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.probe-info {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+  align-items: center;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+.badge.ok {
+  background: rgba(76, 175, 130, 0.15);
+  color: var(--green);
+}
+.badge.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--orange);
+}
+
+.error-text {
+  color: var(--red);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+/* ---- Liste des téléchargements ---- */
+.dl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dl-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.dl-item.status-completed {
+  border-color: rgba(76, 175, 130, 0.35);
+}
+.dl-item.status-error {
+  border-color: rgba(239, 83, 80, 0.4);
+}
+
+.dl-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.dl-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dl-status {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--bg-elev-2);
+  color: var(--text-muted);
+}
+.pill-downloading {
+  background: rgba(47, 164, 231, 0.18);
+  color: var(--blue);
+}
+.pill-completed {
+  background: rgba(76, 175, 130, 0.18);
+  color: var(--green);
+}
+.pill-error {
+  background: rgba(239, 83, 80, 0.18);
+  color: var(--red);
+}
+.pill-paused {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--orange);
+}
+
+.progress-track {
+  height: 6px;
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--orange));
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.progress-fill.indeterminate {
+  width: 35%;
+  animation: slide 1.2s infinite ease-in-out;
+}
+
+@keyframes slide {
+  0% {
+    margin-left: -35%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+
+.dl-meta {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.sha {
+  color: var(--green);
+}
+
+.dl-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ---- État vide ---- */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-emoji {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+.empty-title {
+  font-size: 16px;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+.empty-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ---- Pied ---- */
+.app-footer {
+  padding: 10px 24px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}

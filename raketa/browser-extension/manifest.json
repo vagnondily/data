@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "RAKETA — Capture de téléchargements",
+  "version": "0.1.0",
+  "description": "Propose d'envoyer les téléchargements vers l'application RAKETA (Smart Service Androy).",
+  "permissions": ["downloads", "nativeMessaging", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_title": "Envoyer vers RAKETA"
+  },
+  "icons": {
+    "128": "icons/128.png"
+  }
+}

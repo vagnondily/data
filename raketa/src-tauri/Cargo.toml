@@ -1,0 +1,30 @@
+[package]
+name = "raketa"
+version = "0.1.0"
+description = "RAKETA — gestionnaire de téléchargement avancé (Smart Service Androy)"
+authors = ["Smart Service Androy"]
+edition = "2021"
+default-run = "raketa"
+
+[lib]
+name = "raketa_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+raketa-core = { path = "../core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros"] }
+uuid = { version = "1", features = ["v4"] }
+directories = "5"
+
+[features]
+# Permet d'activer les devtools dans les builds de production si besoin.
+custom-protocol = ["tauri/custom-protocol"]
