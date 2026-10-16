@@ -489,7 +489,29 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* ---- Bannière de mise à jour ---- */
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  background: linear-gradient(90deg, rgba(47, 164, 231, 0.18), rgba(245, 158, 11, 0.18));
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.update-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ---- Encadré Mises à jour ---- */
+.update-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .update-box {
   display: flex;
   align-items: center;

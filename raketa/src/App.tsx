@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addDownload,
+  checkUpdate,
   listDownloads,
   listTorrents,
   onClipboardUrl,
   onProgress,
   onTorrentProgress,
+  openExternalUrl,
   type DownloadDto,
   type Progress,
   type SegmentInfo,
   type TorrentProgress,
+  type UpdateInfo,
 } from "./lib/api";
 import { AddDownload } from "./features/downloads/AddDownload";
 import { DownloadTable } from "./features/downloads/DownloadTable";
@@ -31,6 +34,7 @@ export function App() {
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [category, setCategory] = useState<CatKey>("all");
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
   // Détail des segments (connexions) en direct, par identifiant.
   const [segments, setSegments] = useState<Record<string, SegmentInfo[]>>({});
   const downloadsRef = useRef<DownloadDto[]>([]);
@@ -56,6 +60,10 @@ export function App() {
   useEffect(() => {
     refresh();
     refreshTorrents();
+    // Vérifie les mises à jour au démarrage (silencieux si à jour / hors ligne).
+    checkUpdate()
+      .then((u) => u && setUpdate(u))
+      .catch(() => {});
   }, [refresh, refreshTorrents]);
 
   // Progression des téléchargements HTTP.
@@ -161,6 +169,25 @@ export function App() {
           </button>
         </nav>
       </header>
+
+      {update && (
+        <div className="update-banner" role="status">
+          <span>
+            🚀 <strong>Nouvelle version disponible</strong> (build {update.build}) !
+          </span>
+          <div className="update-banner-actions">
+            <button
+              className="btn tiny primary"
+              onClick={() => openExternalUrl(update.url)}
+            >
+              Télécharger
+            </button>
+            <button className="btn tiny" onClick={() => setUpdate(null)}>
+              Plus tard
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="app-main">
         {tab === "http" && (

@@ -461,6 +461,81 @@ pub fn get_app_version() -> String {
     format!("{} (build {})", env!("CARGO_PKG_VERSION"), build)
 }
 
+/// Numéro de build installé (0 si inconnu / build local).
+fn current_build() -> u64 {
+    option_env!("RAKETA_BUILD")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
+}
+
+/// Informations de mise à jour disponible.
+#[derive(Debug, Serialize)]
+pub struct UpdateInfo {
+    pub build: u64,
+    pub tag: String,
+    pub url: String,
+    pub notes: String,
+}
+
+/// Vérifie s'il existe une version plus récente sur le dépôt public
+/// `raketa-releases` (lecture seule, sans authentification). Renvoie `None` si
+/// l'app est à jour ou si aucune release n'est publiée.
+#[tauri::command]
+pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
+    let current = current_build();
+    let client = reqwest::Client::builder()
+        .user_agent("RAKETA-Updater")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .get("https://api.github.com/repos/vagnondily/raketa-releases/releases/latest")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Ok(None); // pas (encore) de release publiée
+    }
+
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let tag = json
+        .get("tag_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    // Le tag est de la forme « bN » : on extrait N.
+    let latest: u64 = tag.trim_start_matches(|c: char| !c.is_ascii_digit()).parse().unwrap_or(0);
+
+    if latest > current {
+        let url = json
+            .get("assets")
+            .and_then(|a| a.as_array())
+            .and_then(|arr| {
+                arr.iter().find(|x| {
+                    x.get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|n| n.ends_with("-setup.exe"))
+                        .unwrap_or(false)
+                })
+            })
+            .and_then(|x| x.get("browser_download_url"))
+            .and_then(|u| u.as_str())
+            .or_else(|| json.get("html_url").and_then(|u| u.as_str()))
+            .unwrap_or("")
+            .to_string();
+        let notes = json
+            .get("body")
+            .and_then(|b| b.as_str())
+            .unwrap_or("")
+            .to_string();
+        Ok(Some(UpdateInfo { build: latest, tag, url, notes }))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Ouvre un fichier (ou dossier) avec l'application par défaut du système.
 #[tauri::command]
 pub async fn open_file(app: AppHandle, path: String) -> Result<(), String> {

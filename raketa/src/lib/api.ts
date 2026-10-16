@@ -208,9 +208,21 @@ export function getAppVersion(): Promise<string> {
   return invoke<string>("get_app_version");
 }
 
-// Page de la dernière version (release) à télécharger.
+// Page de la dernière version (release) à télécharger (repli manuel).
 export const RELEASE_URL =
   "https://github.com/vagnondily/data/releases/tag/raketa-latest";
+
+export interface UpdateInfo {
+  build: number;
+  tag: string;
+  url: string;
+  notes: string;
+}
+
+// Vérifie s'il existe une version plus récente (null si à jour).
+export function checkUpdate(): Promise<UpdateInfo | null> {
+  return invoke<UpdateInfo | null>("check_update");
+}
 
 export const EVENT_CLIPBOARD = "raketa://clipboard-url";
 

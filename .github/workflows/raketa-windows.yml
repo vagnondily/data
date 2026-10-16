@@ -83,3 +83,21 @@ jobs:
           files: |
             raketa/src-tauri/target/release/bundle/nsis/*.exe
             raketa/src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Publier sur le dépôt public (mise à jour auto)
+        # Requiert le secret RELEASES_TOKEN (PAT avec accès au dépôt
+        # vagnondily/raketa-releases). Tolérant : n'échoue pas le build s'il manque.
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: vagnondily/raketa-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: b${{ github.run_number }}
+          name: RAKETA build ${{ github.run_number }}
+          body: |
+            Installeur Windows de RAKETA — build ${{ github.run_number }}.
+
+            Téléchargé et vérifié automatiquement par l'app (Paramètres › Mises à jour).
+          files: |
+            raketa/src-tauri/target/release/bundle/nsis/*.exe
+            raketa/src-tauri/target/release/bundle/msi/*.msi

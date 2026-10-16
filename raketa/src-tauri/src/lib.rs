@@ -71,6 +71,7 @@ pub fn run() {
             commands::open_browser,
             commands::open_external_url,
             commands::get_app_version,
+            commands::check_update,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");

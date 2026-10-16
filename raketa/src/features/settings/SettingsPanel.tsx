@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
+  checkUpdate,
   getAppVersion,
   getSettings,
   openExternalUrl,
   RELEASE_URL,
   setSettings,
   type Settings,
+  type UpdateInfo,
 } from "../../lib/api";
 
 // Panneau Paramètres : vitesse, connexions, dossier, rangement, popups, presse-papiers.
@@ -15,6 +17,16 @@ export function SettingsPanel() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState<string>("");
+  const [upd, setUpd] = useState<UpdateInfo | null | "checking" | "uptodate">(null);
+
+  async function doCheckUpdate() {
+    setUpd("checking");
+    try {
+      setUpd((await checkUpdate()) ?? "uptodate");
+    } catch {
+      setUpd("uptodate");
+    }
+  }
 
   useEffect(() => {
     getSettings()
@@ -60,10 +72,26 @@ export function SettingsPanel() {
         <div className="update-info">
           <strong>🚀 Mises à jour</strong>
           <span className="hint">Version installée : {version || "…"}</span>
+          {upd === "checking" && <span className="hint">Vérification…</span>}
+          {upd === "uptodate" && <span className="badge ok">Vous êtes à jour ✓</span>}
+          {upd && typeof upd === "object" && (
+            <span className="badge warn">Nouvelle version : build {upd.build}</span>
+          )}
         </div>
-        <button className="btn primary" onClick={() => openExternalUrl(RELEASE_URL)}>
-          Télécharger la dernière version
-        </button>
+        <div className="update-actions">
+          <button className="btn ghost" onClick={doCheckUpdate}>
+            Vérifier maintenant
+          </button>
+          {upd && typeof upd === "object" ? (
+            <button className="btn primary" onClick={() => openExternalUrl(upd.url)}>
+              Télécharger la mise à jour
+            </button>
+          ) : (
+            <button className="btn primary" onClick={() => openExternalUrl(RELEASE_URL)}>
+              Télécharger la dernière version
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="setting-row">
