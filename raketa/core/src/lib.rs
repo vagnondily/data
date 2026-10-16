@@ -38,6 +38,7 @@ pub mod hash;
 pub mod metadata;
 pub mod model;
 pub mod ratelimit;
+pub mod redact;
 pub mod segmented;
 pub mod storage;
 
@@ -46,4 +47,5 @@ pub use engine::{Engine, EngineConfig, ProgressFn};
 pub use error::{EngineError, Result};
 pub use model::{Control, DownloadStatus, DownloadTask, Outcome, Progress, RemoteInfo};
 pub use ratelimit::RateLimiter;
-pub use storage::{DownloadRecord, Store};
+pub use redact::redact_url;
+pub use storage::{DownloadRecord, EventRecord, Store};

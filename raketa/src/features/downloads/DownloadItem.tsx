@@ -16,10 +16,11 @@ interface Props {
   d: DownloadDto;
   speed: number;
   onChanged: () => void;
+  onOpenDetail: (d: DownloadDto) => void;
 }
 
 // Ligne de téléchargement : nom, progression, débit, temps restant, actions.
-export function DownloadItem({ d, speed, onChanged }: Props) {
+export function DownloadItem({ d, speed, onChanged, onOpenDetail }: Props) {
   const pct = percent(d.downloaded_bytes, d.total_bytes);
   const active = d.status === "downloading";
   const paused = d.status === "paused";
@@ -33,7 +34,11 @@ export function DownloadItem({ d, speed, onChanged }: Props) {
     <div className={`dl-item status-${d.status}`}>
       <div className="dl-main">
         <div className="dl-head">
-          <span className="dl-name" title={d.display_name}>
+          <span
+            className="dl-name clickable"
+            title="Voir les détails"
+            onClick={() => onOpenDetail(d)}
+          >
             {d.display_name}
           </span>
           <span className={`dl-status pill-${d.status}`}>{statusLabel(d.status)}</span>
@@ -68,6 +73,9 @@ export function DownloadItem({ d, speed, onChanged }: Props) {
       </div>
 
       <div className="dl-actions">
+        <button className="btn tiny" onClick={() => onOpenDetail(d)} title="Détails">
+          Détails
+        </button>
         {active && (
           <button className="btn tiny" onClick={() => act(() => pauseDownload(d.id))}>
             Pause

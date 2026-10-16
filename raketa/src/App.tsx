@@ -13,6 +13,7 @@ import {
 import { Stats } from "./features/dashboard/Stats";
 import { AddDownload } from "./features/downloads/AddDownload";
 import { DownloadList } from "./features/downloads/DownloadList";
+import { DownloadDetail } from "./features/downloads/DownloadDetail";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
@@ -26,6 +27,7 @@ export function App() {
   const [torrents, setTorrents] = useState<TorrentProgress[]>([]);
   const [speeds, setSpeeds] = useState<Record<string, number>>({});
   const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const downloadsRef = useRef<DownloadDto[]>([]);
 
   const refresh = useCallback(async () => {
@@ -148,7 +150,12 @@ export function App() {
           <>
             <Stats downloads={downloads} speeds={speeds} />
             <AddDownload onAdded={refresh} />
-            <DownloadList downloads={downloads} speeds={speeds} onChanged={refresh} />
+            <DownloadList
+              downloads={downloads}
+              speeds={speeds}
+              onChanged={refresh}
+              onOpenDetail={(d) => setDetailId(d.id)}
+            />
           </>
         )}
         {tab === "torrents" && (
@@ -173,6 +180,19 @@ export function App() {
           </div>
         </div>
       )}
+
+      {detailId &&
+        (() => {
+          const d = downloads.find((x) => x.id === detailId);
+          if (!d) return null;
+          return (
+            <DownloadDetail
+              d={d}
+              speed={speeds[d.id] ?? 0}
+              onClose={() => setDetailId(null)}
+            />
+          );
+        })()}
 
       <footer className="app-footer">
         <span>RAKETA v0.4 — multi-segments · torrents · navigateur · file d'attente · limiteur</span>

@@ -69,6 +69,16 @@ export function listDownloads(): Promise<DownloadDto[]> {
   return invoke<DownloadDto[]>("list_downloads");
 }
 
+export interface DownloadEvent {
+  event_type: string;
+  timestamp: number;
+  message: string | null;
+}
+
+export function downloadEvents(id: string): Promise<DownloadEvent[]> {
+  return invoke<DownloadEvent[]>("download_events", { id });
+}
+
 export function pauseDownload(id: string): Promise<void> {
   return invoke("pause_download", { id });
 }

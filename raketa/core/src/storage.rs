@@ -32,6 +32,14 @@ pub struct DownloadRecord {
     pub updated_at: i64,
 }
 
+/// Entrée d'historique d'un téléchargement (table `events`).
+#[derive(Debug, Clone)]
+pub struct EventRecord {
+    pub event_type: String,
+    pub timestamp: i64,
+    pub message: Option<String>,
+}
+
 /// Couche d'accès au stockage.
 pub struct Store {
     conn: Connection,
@@ -284,6 +292,26 @@ impl Store {
             map.insert(k, v);
         }
         Ok(map)
+    }
+
+    /// Historique d'un téléchargement (plus récent d'abord).
+    pub fn events(&self, id: &str, limit: usize) -> Result<Vec<EventRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT event_type, timestamp, message FROM events \
+             WHERE download_id = ?1 ORDER BY timestamp DESC, id DESC LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![id, limit as i64], |r| {
+            Ok(EventRecord {
+                event_type: r.get(0)?,
+                timestamp: r.get(1)?,
+                message: r.get(2)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
     }
 
     fn log_event(&self, id: &str, event_type: &str, message: &str) -> Result<()> {

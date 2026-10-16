@@ -50,6 +50,7 @@ pub fn run() {
             commands::add_download,
             commands::add_batch,
             commands::list_downloads,
+            commands::download_events,
             commands::pause_download,
             commands::resume_download,
             commands::cancel_download,

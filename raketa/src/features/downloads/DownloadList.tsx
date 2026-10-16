@@ -5,9 +5,10 @@ interface Props {
   downloads: DownloadDto[];
   speeds: Record<string, number>;
   onChanged: () => void;
+  onOpenDetail: (d: DownloadDto) => void;
 }
 
-export function DownloadList({ downloads, speeds, onChanged }: Props) {
+export function DownloadList({ downloads, speeds, onChanged, onOpenDetail }: Props) {
   if (downloads.length === 0) {
     // État vide explicite (section 11.1).
     return (
@@ -29,6 +30,7 @@ export function DownloadList({ downloads, speeds, onChanged }: Props) {
           d={d}
           speed={speeds[d.id] ?? 0}
           onChanged={onChanged}
+          onOpenDetail={onOpenDetail}
         />
       ))}
     </div>

@@ -40,6 +40,16 @@ export function percent(downloaded: number, total: number | null): number | null
   return Math.min(100, Math.round((downloaded / total) * 100));
 }
 
+// Horodatage epoch (secondes) → date/heure locale lisible.
+export function formatDate(ts: number): string {
+  if (!ts) return "—";
+  try {
+    return new Date(ts * 1000).toLocaleString();
+  } catch {
+    return "—";
+  }
+}
+
 export function statusLabel(status: string): string {
   const map: Record<string, string> = {
     queued: "En file",

@@ -32,7 +32,8 @@ impl From<raketa_core::DownloadRecord> for DownloadDto {
     fn from(r: raketa_core::DownloadRecord) -> Self {
         Self {
             id: r.id,
-            url: r.url,
+            // URL expurgée des secrets pour l'affichage (section 11.1 / 12).
+            url: raketa_core::redact_url(&r.url),
             display_name: r.display_name,
             destination: r.destination,
             status: r.status.as_str().to_string(),
@@ -163,6 +164,35 @@ pub async fn list_downloads(state: State<'_, AppState>) -> Result<Vec<DownloadDt
     let store = state.store.lock().await;
     let records = store.list().map_err(|e| e.to_string())?;
     Ok(records.into_iter().map(DownloadDto::from).collect())
+}
+
+/// Entrée d'historique exposée au front.
+#[derive(Debug, Serialize)]
+pub struct EventDto {
+    pub event_type: String,
+    pub timestamp: i64,
+    pub message: Option<String>,
+}
+
+impl From<raketa_core::EventRecord> for EventDto {
+    fn from(e: raketa_core::EventRecord) -> Self {
+        Self {
+            event_type: e.event_type,
+            timestamp: e.timestamp,
+            message: e.message,
+        }
+    }
+}
+
+/// Historique d'un téléchargement (événements : créé, terminé, erreur…).
+#[tauri::command]
+pub async fn download_events(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<EventDto>, String> {
+    let store = state.store.lock().await;
+    let evs = store.events(&id, 100).map_err(|e| e.to_string())?;
+    Ok(evs.into_iter().map(EventDto::from).collect())
 }
 
 /// Met en pause un transfert en cours.
