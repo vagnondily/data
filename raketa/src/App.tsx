@@ -8,6 +8,7 @@ import {
   onTorrentProgress,
   type DownloadDto,
   type Progress,
+  type SegmentInfo,
   type TorrentProgress,
 } from "./lib/api";
 import { AddDownload } from "./features/downloads/AddDownload";
@@ -30,6 +31,8 @@ export function App() {
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [category, setCategory] = useState<CatKey>("all");
+  // Détail des segments (connexions) en direct, par identifiant.
+  const [segments, setSegments] = useState<Record<string, SegmentInfo[]>>({});
   const downloadsRef = useRef<DownloadDto[]>([]);
 
   const refresh = useCallback(async () => {
@@ -64,6 +67,9 @@ export function App() {
 
     function applyProgress(p: Progress) {
       setSpeeds((prev) => ({ ...prev, [p.download_id]: p.speed_bps }));
+      if (p.segments && p.segments.length > 0) {
+        setSegments((prev) => ({ ...prev, [p.download_id]: p.segments! }));
+      }
       setDownloads((prev) => {
         const next = prev.map((d) =>
           d.id === p.download_id
@@ -199,6 +205,7 @@ export function App() {
             <DownloadDetail
               d={d}
               speed={speeds[d.id] ?? 0}
+              segments={segments[d.id]}
               onClose={() => setDetailId(null)}
             />
           );

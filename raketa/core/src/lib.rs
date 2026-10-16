@@ -45,7 +45,9 @@ pub mod storage;
 pub use category::{categorize, Category};
 pub use engine::{Engine, EngineConfig, ProgressFn};
 pub use error::{EngineError, Result};
-pub use model::{Control, DownloadStatus, DownloadTask, Outcome, Progress, RemoteInfo};
+pub use model::{
+    Control, DownloadStatus, DownloadTask, Outcome, Progress, RemoteInfo, SegmentInfo,
+};
 pub use ratelimit::RateLimiter;
 pub use redact::redact_url;
 pub use storage::{DownloadRecord, EventRecord, Store};

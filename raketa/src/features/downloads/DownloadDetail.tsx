@@ -1,5 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { downloadEvents, type DownloadDto, type DownloadEvent } from "../../lib/api";
+import {
+  downloadEvents,
+  type DownloadDto,
+  type DownloadEvent,
+  type SegmentInfo,
+} from "../../lib/api";
 import {
   formatBytes,
   formatDate,
@@ -12,6 +17,7 @@ import {
 interface Props {
   d: DownloadDto;
   speed: number;
+  segments?: SegmentInfo[];
   onClose: () => void;
 }
 
@@ -33,7 +39,7 @@ async function copy(text: string) {
 }
 
 // Panneau de détails complet d'un téléchargement (section 11.1).
-export function DownloadDetail({ d, speed, onClose }: Props) {
+export function DownloadDetail({ d, speed, segments, onClose }: Props) {
   const [events, setEvents] = useState<DownloadEvent[]>([]);
   const pct = percent(d.downloaded_bytes, d.total_bytes);
   const active = d.status === "downloading";
@@ -99,6 +105,32 @@ export function DownloadDetail({ d, speed, onClose }: Props) {
             </div>
           ))}
         </div>
+
+        {segments && segments.length > 0 && (
+          <>
+            <h3 className="detail-sub">
+              Connexions — {segments.length} segment(s) en parallèle
+            </h3>
+            <div className="seg-list">
+              {segments.map((s) => {
+                const p =
+                  s.total > 0 ? Math.min(100, Math.round((s.downloaded / s.total) * 100)) : 0;
+                return (
+                  <div className="seg-row" key={s.index}>
+                    <span className="seg-num">#{s.index + 1}</span>
+                    <div className="seg-track">
+                      <div className="seg-fill" style={{ width: `${p}%` }} />
+                    </div>
+                    <span className="seg-bytes">
+                      {formatBytes(s.downloaded)} / {formatBytes(s.total)}
+                    </span>
+                    <span className="seg-pct">{p}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         <h3 className="detail-sub">Historique</h3>
         {events.length === 0 ? (

@@ -72,6 +72,14 @@ pub struct DownloadTask {
     pub expected_sha256: Option<String>,
 }
 
+/// État d'un segment (connexion parallèle) pour l'affichage façon IDM.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SegmentInfo {
+    pub index: usize,
+    pub downloaded: u64,
+    pub total: u64,
+}
+
 /// Instantané de progression publié vers l'interface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Progress {
@@ -81,6 +89,9 @@ pub struct Progress {
     /// Débit instantané lissé, en octets/seconde.
     pub speed_bps: f64,
     pub status: DownloadStatus,
+    /// Détail par segment (multi-connexions) ; absent en flux unique.
+    #[serde(default)]
+    pub segments: Option<Vec<SegmentInfo>>,
 }
 
 /// Résultat d'une exécution du moteur.

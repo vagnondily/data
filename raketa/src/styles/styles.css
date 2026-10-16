@@ -870,6 +870,45 @@ body {
   color: var(--text-muted);
 }
 
+/* ---- Vue des connexions / segments (façon IDM) ---- */
+.seg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.seg-row {
+  display: grid;
+  grid-template-columns: 38px 1fr 150px 42px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.seg-num {
+  color: var(--text-muted);
+  font-family: "Cascadia Code", "Consolas", monospace;
+}
+.seg-track {
+  height: 10px;
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.seg-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--orange));
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+.seg-bytes {
+  color: var(--text-muted);
+  font-family: "Cascadia Code", "Consolas", monospace;
+  text-align: right;
+}
+.seg-pct {
+  text-align: right;
+  color: var(--text);
+}
+
 /* ---- Pied ---- */
 .app-footer {
   padding: 10px 24px;

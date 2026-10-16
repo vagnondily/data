@@ -213,6 +213,7 @@ fn spawn_download(
                             total: Some(bytes),
                             speed_bps: 0.0,
                             status: DownloadStatus::Completed,
+                            segments: None,
                         },
                     );
                 }
@@ -231,6 +232,7 @@ fn spawn_download(
                             total: None,
                             speed_bps: 0.0,
                             status: DownloadStatus::Error,
+                            segments: None,
                         },
                     );
                 }

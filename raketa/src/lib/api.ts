@@ -36,6 +36,13 @@ export interface RemoteInfo {
   suggested_filename: string | null;
 }
 
+// État d'un segment (connexion parallèle), façon IDM.
+export interface SegmentInfo {
+  index: number;
+  downloaded: number;
+  total: number;
+}
+
 // Instantané de progression publié par le moteur (événement `raketa://progress`).
 export interface Progress {
   download_id: string;
@@ -43,6 +50,7 @@ export interface Progress {
   total: number | null;
   speed_bps: number;
   status: DownloadStatus;
+  segments?: SegmentInfo[] | null;
 }
 
 export const EVENT_PROGRESS = "raketa://progress";

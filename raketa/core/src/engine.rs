@@ -435,6 +435,7 @@ impl Engine {
             total,
             speed_bps,
             status,
+            segments: None,
         });
     }
 }

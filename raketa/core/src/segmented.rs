@@ -15,7 +15,7 @@
 use crate::engine::EngineConfig;
 use crate::error::{EngineError, Result};
 use crate::filename;
-use crate::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
+use crate::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress, SegmentInfo};
 use crate::{ProgressFn, RateLimiter};
 use futures_util::future::join_all;
 use futures_util::StreamExt;
@@ -78,20 +78,23 @@ pub async fn run(
     let ranges = plan_segments(total, connections, config.min_segment_size);
     let part_path = |i: usize| dir.join(format!("{chosen}{}.{i}", config.part_suffix));
 
-    // Compteur partagé de l'avancement global (octets déjà sur disque inclus).
-    let shared = Arc::new(AtomicU64::new(0));
-    for i in 0..ranges.len() {
+    // Un compteur d'octets par segment (inclut ce qui est déjà sur disque).
+    let seg_counters: Vec<Arc<AtomicU64>> = (0..ranges.len())
+        .map(|_| Arc::new(AtomicU64::new(0)))
+        .collect();
+    for (i, counter) in seg_counters.iter().enumerate() {
         if let Ok(meta) = fs::metadata(part_path(i)).await {
-            shared.fetch_add(meta.len(), Ordering::SeqCst);
+            counter.store(meta.len(), Ordering::SeqCst);
         }
     }
 
-    // Tâche de rapport : publie la progression agrégée et le débit lissé.
+    // Tâche de rapport : progression agrégée + débit + détail par segment.
     let done = Arc::new(AtomicBool::new(false));
     let reporter = tokio::spawn(report(
         progress.clone(),
         control.clone(),
-        shared.clone(),
+        seg_counters.clone(),
+        ranges.clone(),
         done.clone(),
         total,
         task.id.clone(),
@@ -110,7 +113,7 @@ pub async fn run(
             end,
             part_path(i),
             control.clone(),
-            shared.clone(),
+            seg_counters[i].clone(),
         )
     });
     let results = join_all(futures).await;
@@ -132,13 +135,14 @@ pub async fn run(
     }
 
     if any_paused {
-        let downloaded = shared.load(Ordering::SeqCst);
+        let downloaded: u64 = seg_counters.iter().map(|c| c.load(Ordering::SeqCst)).sum();
         progress(Progress {
             download_id: task.id.clone(),
             downloaded,
             total: Some(total),
             speed_bps: 0.0,
             status: DownloadStatus::Paused,
+            segments: None,
         });
         return Ok(Outcome::Paused { downloaded });
     }
@@ -159,7 +163,7 @@ async fn fetch_segment(
     end: u64,
     path: PathBuf,
     control: Control,
-    shared: Arc<AtomicU64>,
+    counter: Arc<AtomicU64>,
 ) -> Result<SegStatus> {
     let seg_len = end - start + 1;
     let mut attempt: u32 = 0;
@@ -260,7 +264,7 @@ async fn fetch_segment(
                 }
                 return Err(EngineError::Io(e));
             }
-            shared.fetch_add(take as u64, Ordering::SeqCst);
+            counter.fetch_add(take as u64, Ordering::SeqCst);
             remaining -= take as u64;
             if remaining == 0 {
                 clean_eof = true;
@@ -367,6 +371,7 @@ async fn concat_and_finalize(
         total: Some(total),
         speed_bps: 0.0,
         status: DownloadStatus::Completed,
+        segments: None,
     });
 
     Ok(Outcome::Completed {
@@ -376,18 +381,23 @@ async fn concat_and_finalize(
     })
 }
 
-/// Publie périodiquement la progression agrégée et le débit lissé.
+/// Publie périodiquement la progression agrégée, le débit lissé et le **détail
+/// par segment** (connexions parallèles, façon IDM).
+#[allow(clippy::too_many_arguments)]
 async fn report(
     progress: ProgressFn,
     control: Control,
-    shared: Arc<AtomicU64>,
+    seg_counters: Vec<Arc<AtomicU64>>,
+    ranges: Vec<(u64, u64)>,
     done: Arc<AtomicBool>,
     total: u64,
     id: String,
     interval: Duration,
 ) {
+    let sum = |cs: &[Arc<AtomicU64>]| -> u64 { cs.iter().map(|c| c.load(Ordering::SeqCst)).sum() };
+
     let mut last = Instant::now();
-    let mut last_bytes = shared.load(Ordering::SeqCst);
+    let mut last_bytes = sum(&seg_counters);
 
     loop {
         tokio::time::sleep(interval).await;
@@ -395,7 +405,7 @@ async fn report(
             break;
         }
         let now = Instant::now();
-        let cur = shared.load(Ordering::SeqCst);
+        let cur = sum(&seg_counters);
         let dt = now.duration_since(last).as_secs_f64();
         let speed = if dt > 0.0 {
             cur.saturating_sub(last_bytes) as f64 / dt
@@ -404,6 +414,16 @@ async fn report(
         };
         last = now;
         last_bytes = cur;
+
+        let segments: Vec<SegmentInfo> = ranges
+            .iter()
+            .enumerate()
+            .map(|(i, &(start, end))| SegmentInfo {
+                index: i,
+                downloaded: seg_counters[i].load(Ordering::SeqCst),
+                total: end - start + 1,
+            })
+            .collect();
 
         let status = if control.is_paused() {
             DownloadStatus::Paused
@@ -416,6 +436,7 @@ async fn report(
             total: Some(total),
             speed_bps: speed,
             status,
+            segments: Some(segments),
         });
 
         if control.is_cancelled() {
