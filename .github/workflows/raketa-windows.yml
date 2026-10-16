@@ -1,0 +1,72 @@
+name: Build RAKETA (Windows)
+
+# Compile l'application desktop RAKETA (dossier raketa/) sur un runner Windows
+# et publie l'installeur (.exe NSIS + .msi) en artifact et en release téléchargeable.
+
+on:
+  push:
+    branches: [claude/raketa-download-manager]
+    paths:
+      - "raketa/**"
+      - ".github/workflows/raketa-windows.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: raketa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust (stable MSVC)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: raketa/src-tauri
+
+      - name: Installer les dépendances front
+        run: npm install
+
+      - name: Compiler RAKETA (Tauri build)
+        run: npm run tauri build
+
+      - name: Publier l'installeur en artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAKETA-Windows
+          path: |
+            raketa/src-tauri/target/release/bundle/nsis/*.exe
+            raketa/src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+      - name: Mettre à jour la release « dernière version »
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: raketa-latest
+          name: RAKETA — dernière version (Windows)
+          body: |
+            Installeur Windows de RAKETA, compilé automatiquement depuis la
+            branche `claude/raketa-download-manager`.
+
+            - `*-setup.exe` : installeur NSIS (recommandé)
+            - `*.msi` : installeur MSI
+
+            Build : ${{ github.sha }}
+          prerelease: true
+          files: |
+            raketa/src-tauri/target/release/bundle/nsis/*.exe
+            raketa/src-tauri/target/release/bundle/msi/*.msi
