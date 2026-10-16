@@ -407,6 +407,87 @@ body {
   font-size: 13px;
 }
 
+/* ---- Barre d'outils (façon IDM, en mieux) ---- */
+.toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+}
+
+.tool-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 68px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tool-btn:hover:not(:disabled) {
+  background: var(--bg-elev-2);
+  border-color: var(--blue-dim);
+}
+.tool-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.tool-btn.danger:hover:not(:disabled) {
+  border-color: var(--red);
+}
+.tool-btn.danger:hover:not(:disabled) .tool-label {
+  color: var(--red);
+}
+
+.tool-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+.tool-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.tool-btn:hover:not(:disabled) .tool-label {
+  color: var(--text);
+}
+
+.tool-badge {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), var(--orange));
+  color: #0a0b0d;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-sep {
+  width: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
+.tool-spacer {
+  flex: 1;
+}
+
 /* ---- Mode lot / commutateur ---- */
 .mode-switch {
   display: flex;

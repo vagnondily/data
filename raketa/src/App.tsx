@@ -8,6 +8,9 @@ import {
   onProgress,
   onTorrentProgress,
   openExternalUrl,
+  pauseDownload,
+  removeDownload,
+  resumeDownload,
   type DownloadDto,
   type Progress,
   type SegmentInfo,
@@ -18,6 +21,7 @@ import { AddDownload } from "./features/downloads/AddDownload";
 import { DownloadTable } from "./features/downloads/DownloadTable";
 import { CategorySidebar } from "./features/downloads/CategorySidebar";
 import { DownloadDetail } from "./features/downloads/DownloadDetail";
+import { Toolbar } from "./features/downloads/Toolbar";
 import { matchesCategory, type CatKey } from "./lib/category";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
@@ -144,6 +148,33 @@ export function App() {
     }
   }
 
+  // --- Actions globales de la barre d'outils ---
+  async function pasteAndDownload() {
+    try {
+      const t = (await navigator.clipboard.readText()).trim();
+      if (/^https?:\/\//i.test(t)) {
+        await addDownload({ url: t, destDir: "" });
+        refresh();
+      }
+    } catch {
+      /* presse-papiers refusé */
+    }
+  }
+  const bulk = (pred: (d: DownloadDto) => boolean, fn: (id: string) => Promise<void>) =>
+    Promise.all(downloads.filter(pred).map((d) => fn(d.id).catch(() => {}))).then(refresh);
+  const resumeAll = () => bulk((d) => d.status === "paused", (id) => resumeDownload(id));
+  const pauseAll = () => bulk((d) => d.status === "downloading", (id) => pauseDownload(id));
+  const clearCompleted = () =>
+    bulk((d) => d.status === "completed", (id) => removeDownload(id, false));
+  const clearAll = () => bulk(() => true, (id) => removeDownload(id, false));
+
+  const counts = {
+    active: downloads.filter((d) => d.status === "downloading").length,
+    paused: downloads.filter((d) => d.status === "paused").length,
+    completed: downloads.filter((d) => d.status === "completed").length,
+    total: downloads.length,
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -198,6 +229,15 @@ export function App() {
               onSelect={setCategory}
             />
             <div className="dl-main">
+              <Toolbar
+                counts={counts}
+                onPaste={pasteAndDownload}
+                onResumeAll={resumeAll}
+                onPauseAll={pauseAll}
+                onClearCompleted={clearCompleted}
+                onClearAll={clearAll}
+                onSettings={() => setTab("settings")}
+              />
               <AddDownload onAdded={refresh} />
               <DownloadTable
                 downloads={downloads.filter((d) =>
