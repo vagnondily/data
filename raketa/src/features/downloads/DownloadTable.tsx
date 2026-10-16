@@ -1,7 +1,11 @@
+import { useState } from "react";
 import {
   cancelDownload,
+  openFile,
   pauseDownload,
+  removeDownload,
   resumeDownload,
+  revealInFolder,
   type DownloadDto,
 } from "../../lib/api";
 import { iconFor } from "../../lib/category";
@@ -21,16 +25,30 @@ interface Props {
   onOpenDetail: (d: DownloadDto) => void;
 }
 
-// Tableau dense façon IDM : toutes les infos en colonnes, d'un coup d'œil.
+interface Menu {
+  x: number;
+  y: number;
+  d: DownloadDto;
+}
+
+// Tableau dense façon IDM : toutes les infos en colonnes + menu clic droit.
 export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Props) {
+  const [menu, setMenu] = useState<Menu | null>(null);
+
   const totalSpeed = downloads
     .filter((d) => d.status === "downloading")
     .reduce((sum, d) => sum + (speeds[d.id] ?? 0), 0);
   const active = downloads.filter((d) => d.status === "downloading").length;
 
   async function act(fn: () => Promise<void>) {
+    setMenu(null);
     await fn();
     onChanged();
+  }
+
+  function openMenu(e: React.MouseEvent, d: DownloadDto) {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, d });
   }
 
   if (downloads.length === 0) {
@@ -66,7 +84,12 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
             const isActive = d.status === "downloading";
             const isPaused = d.status === "paused";
             return (
-              <tr key={d.id} className={`row-${d.status}`} onDoubleClick={() => onOpenDetail(d)}>
+              <tr
+                key={d.id}
+                className={`row-${d.status}`}
+                onDoubleClick={() => onOpenDetail(d)}
+                onContextMenu={(e) => openMenu(e, d)}
+              >
                 <td className="col-icon">{iconFor(d.display_name)}</td>
                 <td className="col-name">
                   <span className="cell-name clickable" title={d.display_name} onClick={() => onOpenDetail(d)}>
@@ -104,10 +127,13 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                       </button>
                     )}
                     {(isActive || isPaused) && (
-                      <button className="icon-act" title="Annuler" onClick={() => act(() => cancelDownload(d.id))}>
-                        ✕
+                      <button className="icon-act" title="Arrêter" onClick={() => act(() => cancelDownload(d.id))}>
+                        ⏹
                       </button>
                     )}
+                    <button className="icon-act" title="Supprimer" onClick={() => act(() => removeDownload(d.id, false))}>
+                      🗑
+                    </button>
                     <button className="icon-act" title="Détails" onClick={() => onOpenDetail(d)}>
                       ⓘ
                     </button>
@@ -124,6 +150,60 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
         <span>{active} actif(s)</span>
         <span>Débit total : {formatSpeed(totalSpeed)}</span>
       </div>
+
+      {menu && (
+        <>
+          <div className="ctx-overlay" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
+          <ContextMenu
+            menu={menu}
+            onOpenDetail={(dd) => {
+              setMenu(null);
+              onOpenDetail(dd);
+            }}
+            act={act}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+function ContextMenu({
+  menu,
+  onOpenDetail,
+  act,
+}: {
+  menu: Menu;
+  onOpenDetail: (d: DownloadDto) => void;
+  act: (fn: () => Promise<void>) => Promise<void>;
+}) {
+  const d = menu.d;
+  const isActive = d.status === "downloading";
+  const isPaused = d.status === "paused";
+  const isDone = d.status === "completed";
+
+  // Clamp pour rester dans la fenêtre.
+  const style: React.CSSProperties = {
+    top: Math.min(menu.y, window.innerHeight - 320),
+    left: Math.min(menu.x, window.innerWidth - 240),
+  };
+
+  return (
+    <div className="ctx-menu" style={style}>
+      {isActive && <button onClick={() => act(() => pauseDownload(d.id))}>⏸ Pause</button>}
+      {isPaused && <button onClick={() => act(() => resumeDownload(d.id))}>▶ Reprendre</button>}
+      {(isActive || isPaused) && (
+        <button onClick={() => act(() => cancelDownload(d.id))}>⏹ Arrêter</button>
+      )}
+      {isDone && <button onClick={() => act(() => openFile(d.destination))}>📂 Ouvrir le fichier</button>}
+      <button onClick={() => act(() => revealInFolder(d.destination))}>🗂️ Ouvrir le dossier</button>
+      <div className="ctx-sep" />
+      <button onClick={() => { onOpenDetail(d); }}>ⓘ Propriétés</button>
+      <div className="ctx-sep" />
+      <button onClick={() => act(() => removeDownload(d.id, false))}>🗑 Retirer de la liste</button>
+      <button className="danger" onClick={() => act(() => removeDownload(d.id, true))}>
+        ❌ Supprimer + fichier
+      </button>
     </div>
   );
 }

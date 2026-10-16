@@ -246,6 +246,14 @@ impl Store {
         Ok(out)
     }
 
+    /// Supprime un téléchargement de la base (ses événements/segments suivent
+    /// via `ON DELETE CASCADE`).
+    pub fn delete_download(&self, id: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM downloads WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
     /// Au démarrage : ramène les tâches « en cours » à l'état `paused` pour
     /// restaurer un état cohérent (FR-04, section 5.1).
     pub fn recover_interrupted(&self) -> Result<usize> {

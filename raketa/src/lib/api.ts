@@ -99,6 +99,18 @@ export function cancelDownload(id: string): Promise<void> {
   return invoke("cancel_download", { id });
 }
 
+export function removeDownload(id: string, deleteFile: boolean): Promise<void> {
+  return invoke("remove_download", { id, deleteFile });
+}
+
+export function openFile(path: string): Promise<void> {
+  return invoke("open_file", { path });
+}
+
+export function revealInFolder(path: string): Promise<void> {
+  return invoke("reveal_in_folder", { path });
+}
+
 // S'abonne aux événements de progression ; renvoie une fonction de désabonnement.
 export function onProgress(cb: (p: Progress) => void): Promise<UnlistenFn> {
   return listen<Progress>(EVENT_PROGRESS, (event) => cb(event.payload));

@@ -448,3 +448,77 @@ pub async fn open_external_url(app: AppHandle, url: String) -> Result<(), String
         .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
 }
+
+/// Ouvre un fichier (ou dossier) avec l'application par défaut du système.
+#[tauri::command]
+pub async fn open_file(app: AppHandle, path: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+/// Affiche un fichier dans l'explorateur (dossier ouvert, fichier sélectionné).
+#[tauri::command]
+pub async fn reveal_in_folder(app: AppHandle, path: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .reveal_item_in_dir(&path)
+        // Repli : ouvrir le dossier parent si « reveal » échoue.
+        .or_else(|_| {
+            let dir = std::path::Path::new(&path)
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or(path.clone());
+            app.opener().open_path(dir, None::<&str>)
+        })
+        .map_err(|e| e.to_string())
+}
+
+/// Supprime un téléchargement de la liste (et, si demandé, ses fichiers).
+#[tauri::command]
+pub async fn remove_download(
+    state: State<'_, AppState>,
+    id: String,
+    delete_file: bool,
+) -> Result<(), String> {
+    // Annule d'abord s'il est en cours.
+    if let Some(ctrl) = state.controls.lock().await.get(&id) {
+        ctrl.cancel();
+    }
+
+    let record = {
+        let store = state.store.lock().await;
+        store.get(&id).map_err(|e| e.to_string())?
+    };
+
+    if delete_file {
+        if let Some(r) = &record {
+            let dest = std::path::Path::new(&r.destination);
+            if dest.is_file() {
+                let _ = std::fs::remove_file(dest);
+            }
+            // Supprime aussi les fichiers partiels (.rkt-part*) best-effort.
+            let dir = if dest.is_dir() {
+                dest.to_path_buf()
+            } else {
+                dest.parent().map(|p| p.to_path_buf()).unwrap_or_default()
+            };
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for e in entries.flatten() {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    if name.starts_with(&r.display_name) && name.contains(".rkt-part") {
+                        let _ = std::fs::remove_file(e.path());
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        let store = state.store.lock().await;
+        store.delete_download(&id).map_err(|e| e.to_string())?;
+    }
+    state.controls.lock().await.remove(&id);
+    Ok(())
+}

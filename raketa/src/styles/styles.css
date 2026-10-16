@@ -740,6 +740,52 @@ body {
   color: var(--text-muted);
 }
 
+/* ---- Menu contextuel (clic droit) ---- */
+.ctx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+}
+.ctx-menu {
+  position: fixed;
+  z-index: 301;
+  min-width: 210px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ctx-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ctx-menu button:hover {
+  background: var(--bg-elev);
+}
+.ctx-menu button.danger:hover {
+  background: rgba(239, 83, 80, 0.15);
+  color: var(--red);
+}
+.ctx-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}
+
 /* ---- Panneau de détails (modal) ---- */
 .dl-name.clickable {
   cursor: pointer;
