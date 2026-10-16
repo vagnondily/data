@@ -16,7 +16,7 @@ use crate::engine::EngineConfig;
 use crate::error::{EngineError, Result};
 use crate::filename;
 use crate::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
-use crate::ProgressFn;
+use crate::{ProgressFn, RateLimiter};
 use futures_util::future::join_all;
 use futures_util::StreamExt;
 use reqwest::header::{IF_RANGE, RANGE};
@@ -64,6 +64,8 @@ pub fn plan_segments(total: u64, connections: usize, min_seg: u64) -> Vec<(u64, 
 pub async fn run(
     client: Client,
     config: EngineConfig,
+    connections: usize,
+    limiter: RateLimiter,
     task: DownloadTask,
     final_url: String,
     validator: Option<String>,
@@ -73,7 +75,7 @@ pub async fn run(
     control: Control,
     progress: ProgressFn,
 ) -> Result<Outcome> {
-    let ranges = plan_segments(total, config.connections, config.min_segment_size);
+    let ranges = plan_segments(total, connections, config.min_segment_size);
     let part_path = |i: usize| dir.join(format!("{chosen}{}.{i}", config.part_suffix));
 
     // Compteur partagé de l'avancement global (octets déjà sur disque inclus).
@@ -101,6 +103,7 @@ pub async fn run(
         fetch_segment(
             client.clone(),
             config.clone(),
+            limiter.clone(),
             final_url.clone(),
             validator.clone(),
             start,
@@ -149,6 +152,7 @@ pub async fn run(
 async fn fetch_segment(
     client: Client,
     config: EngineConfig,
+    limiter: RateLimiter,
     url: String,
     validator: Option<String>,
     start: u64,
@@ -248,6 +252,8 @@ async fn fetch_segment(
             };
 
             let take = (bytes.len() as u64).min(remaining) as usize;
+            // Limiteur de débit global partagé entre tous les segments.
+            limiter.acquire(take as u64).await;
             if let Err(e) = file.write_all(&bytes[..take]).await {
                 if e.raw_os_error() == Some(28) {
                     return Err(EngineError::DiskFull);

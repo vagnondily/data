@@ -7,6 +7,7 @@
 use crate::error::Result;
 use crate::model::{DownloadStatus, DownloadTask};
 use rusqlite::{params, Connection, OptionalExtension};
+use std::collections::HashMap;
 use std::path::Path;
 
 /// Version courante du schéma (incrémentée à chaque migration).
@@ -248,6 +249,43 @@ impl Store {
         Ok(n)
     }
 
+    /// Enregistre (ou met à jour) un paramètre applicatif.
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3) \
+             ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3",
+            params![key, value, now_ts()],
+        )?;
+        Ok(())
+    }
+
+    /// Lit un paramètre applicatif.
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        let v = self
+            .conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                params![key],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(v)
+    }
+
+    /// Lit tous les paramètres sous forme de dictionnaire.
+    pub fn all_settings(&self) -> Result<HashMap<String, String>> {
+        let mut stmt = self.conn.prepare("SELECT key, value FROM settings")?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })?;
+        let mut map = HashMap::new();
+        for r in rows {
+            let (k, v) = r?;
+            map.insert(k, v);
+        }
+        Ok(map)
+    }
+
     fn log_event(&self, id: &str, event_type: &str, message: &str) -> Result<()> {
         self.conn.execute(
             "INSERT INTO events (download_id, event_type, timestamp, message) VALUES (?1, ?2, ?3, ?4)",
@@ -327,5 +365,18 @@ mod tests {
         let rec = store.get("a").unwrap().unwrap();
         assert_eq!(rec.status, DownloadStatus::Completed);
         assert_eq!(rec.sha256.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn parametres_set_get() {
+        let store = Store::open_in_memory().unwrap();
+        assert_eq!(store.get_setting("speed_limit").unwrap(), None);
+        store.set_setting("speed_limit", "512000").unwrap();
+        store.set_setting("connections", "16").unwrap();
+        // Mise à jour (upsert).
+        store.set_setting("connections", "12").unwrap();
+        assert_eq!(store.get_setting("speed_limit").unwrap().as_deref(), Some("512000"));
+        assert_eq!(store.get_setting("connections").unwrap().as_deref(), Some("12"));
+        assert_eq!(store.all_settings().unwrap().len(), 2);
     }
 }

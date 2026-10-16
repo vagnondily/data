@@ -4,6 +4,7 @@
 //! entre les commandes invoquées depuis React, la base SQLite et les événements
 //! de progression typés publiés vers l'interface (section 5.1).
 
+use crate::settings::Settings;
 use raketa_core::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
 use raketa_core::{Engine, Store};
 use raketa_torrent::TorrentManager;
@@ -17,6 +18,8 @@ use tokio::sync::Mutex;
 pub const EVENT_PROGRESS: &str = "raketa://progress";
 /// Canal d'événement de progression des torrents.
 pub const EVENT_TORRENT: &str = "raketa://torrent-progress";
+/// Canal d'événement : une URL intéressante a été copiée dans le presse-papiers.
+pub const EVENT_CLIPBOARD: &str = "raketa://clipboard-url";
 
 /// État global partagé, injecté dans chaque commande Tauri.
 pub struct AppState {
@@ -26,6 +29,8 @@ pub struct AppState {
     pub controls: Arc<Mutex<HashMap<String, Control>>>,
     /// Moteur BitTorrent (magnets + .torrent).
     pub torrents: Arc<TorrentManager>,
+    /// Préférences utilisateur (appliquées au moteur à chaud).
+    pub settings: Arc<Mutex<Settings>>,
 }
 
 impl AppState {
@@ -43,6 +48,11 @@ impl AppState {
             eprintln!("[raketa] {recovered} tâche(s) interrompue(s) restaurée(s) en pause");
         }
         let engine = Engine::new().map_err(|e| e.to_string())?;
+
+        // Charge les préférences et les applique au moteur (vitesse, connexions).
+        let settings = Settings::load(&store, download_dir.display().to_string());
+        settings.apply_to_engine(&engine);
+
         let torrents = TorrentManager::new(download_dir.clone())
             .await
             .map_err(|e| format!("moteur torrent : {e}"))?;
@@ -51,7 +61,35 @@ impl AppState {
             store: Arc::new(Mutex::new(store)),
             controls: Arc::new(Mutex::new(HashMap::new())),
             torrents: Arc::new(torrents),
+            settings: Arc::new(Mutex::new(settings)),
         })
+    }
+
+    /// Surveille le presse-papiers : si une URL http(s) nouvelle est copiée et
+    /// que l'option est active, publie `raketa://clipboard-url` (l'UI propose de
+    /// l'ajouter). Capture de liens « façon IDM », sans ajout silencieux.
+    pub fn spawn_clipboard_watcher(&self, app: AppHandle) {
+        let settings = self.settings.clone();
+        tauri::async_runtime::spawn(async move {
+            use tauri_plugin_clipboard_manager::ClipboardExt;
+            let mut last = String::new();
+            let mut ticker = tokio::time::interval(std::time::Duration::from_millis(1200));
+            loop {
+                ticker.tick().await;
+                if !settings.lock().await.clipboard_watch {
+                    continue;
+                }
+                let text = app.clipboard().read_text().unwrap_or_default();
+                let trimmed = text.trim().to_string();
+                if trimmed != last
+                    && (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
+                    && !trimmed.contains(char::is_whitespace)
+                {
+                    last = trimmed.clone();
+                    let _ = app.emit(EVENT_CLIPBOARD, &trimmed);
+                }
+            }
+        });
     }
 
     /// Démarre une boucle de fond qui publie la progression des torrents.

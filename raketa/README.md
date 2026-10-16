@@ -71,10 +71,15 @@ raketa/
 | Persistance **SQLite** + récupération au démarrage | ✅ fait + testé |
 | Tentatives/backoff (429/5xx), `Retry-After`, disque plein | ✅ fait |
 | **Multi-segments parallèle** (vitesse max liens directs, P4) | ✅ **fait + testé** |
-| **Torrents** (magnets + .torrent, librqbit) | ✅ intégré (compile contre l'API réelle) |
-| Enveloppe Tauri (commandes HTTP + torrents + événements) | 🏗️ code en place (build Windows requis) |
-| Interface React (onglets Téléchargements / Torrents) | 🏗️ code en place, **build web vérifié** |
-| Extension navigateur + hôte natif (P6) | 🏗️ ébauche |
+| **Torrents** (magnets + .torrent, librqbit, sélection fichiers) | ✅ intégré (compile contre l'API réelle) |
+| **Limiteur de débit** global, réglable à chaud | ✅ fait + testé |
+| **Téléchargements par lot** (motifs `[1-100]`, listes) | ✅ fait + testé |
+| **Catégorisation automatique** (Jeux, Vidéos…) | ✅ fait + testé |
+| **Paramètres persistants** (connexions, vitesse, dossier…) | ✅ fait + testé |
+| **Navigateur intégré** (capture des liens + anti-popups) | 🏗️ code en place (build Windows requis) |
+| **Capture du presse-papiers** (façon IDM) | 🏗️ code en place |
+| Enveloppe Tauri (commandes HTTP + torrents + navigateur) | 🏗️ code en place (build Windows requis) |
+| Interface React (onglets Téléch. / Torrents / Navigateur / Paramètres) | 🏗️ **build web vérifié** |
 
 Voir [`docs/ROADMAP.md`](docs/ROADMAP.md) pour le détail par phase.
 
@@ -83,14 +88,15 @@ Voir [`docs/ROADMAP.md`](docs/ROADMAP.md) pour le détail par phase.
 Le cœur se teste sur **n'importe quelle plateforme**, sans Windows ni interface :
 
 ```bash
-cd core && cargo test          # 20 tests (moteur HTTP + multi-segments)
+cd core && cargo test          # 31 tests (HTTP, multi-segments, limiteur, lots, catégories)
 cd ../torrent && cargo test     # compile le moteur torrent (test réseau : --ignored)
 ```
 
-**20 tests** couvrent les critères d'acceptation (section 14) : téléchargement
-simple + intégrité, **reprise après coupure sans corruption**, **multi-segments +
-reprise sous parallélisme**, serveur sans `Range`, nom malveillant confiné, base
-SQLite et récupération. Un petit serveur HTTP local avec support `Range` est monté
+**31 tests** couvrent les critères d'acceptation (section 14) et les fonctions
+avancées : téléchargement simple + intégrité, **reprise après coupure sans
+corruption**, **multi-segments + reprise sous parallélisme**, serveur sans `Range`,
+nom malveillant confiné, base SQLite, **limiteur de débit**, **expansion de motifs
+de lot**, **catégorisation** et paramètres. Un petit serveur HTTP local avec support `Range` est monté
 dans les tests — aucun accès réseau externe requis.
 
 > Le moteur torrent (`raketa-torrent`) **compile contre l'API réelle de librqbit** ;

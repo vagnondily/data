@@ -405,6 +405,137 @@ body {
   font-size: 13px;
 }
 
+/* ---- Mode lot / commutateur ---- */
+.mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chip.active {
+  background: rgba(47, 164, 231, 0.18);
+  color: var(--blue);
+  border-color: var(--blue-dim);
+}
+
+.batch-area {
+  width: 100%;
+  resize: vertical;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+/* ---- Paramètres ---- */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.setting-row > label:first-child {
+  width: 220px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.input.small {
+  width: 110px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--orange);
+}
+
+.setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---- Navigateur ---- */
+.quick-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.browser-note {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ---- Toast presse-papiers ---- */
+.toast {
+  position: fixed;
+  bottom: 54px;
+  right: 24px;
+  max-width: 420px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--blue-dim);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+}
+
+.toast-text {
+  font-size: 13px;
+}
+
+.toast-url {
+  color: var(--blue);
+  word-break: break-all;
+}
+
+.toast-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* ---- Pied ---- */
 .app-footer {
   padding: 10px 24px;

@@ -1,19 +1,23 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { addDownload, probeUrl, type RemoteInfo } from "../../lib/api";
+import { addBatch, addDownload, probeUrl, type RemoteInfo } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
 
 interface Props {
   onAdded: () => void;
+  // URL pré-remplie (ex. depuis le presse-papiers).
+  prefillUrl?: string;
 }
 
 // Zone de commande : coller une URL, choisir la destination, lancer (section 11.1).
-export function AddDownload({ onAdded }: Props) {
-  const [url, setUrl] = useState("");
+export function AddDownload({ onAdded, prefillUrl }: Props) {
+  const [url, setUrl] = useState(prefillUrl ?? "");
   const [destDir, setDestDir] = useState("");
   const [info, setInfo] = useState<RemoteInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchText, setBatchText] = useState("");
 
   async function chooseFolder() {
     const selected = await open({ directory: true, multiple: false });
@@ -57,27 +61,78 @@ export function AddDownload({ onAdded }: Props) {
     }
   }
 
+  async function submitBatch() {
+    if (!batchText.trim()) return;
+    try {
+      setBusy(true);
+      setError(null);
+      const n = await addBatch(batchText.trim(), destDir.trim());
+      setBatchText("");
+      onAdded();
+      if (n === 0) setError("Aucune URL valide détectée.");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="add-panel" aria-label="Ajouter un téléchargement">
-      <div className="add-row">
-        <input
-          type="url"
-          className="input url-input"
-          placeholder="Collez une URL https://…"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onBlur={analyse}
-          aria-label="URL à télécharger"
-        />
-        <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
-          {destDir ? "📁 " + shorten(destDir) : "Choisir le dossier"}
+      <div className="mode-switch">
+        <button
+          className={`chip ${!batchMode ? "active" : ""}`}
+          onClick={() => setBatchMode(false)}
+        >
+          URL unique
         </button>
-        <button className="btn primary" onClick={submit} disabled={busy}>
-          Télécharger
+        <button
+          className={`chip ${batchMode ? "active" : ""}`}
+          onClick={() => setBatchMode(true)}
+        >
+          Lot / motif [1-100]
         </button>
       </div>
 
-      {info && (
+      {batchMode ? (
+        <>
+          <textarea
+            className="input batch-area"
+            placeholder={"Une URL ou un motif par ligne, ex. :\nhttps://ex.com/f[001-050].zip\nhttps://ex.com/autre.iso"}
+            value={batchText}
+            onChange={(e) => setBatchText(e.target.value)}
+            rows={4}
+          />
+          <div className="add-row">
+            <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
+              {destDir ? "📁 " + shorten(destDir) : "Choisir le dossier"}
+            </button>
+            <button className="btn primary" onClick={submitBatch} disabled={busy}>
+              Télécharger le lot
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="add-row">
+          <input
+            type="url"
+            className="input url-input"
+            placeholder="Collez une URL https://…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onBlur={analyse}
+            aria-label="URL à télécharger"
+          />
+          <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
+            {destDir ? "📁 " + shorten(destDir) : "Choisir le dossier"}
+          </button>
+          <button className="btn primary" onClick={submit} disabled={busy}>
+            Télécharger
+          </button>
+        </div>
+      )}
+
+      {info && !batchMode && (
         <div className="probe-info">
           <span>
             <strong>{info.suggested_filename ?? "fichier"}</strong>

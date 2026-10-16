@@ -2,6 +2,7 @@
 
 mod commands;
 mod manager;
+mod settings;
 
 use directories::{ProjectDirs, UserDirs};
 use manager::AppState;
@@ -35,17 +36,19 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(state)
         .setup(|app| {
-            // Démarre la publication périodique de l'état des torrents.
-            let handle = app.handle().clone();
+            // Boucles de fond : progression des torrents + capture du presse-papiers.
             let state = app.state::<AppState>();
-            state.spawn_torrent_reporter(handle);
+            state.spawn_torrent_reporter(app.handle().clone());
+            state.spawn_clipboard_watcher(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::probe_url,
             commands::add_download,
+            commands::add_batch,
             commands::list_downloads,
             commands::pause_download,
             commands::resume_download,
@@ -56,6 +59,9 @@ pub fn run() {
             commands::pause_torrent,
             commands::resume_torrent,
             commands::remove_torrent,
+            commands::get_settings,
+            commands::set_settings,
+            commands::open_browser,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");

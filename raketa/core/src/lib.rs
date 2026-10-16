@@ -29,16 +29,21 @@
 //! # }
 //! ```
 
+pub mod batch;
+pub mod category;
 pub mod engine;
 pub mod error;
 pub mod filename;
 pub mod hash;
 pub mod metadata;
 pub mod model;
+pub mod ratelimit;
 pub mod segmented;
 pub mod storage;
 
+pub use category::{categorize, Category};
 pub use engine::{Engine, EngineConfig, ProgressFn};
 pub use error::{EngineError, Result};
 pub use model::{Control, DownloadStatus, DownloadTask, Outcome, Progress, RemoteInfo};
+pub use ratelimit::RateLimiter;
 pub use storage::{DownloadRecord, Store};

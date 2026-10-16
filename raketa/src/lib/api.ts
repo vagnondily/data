@@ -136,3 +136,39 @@ export function onTorrentProgress(
 ): Promise<UnlistenFn> {
   return listen<TorrentProgress[]>(EVENT_TORRENT, (event) => cb(event.payload));
 }
+
+// ---------------------------------------------------------------------------
+// Lot, paramètres, navigateur, presse-papiers
+// ---------------------------------------------------------------------------
+
+export function addBatch(text: string, destDir: string): Promise<number> {
+  return invoke<number>("add_batch", { text, destDir });
+}
+
+export interface Settings {
+  connections: number;
+  speed_limit_kbps: number;
+  default_dir: string;
+  auto_categorize: boolean;
+  block_popups: boolean;
+  clipboard_watch: boolean;
+}
+
+export function getSettings(): Promise<Settings> {
+  return invoke<Settings>("get_settings");
+}
+
+export function setSettings(settings: Settings): Promise<void> {
+  return invoke("set_settings", { settings });
+}
+
+export function openBrowser(url: string): Promise<void> {
+  return invoke("open_browser", { url });
+}
+
+export const EVENT_CLIPBOARD = "raketa://clipboard-url";
+
+// URL intéressante copiée dans le presse-papiers (capture façon IDM).
+export function onClipboardUrl(cb: (url: string) => void): Promise<UnlistenFn> {
+  return listen<string>(EVENT_CLIPBOARD, (event) => cb(event.payload));
+}

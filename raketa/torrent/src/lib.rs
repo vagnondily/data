@@ -76,10 +76,19 @@ impl TorrentManager {
     }
 
     /// Ajoute un torrent depuis un lien magnet ou une URL `.torrent`.
-    pub async fn add_magnet_or_url(&self, url: &str, paused: bool) -> Result<usize> {
+    ///
+    /// `only_files` : indices des fichiers à télécharger (sélection façon uTorrent) ;
+    /// `None` télécharge tout.
+    pub async fn add_magnet_or_url(
+        &self,
+        url: &str,
+        paused: bool,
+        only_files: Option<Vec<usize>>,
+    ) -> Result<usize> {
         let opts = AddTorrentOptions {
             paused,
             overwrite: true, // nécessaire pour reprendre/seeder des pièces déjà écrites
+            only_files,
             ..Default::default()
         };
         let resp = self
@@ -90,10 +99,16 @@ impl TorrentManager {
     }
 
     /// Ajoute un torrent depuis un fichier `.torrent` local.
-    pub async fn add_file(&self, path: &str, paused: bool) -> Result<usize> {
+    pub async fn add_file(
+        &self,
+        path: &str,
+        paused: bool,
+        only_files: Option<Vec<usize>>,
+    ) -> Result<usize> {
         let opts = AddTorrentOptions {
             paused,
             overwrite: true,
+            only_files,
             ..Default::default()
         };
         let resp = self

@@ -63,6 +63,10 @@ impl Default for EngineConfig {
 pub struct Engine {
     client: Client,
     config: EngineConfig,
+    /// Limiteur de débit global, réglable à chaud (0 = illimité).
+    limiter: crate::RateLimiter,
+    /// Nombre de connexions parallèles, réglable à chaud.
+    connections: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl Engine {
@@ -76,7 +80,29 @@ impl Engine {
             // Limite le nombre de redirections suivies (section 12).
             .redirect(reqwest::redirect::Policy::limited(10))
             .build()?;
-        Ok(Self { client, config })
+        let connections = Arc::new(std::sync::atomic::AtomicUsize::new(config.connections));
+        Ok(Self {
+            client,
+            config,
+            limiter: crate::RateLimiter::unlimited(),
+            connections,
+        })
+    }
+
+    /// Règle le débit global maximal (octets/seconde ; 0 = illimité).
+    pub fn set_rate_limit(&self, bytes_per_sec: u64) {
+        self.limiter.set_limit(bytes_per_sec);
+    }
+
+    /// Règle le nombre de connexions parallèles par téléchargement.
+    pub fn set_connections(&self, n: usize) {
+        self.connections
+            .store(n.max(1), std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Nombre de connexions courant.
+    fn connections(&self) -> usize {
+        self.connections.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     /// Sonde les métadonnées distantes sans télécharger le corps.
@@ -109,13 +135,16 @@ impl Engine {
 
         // Stratégie : multi-segments si la taille est connue, que le serveur
         // honore Range et que le fichier dépasse le seuil ; sinon flux unique.
-        if self.config.connections > 1 && info.accept_ranges {
+        let connections = self.connections();
+        if connections > 1 && info.accept_ranges {
             if let Some(total) = info.size {
                 if total >= self.config.segment_threshold {
                     let validator = info.etag.clone().or_else(|| info.last_modified.clone());
                     return crate::segmented::run(
                         self.client.clone(),
                         self.config.clone(),
+                        connections,
+                        self.limiter.clone(),
                         task.clone(),
                         info.final_url.clone(),
                         validator,
@@ -288,6 +317,9 @@ impl Engine {
             }
 
             let bytes = chunk?;
+            let n = bytes.len() as u64;
+            // Limiteur de débit global (0 = illimité) : attente avant écriture.
+            self.limiter.acquire(n).await;
             // Gestion explicite du disque plein (section 9.2).
             if let Err(e) = file.write_all(&bytes).await {
                 if e.raw_os_error() == Some(28) {
@@ -298,7 +330,6 @@ impl Engine {
                 return Err(EngineError::Io(e));
             }
 
-            let n = bytes.len() as u64;
             downloaded += n;
             window_bytes += n;
 
