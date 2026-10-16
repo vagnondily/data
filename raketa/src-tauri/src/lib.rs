@@ -7,6 +7,7 @@ mod settings;
 use directories::{ProjectDirs, UserDirs};
 use manager::AppState;
 use std::path::PathBuf;
+use tauri::Manager;
 
 /// Dossier de données applicatives (base, état) — hors dépôt, côté utilisateur.
 fn data_dir() -> PathBuf {
@@ -39,8 +40,10 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(state)
         .setup(|app| {
-            // Boucles de fond : progression des torrents + capture du presse-papiers.
+            // Boucles de fond : ordonnanceur de file, progression des torrents,
+            // capture du presse-papiers.
             let state = app.state::<AppState>();
+            state.spawn_scheduler(app.handle().clone());
             state.spawn_torrent_reporter(app.handle().clone());
             state.spawn_clipboard_watcher(app.handle().clone());
             Ok(())

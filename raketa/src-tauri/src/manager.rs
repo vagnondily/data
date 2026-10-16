@@ -6,14 +6,14 @@
 
 use crate::settings::Settings;
 use raketa_core::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
-use raketa_core::{Engine, Store};
+use raketa_core::{Engine, ProgressFn, Store};
 use raketa_torrent::TorrentManager;
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager};
-use tokio::sync::Mutex;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::{Mutex, Notify};
 
 /// Canal d'événement de progression des téléchargements HTTP.
 pub const EVENT_PROGRESS: &str = "raketa://progress";
@@ -36,6 +36,8 @@ pub struct AppState {
     pub active: Arc<AtomicUsize>,
     /// File d'attente des téléchargements en attente d'un créneau.
     pub queue: Arc<Mutex<VecDeque<DownloadTask>>>,
+    /// Réveille l'ordonnanceur (nouvel ajout ou créneau libéré).
+    notify: Arc<Notify>,
 }
 
 impl AppState {
@@ -69,6 +71,7 @@ impl AppState {
             settings: Arc::new(Mutex::new(settings)),
             active: Arc::new(AtomicUsize::new(0)),
             queue: Arc::new(Mutex::new(VecDeque::new())),
+            notify: Arc::new(Notify::new()),
         })
     }
 
@@ -117,65 +120,91 @@ impl AppState {
         });
     }
 
-    /// Soumet un téléchargement : démarre aussitôt s'il reste un créneau, sinon
-    /// il attend dans la file (limite « max simultanés », façon IDM/uTorrent).
-    pub async fn submit(&self, app: AppHandle, task: DownloadTask) {
+    /// Soumet un téléchargement : il est mis en file et l'ordonnanceur le
+    /// démarre dès qu'un créneau est disponible (limite « max simultanés »).
+    pub async fn submit(&self, _app: AppHandle, task: DownloadTask) {
         self.queue.lock().await.push_back(task);
-        self.pump(app).await;
+        self.notify.notify_one();
     }
 
-    /// Démarre autant de téléchargements en file que la limite le permet.
-    pub async fn pump(&self, app: AppHandle) {
-        let max = self.settings.lock().await.max_simultaneous.max(1);
-        loop {
-            let task = {
-                let mut q = self.queue.lock().await;
-                if self.active.load(Ordering::SeqCst) >= max || q.is_empty() {
-                    break;
-                }
-                self.active.fetch_add(1, Ordering::SeqCst);
-                q.pop_front().expect("file non vide")
-            };
-            self.run_download_task(app.clone(), task).await;
-        }
-    }
-
-    /// Lance un transfert en tâche de fond ; publie la progression, persiste
-    /// l'état final, puis libère le créneau et relance la file.
-    async fn run_download_task(&self, app: AppHandle, task: DownloadTask) {
-        let control = Control::new();
-        {
-            let mut controls = self.controls.lock().await;
-            controls.insert(task.id.clone(), control.clone());
-        }
-
+    /// Démarre l'ordonnanceur : une tâche de fond qui, à chaque réveil, lance
+    /// autant de téléchargements en file que la limite le permet. Réveillé à
+    /// chaque ajout (`submit`) et à chaque créneau libéré (fin d'un transfert).
+    ///
+    /// Conçu sans `State` ni récursion pour rester `Send` (requis par `spawn`).
+    pub fn spawn_scheduler(&self, app: AppHandle) {
         let engine = self.engine.clone();
         let store = self.store.clone();
         let controls = self.controls.clone();
+        let settings = self.settings.clone();
         let active = self.active.clone();
-        let app_for_cb = app.clone();
+        let queue = self.queue.clone();
+        let notify = self.notify.clone();
 
-        tokio::spawn(async move {
-            // Rappel de progression : publie vers l'UI (throttling fait par le moteur).
-            let progress_cb: raketa_core::ProgressFn = {
-                let app = app_for_cb.clone();
-                Arc::new(move |p: Progress| {
-                    let _ = app.emit(EVENT_PROGRESS, &p);
-                })
-            };
+        tauri::async_runtime::spawn(async move {
+            loop {
+                notify.notified().await;
+                loop {
+                    let max = settings.lock().await.max_simultaneous.max(1);
+                    if active.load(Ordering::SeqCst) >= max {
+                        break;
+                    }
+                    let Some(task) = queue.lock().await.pop_front() else {
+                        break;
+                    };
+                    active.fetch_add(1, Ordering::SeqCst);
+                    spawn_download(
+                        engine.clone(),
+                        store.clone(),
+                        controls.clone(),
+                        active.clone(),
+                        notify.clone(),
+                        app.clone(),
+                        task,
+                    );
+                }
+            }
+        });
+    }
+}
 
-            let result = engine.download(&task, control, progress_cb).await;
+/// Exécute un transfert en tâche de fond : publie la progression, persiste
+/// l'état final, libère le créneau et réveille l'ordonnanceur.
+///
+/// Fonction libre (pas de `&AppState`) pour que le futur reste `Send`.
+#[allow(clippy::too_many_arguments)]
+fn spawn_download(
+    engine: Engine,
+    store: Arc<Mutex<Store>>,
+    controls: Arc<Mutex<HashMap<String, Control>>>,
+    active: Arc<AtomicUsize>,
+    notify: Arc<Notify>,
+    app: AppHandle,
+    task: DownloadTask,
+) {
+    let control = Control::new();
 
-            // Persistance de l'état final.
+    tokio::spawn(async move {
+        controls
+            .lock()
+            .await
+            .insert(task.id.clone(), control.clone());
+
+        let progress_cb: ProgressFn = {
+            let app = app.clone();
+            Arc::new(move |p: Progress| {
+                let _ = app.emit(EVENT_PROGRESS, &p);
+            })
+        };
+
+        let result = engine.download(&task, control, progress_cb).await;
+
+        {
             let store = store.lock().await;
             match result {
                 Ok(Outcome::Completed { path, bytes, sha256 }) => {
-                    let _ = store.mark_completed(
-                        &task.id,
-                        sha256.as_deref().unwrap_or(""),
-                        &path,
-                        bytes,
-                    );
+                    let _ =
+                        store.mark_completed(&task.id, sha256.as_deref().unwrap_or(""), &path, bytes);
                     let _ = app.emit(
                         EVENT_PROGRESS,
                         &Progress {
@@ -188,12 +217,8 @@ impl AppState {
                     );
                 }
                 Ok(Outcome::Paused { downloaded }) => {
-                    let _ = store.update_progress(
-                        &task.id,
-                        DownloadStatus::Paused,
-                        downloaded,
-                        None,
-                    );
+                    let _ =
+                        store.update_progress(&task.id, DownloadStatus::Paused, downloaded, None);
                 }
                 Err(e) => {
                     let code = format!("{e}");
@@ -210,13 +235,12 @@ impl AppState {
                     );
                 }
             }
+        }
 
-            // Nettoyage du jeton de contrôle.
-            controls.lock().await.remove(&task.id);
+        controls.lock().await.remove(&task.id);
 
-            // Libère le créneau et tente de démarrer le prochain de la file.
-            active.fetch_sub(1, Ordering::SeqCst);
-            app.state::<AppState>().pump(app.clone()).await;
-        });
-    }
+        // Libère le créneau et réveille l'ordonnanceur pour le suivant.
+        active.fetch_sub(1, Ordering::SeqCst);
+        notify.notify_one();
+    });
 }
