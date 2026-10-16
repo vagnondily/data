@@ -6,7 +6,7 @@
 //! malveillant et gère un serveur sans `Range`.
 
 use raketa_core::model::{Control, DownloadTask};
-use raketa_core::{hash, Engine, Outcome};
+use raketa_core::{hash, Engine, EngineConfig, Outcome};
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -58,19 +58,27 @@ fn handle(mut stream: TcpStream, body: Vec<u8>, opts: ServerOpts) {
     let n = stream.read(&mut buf).unwrap_or(0);
     let req = String::from_utf8_lossy(&buf[..n]);
 
-    // Analyse d'un éventuel en-tête Range: bytes=START-
-    let range_start: Option<u64> = req
+    // Analyse d'un éventuel en-tête Range: bytes=START-END (END optionnel).
+    let range = req
         .lines()
         .find(|l| l.to_lowercase().starts_with("range:"))
         .and_then(|l| l.split('=').nth(1))
-        .and_then(|r| r.split('-').next())
-        .and_then(|s| s.trim().parse::<u64>().ok());
+        .map(|r| {
+            let mut it = r.trim().split('-');
+            let s = it.next().and_then(|x| x.trim().parse::<u64>().ok());
+            let e = it.next().and_then(|x| x.trim().parse::<u64>().ok());
+            (s, e)
+        });
 
     let total = body.len() as u64;
 
-    let (status, start) = match (opts.support_ranges, range_start) {
-        (true, Some(s)) if s < total => ("206 Partial Content", s),
-        (true, Some(s)) if s >= total => {
+    let (status, start, end) = match (opts.support_ranges, range) {
+        (true, Some((Some(s), e))) if s < total => {
+            // Borne haute honorée (défaut : fin du fichier).
+            let end = e.unwrap_or(total - 1).min(total - 1);
+            ("206 Partial Content", s, end)
+        }
+        (true, Some((Some(s), _))) if s >= total => {
             // 416 : plage non satisfiable.
             let resp = format!(
                 "HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */{total}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
@@ -78,10 +86,10 @@ fn handle(mut stream: TcpStream, body: Vec<u8>, opts: ServerOpts) {
             let _ = stream.write_all(resp.as_bytes());
             return;
         }
-        _ => ("200 OK", 0u64),
+        _ => ("200 OK", 0u64, total - 1),
     };
 
-    let slice = &body[start as usize..];
+    let slice = &body[start as usize..=(end as usize)];
     let content_len = slice.len() as u64;
 
     // En-têtes.
@@ -92,10 +100,7 @@ fn handle(mut stream: TcpStream, body: Vec<u8>, opts: ServerOpts) {
         headers.push_str("Accept-Ranges: bytes\r\n");
     }
     if status.starts_with("206") {
-        headers.push_str(&format!(
-            "Content-Range: bytes {start}-{}/{total}\r\n",
-            total - 1
-        ));
+        headers.push_str(&format!("Content-Range: bytes {start}-{end}/{total}\r\n"));
     }
     headers.push_str(&format!("Content-Length: {content_len}\r\n"));
     headers.push_str("Connection: close\r\n\r\n");
@@ -188,6 +193,89 @@ async fn reprise_apres_coupure_sans_corruption() {
         assert_eq!(sha256.unwrap(), sha_hex(&data));
         let on_disk = std::fs::read(&path).unwrap();
         assert_eq!(on_disk, data, "reprise sans corruption");
+    } else {
+        panic!("attendu Completed");
+    }
+}
+
+// Config forçant le multi-segments même sur un petit fichier de test.
+fn seg_config() -> EngineConfig {
+    EngineConfig {
+        connections: 4,
+        segment_threshold: 64 * 1024,
+        min_segment_size: 16 * 1024,
+        ..Default::default()
+    }
+}
+
+fn no_part_files(dir: &std::path::Path) -> bool {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .all(|e| !e.file_name().to_string_lossy().contains(".rkt-part"))
+}
+
+#[tokio::test]
+async fn telechargement_multisegments_integrite_ok() {
+    // 4 segments parallèles ; le résultat doit être identique et vérifié.
+    let url = start_server(ServerOpts {
+        support_ranges: true,
+        cut_once: Arc::new(AtomicBool::new(false)),
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let data = payload();
+
+    let engine = Engine::with_config(seg_config()).unwrap();
+    let task = DownloadTask {
+        id: "seg1".into(),
+        url,
+        dest_dir: dir.path().display().to_string(),
+        filename: Some("multi.bin".into()),
+        expected_sha256: Some(sha_hex(&data)),
+    };
+
+    let outcome = engine
+        .download(&task, Control::new(), noop_progress())
+        .await
+        .expect("multi-segments réussi");
+
+    if let Outcome::Completed { path, bytes, sha256 } = outcome {
+        assert_eq!(bytes, data.len() as u64);
+        assert_eq!(sha256.unwrap(), sha_hex(&data));
+        assert_eq!(std::fs::read(&path).unwrap(), data, "fichier identique à la référence");
+        assert!(no_part_files(dir.path()), "les fichiers .part.N doivent être nettoyés");
+    } else {
+        panic!("attendu Completed");
+    }
+}
+
+#[tokio::test]
+async fn multisegments_reprise_sous_parallelisme() {
+    // Une des connexions parallèles est coupée : le segment concerné doit
+    // reprendre via Range et l'assemblage rester correct.
+    let url = start_server(ServerOpts {
+        support_ranges: true,
+        cut_once: Arc::new(AtomicBool::new(true)),
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let data = payload();
+
+    let engine = Engine::with_config(seg_config()).unwrap();
+    let task = DownloadTask {
+        id: "seg2".into(),
+        url,
+        dest_dir: dir.path().display().to_string(),
+        filename: Some("multi-resume.bin".into()),
+        expected_sha256: Some(sha_hex(&data)),
+    };
+
+    let outcome = engine
+        .download(&task, Control::new(), noop_progress())
+        .await
+        .expect("reprise multi-segments réussie");
+
+    if let Outcome::Completed { path, .. } = outcome {
+        assert_eq!(std::fs::read(&path).unwrap(), data, "assemblage sans corruption");
     } else {
         panic!("attendu Completed");
     }

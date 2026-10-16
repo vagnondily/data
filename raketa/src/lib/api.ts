@@ -85,3 +85,54 @@ export function cancelDownload(id: string): Promise<void> {
 export function onProgress(cb: (p: Progress) => void): Promise<UnlistenFn> {
   return listen<Progress>(EVENT_PROGRESS, (event) => cb(event.payload));
 }
+
+// ---------------------------------------------------------------------------
+// Torrents
+// ---------------------------------------------------------------------------
+
+export interface TorrentProgress {
+  id: number;
+  info_hash: string;
+  name: string;
+  downloaded: number;
+  total: number;
+  uploaded: number;
+  speed_bps: number;
+  finished: boolean;
+  paused: boolean;
+  state: string;
+  error: string | null;
+}
+
+export const EVENT_TORRENT = "raketa://torrent-progress";
+
+export function addTorrent(url: string): Promise<number> {
+  return invoke<number>("add_torrent", { url });
+}
+
+export function addTorrentFile(path: string): Promise<number> {
+  return invoke<number>("add_torrent_file", { path });
+}
+
+export function listTorrents(): Promise<TorrentProgress[]> {
+  return invoke<TorrentProgress[]>("list_torrents");
+}
+
+export function pauseTorrent(id: number): Promise<void> {
+  return invoke("pause_torrent", { id });
+}
+
+export function resumeTorrent(id: number): Promise<void> {
+  return invoke("resume_torrent", { id });
+}
+
+export function removeTorrent(id: number, deleteFiles: boolean): Promise<void> {
+  return invoke("remove_torrent", { id, deleteFiles });
+}
+
+// Flux périodique de l'état des torrents (liste complète à chaque tick).
+export function onTorrentProgress(
+  cb: (list: TorrentProgress[]) => void,
+): Promise<UnlistenFn> {
+  return listen<TorrentProgress[]>(EVENT_TORRENT, (event) => cb(event.payload));
+}

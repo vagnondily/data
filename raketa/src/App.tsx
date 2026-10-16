@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   listDownloads,
+  listTorrents,
   onProgress,
+  onTorrentProgress,
   type DownloadDto,
   type Progress,
+  type TorrentProgress,
 } from "./lib/api";
 import { Stats } from "./features/dashboard/Stats";
 import { AddDownload } from "./features/downloads/AddDownload";
 import { DownloadList } from "./features/downloads/DownloadList";
+import { TorrentPanel } from "./features/torrents/TorrentPanel";
+
+type Tab = "http" | "torrents";
 
 export function App() {
+  const [tab, setTab] = useState<Tab>("http");
   const [downloads, setDownloads] = useState<DownloadDto[]>([]);
+  const [torrents, setTorrents] = useState<TorrentProgress[]>([]);
   // Débits instantanés par identifiant (non persistés).
   const [speeds, setSpeeds] = useState<Record<string, number>>({});
   const downloadsRef = useRef<DownloadDto[]>([]);
@@ -25,11 +33,20 @@ export function App() {
     }
   }, []);
 
+  const refreshTorrents = useCallback(async () => {
+    try {
+      setTorrents(await listTorrents());
+    } catch {
+      /* hors Tauri */
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    refreshTorrents();
+  }, [refresh, refreshTorrents]);
 
-  // Abonnement aux événements de progression du moteur.
+  // Progression des téléchargements HTTP.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     onProgress((p: Progress) => applyProgress(p))
@@ -51,7 +68,6 @@ export function App() {
               }
             : d,
         );
-        // Si un transfert vient de se terminer, on recharge pour récupérer le SHA.
         if (p.status === "completed" || p.status === "error") {
           void listDownloads()
             .then((list) => setDownloads(list))
@@ -61,6 +77,19 @@ export function App() {
       });
     }
 
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  // Progression des torrents (liste complète poussée périodiquement).
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onTorrentProgress((list) => setTorrents(list))
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {});
     return () => {
       if (unlisten) unlisten();
     };
@@ -76,16 +105,36 @@ export function App() {
             <p>Smart Service Androy · Gestionnaire de téléchargement</p>
           </div>
         </div>
+        <nav className="tabs" aria-label="Sections">
+          <button
+            className={`tab ${tab === "http" ? "active" : ""}`}
+            onClick={() => setTab("http")}
+          >
+            Téléchargements
+          </button>
+          <button
+            className={`tab ${tab === "torrents" ? "active" : ""}`}
+            onClick={() => setTab("torrents")}
+          >
+            Torrents
+          </button>
+        </nav>
       </header>
 
       <main className="app-main">
-        <Stats downloads={downloads} speeds={speeds} />
-        <AddDownload onAdded={refresh} />
-        <DownloadList downloads={downloads} speeds={speeds} onChanged={refresh} />
+        {tab === "http" ? (
+          <>
+            <Stats downloads={downloads} speeds={speeds} />
+            <AddDownload onAdded={refresh} />
+            <DownloadList downloads={downloads} speeds={speeds} onChanged={refresh} />
+          </>
+        ) : (
+          <TorrentPanel torrents={torrents} onChanged={refreshTorrents} />
+        )}
       </main>
 
       <footer className="app-footer">
-        <span>RAKETA v0.1 — MVP moteur · reprise · intégrité</span>
+        <span>RAKETA v0.2 — multi-segments · torrents · reprise · intégrité</span>
       </footer>
     </div>
   );

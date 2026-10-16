@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/logo.png" alt="RAKETA — Smart Service Androy" width="220" />
+  <img src="docs/logo-full.svg" alt="RAKETA — Smart Service Androy" width="460" />
 
   # 🚀 RAKETA
 
@@ -35,15 +35,18 @@ sans Tauri ni navigateur.
 
 ```
 raketa/
-├── core/                 # raketa-core : moteur Rust (testable seul) ✅
+├── core/                 # raketa-core : moteur HTTP Rust (testable seul) ✅
 │   └── src/
 │       ├── engine.rs     #   streaming HTTP/HTTPS, reprise, finalisation atomique
+│       ├── segmented.rs  #   téléchargement multi-segments parallèle (vitesse)
 │       ├── metadata.rs   #   sondage : taille, Accept-Ranges, ETag/Last-Modified
 │       ├── filename.rs   #   nom de fichier sûr (anti path-traversal)
 │       ├── hash.rs       #   SHA-256 en flux
 │       ├── storage.rs    #   SQLite : schéma versionné + migrations
 │       └── model.rs      #   types partagés + contrôle pause/annulation
-├── src-tauri/            # enveloppe desktop Tauri 2 (commandes + événements)
+├── torrent/              # raketa-torrent : moteur BitTorrent (librqbit) ✅
+│   └── src/lib.rs        #   magnets + .torrent, progression, pause/reprise
+├── src-tauri/            # enveloppe desktop Tauri 2 (HTTP + torrents + événements)
 │   └── src/
 │       ├── commands.rs   #   add/list/pause/resume/cancel/probe
 │       └── manager.rs    #   orchestration + événements de progression
@@ -67,9 +70,10 @@ raketa/
 | Nom de fichier sûr (anti path-traversal) | ✅ fait + testé |
 | Persistance **SQLite** + récupération au démarrage | ✅ fait + testé |
 | Tentatives/backoff (429/5xx), `Retry-After`, disque plein | ✅ fait |
-| Enveloppe Tauri (commandes + événements) | 🏗️ code en place (build Windows requis) |
-| Interface React (dashboard, liste, progression) | 🏗️ code en place, **build web vérifié** |
-| Multisegment parallèle (P4) | ⏳ à venir |
+| **Multi-segments parallèle** (vitesse max liens directs, P4) | ✅ **fait + testé** |
+| **Torrents** (magnets + .torrent, librqbit) | ✅ intégré (compile contre l'API réelle) |
+| Enveloppe Tauri (commandes HTTP + torrents + événements) | 🏗️ code en place (build Windows requis) |
+| Interface React (onglets Téléchargements / Torrents) | 🏗️ code en place, **build web vérifié** |
 | Extension navigateur + hôte natif (P6) | 🏗️ ébauche |
 
 Voir [`docs/ROADMAP.md`](docs/ROADMAP.md) pour le détail par phase.
@@ -79,14 +83,19 @@ Voir [`docs/ROADMAP.md`](docs/ROADMAP.md) pour le détail par phase.
 Le cœur se teste sur **n'importe quelle plateforme**, sans Windows ni interface :
 
 ```bash
-cd core
-cargo test
+cd core && cargo test          # 20 tests (moteur HTTP + multi-segments)
+cd ../torrent && cargo test     # compile le moteur torrent (test réseau : --ignored)
 ```
 
-**16 tests** couvrent les critères d'acceptation (section 14) : téléchargement
-simple + intégrité, **reprise après coupure sans corruption**, serveur sans `Range`,
-nom malveillant confiné, base SQLite et récupération. Un petit serveur HTTP local
-avec support `Range` est monté dans les tests — aucun accès réseau externe requis.
+**20 tests** couvrent les critères d'acceptation (section 14) : téléchargement
+simple + intégrité, **reprise après coupure sans corruption**, **multi-segments +
+reprise sous parallélisme**, serveur sans `Range`, nom malveillant confiné, base
+SQLite et récupération. Un petit serveur HTTP local avec support `Range` est monté
+dans les tests — aucun accès réseau externe requis.
+
+> Le moteur torrent (`raketa-torrent`) **compile contre l'API réelle de librqbit** ;
+> son test runtime nécessite des sockets UDP (DHT), indisponibles en CI/bac à sable —
+> lance-le sur ta machine avec `cargo test -p raketa-torrent -- --ignored`.
 
 ## Lancer l'application complète (Windows)
 

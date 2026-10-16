@@ -8,9 +8,10 @@ Priorité de la doc : **fiabilité du moteur avant les fonctionnalités spectacu
 | **P1** | MVP réseau (streaming, progression, annulation) | Téléchargement réel d'un fichier de test | ✅ **moteur fait + testé** |
 | **P2** | Persistance SQLite (états, historique, récupération) | Tâche récupérée après redémarrage | ✅ **stockage + récupération faits + testés** |
 | **P3** | Reprise (fichiers partiels, validateurs) | Reprise fiable sur serveur compatible | ✅ **fait + testé** (`reprise_apres_coupure_sans_corruption`) |
-| **P4** | Multisegment (Range, Content-Range, assemblage) | Fichier final identique à la référence | ⏳ à venir (base `Range` déjà en place) |
-| **P5** | Interface premium (dashboard, catégories, paramètres) | Parcours utilisable sans terminal | 🏗️ UI React MVP en place |
+| **P4** | Multisegment (Range, Content-Range, assemblage) | Fichier final identique à la référence | ✅ **fait + testé** |
+| **P5** | Interface premium (dashboard, catégories, paramètres) | Parcours utilisable sans terminal | 🏗️ UI React (onglets HTTP/Torrents) |
 | **P6** | Extension navigateur (Manifest V3, Native Messaging) | Transfert depuis Chrome/Edge | 🏗️ ébauche extension |
+| **+** | **Torrents** (magnets + .torrent, DHT, seeding) | Téléchargement BitTorrent rapide | ✅ intégré (librqbit) |
 | **P7** | Détection avancée (liens directs, médias) | Détection testée, sans promesse universelle | ⏳ à venir |
 | **P8** | Durcissement (sécurité, tests de charge, signature) | Bêta reproductible et installable | ⏳ à venir |
 

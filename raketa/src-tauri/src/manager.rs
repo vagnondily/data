@@ -6,14 +6,17 @@
 
 use raketa_core::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
 use raketa_core::{Engine, Store};
+use raketa_torrent::TorrentManager;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 
-/// Canal d'événement de progression écouté par le front.
+/// Canal d'événement de progression des téléchargements HTTP.
 pub const EVENT_PROGRESS: &str = "raketa://progress";
+/// Canal d'événement de progression des torrents.
+pub const EVENT_TORRENT: &str = "raketa://torrent-progress";
 
 /// État global partagé, injecté dans chaque commande Tauri.
 pub struct AppState {
@@ -21,11 +24,16 @@ pub struct AppState {
     pub store: Arc<Mutex<Store>>,
     /// Jetons de contrôle des transferts en cours (pause/annulation).
     pub controls: Arc<Mutex<HashMap<String, Control>>>,
+    /// Moteur BitTorrent (magnets + .torrent).
+    pub torrents: Arc<TorrentManager>,
 }
 
 impl AppState {
-    /// Initialise le moteur et ouvre la base de données applicative.
-    pub fn new(data_dir: &PathBuf) -> Result<Self, String> {
+    /// Initialise le moteur HTTP, la base SQLite et le moteur torrent.
+    ///
+    /// `data_dir` : dossier applicatif (base, état). `download_dir` : destination
+    /// par défaut des torrents.
+    pub async fn new(data_dir: &PathBuf, download_dir: &PathBuf) -> Result<Self, String> {
         std::fs::create_dir_all(data_dir).map_err(|e| e.to_string())?;
         let db_path = data_dir.join("raketa.db");
         let store = Store::open(&db_path).map_err(|e| e.to_string())?;
@@ -35,11 +43,33 @@ impl AppState {
             eprintln!("[raketa] {recovered} tâche(s) interrompue(s) restaurée(s) en pause");
         }
         let engine = Engine::new().map_err(|e| e.to_string())?;
+        let torrents = TorrentManager::new(download_dir.clone())
+            .await
+            .map_err(|e| format!("moteur torrent : {e}"))?;
         Ok(Self {
             engine,
             store: Arc::new(Mutex::new(store)),
             controls: Arc::new(Mutex::new(HashMap::new())),
+            torrents: Arc::new(torrents),
         })
+    }
+
+    /// Démarre une boucle de fond qui publie la progression des torrents.
+    ///
+    /// librqbit ne pousse pas d'événements : on interroge périodiquement l'état
+    /// et on l'émet vers l'UI (canal `raketa://torrent-progress`).
+    pub fn spawn_torrent_reporter(&self, app: AppHandle) {
+        let torrents = self.torrents.clone();
+        tauri::async_runtime::spawn(async move {
+            let mut ticker = tokio::time::interval(std::time::Duration::from_millis(1000));
+            loop {
+                ticker.tick().await;
+                let list = torrents.list().await;
+                if !list.is_empty() {
+                    let _ = app.emit(EVENT_TORRENT, &list);
+                }
+            }
+        });
     }
 
     /// Lance un transfert en tâche de fond ; publie la progression et persiste

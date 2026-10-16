@@ -151,3 +151,61 @@ pub async fn cancel_download(state: State<'_, AppState>, id: String) -> Result<(
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Torrents (magnets + .torrent) — moteur librqbit via raketa-torrent.
+// ---------------------------------------------------------------------------
+
+/// Ajoute un torrent depuis un lien magnet ou une URL `.torrent`.
+#[tauri::command]
+pub async fn add_torrent(state: State<'_, AppState>, url: String) -> Result<usize, String> {
+    state
+        .torrents
+        .add_magnet_or_url(&url, false)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Ajoute un torrent depuis un fichier `.torrent` local.
+#[tauri::command]
+pub async fn add_torrent_file(state: State<'_, AppState>, path: String) -> Result<usize, String> {
+    state
+        .torrents
+        .add_file(&path, false)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Liste l'état de tous les torrents.
+#[tauri::command]
+pub async fn list_torrents(
+    state: State<'_, AppState>,
+) -> Result<Vec<raketa_torrent::TorrentProgress>, String> {
+    Ok(state.torrents.list().await)
+}
+
+/// Met un torrent en pause.
+#[tauri::command]
+pub async fn pause_torrent(state: State<'_, AppState>, id: usize) -> Result<(), String> {
+    state.torrents.pause(id).await.map_err(|e| e.to_string())
+}
+
+/// Reprend un torrent en pause.
+#[tauri::command]
+pub async fn resume_torrent(state: State<'_, AppState>, id: usize) -> Result<(), String> {
+    state.torrents.resume(id).await.map_err(|e| e.to_string())
+}
+
+/// Supprime un torrent (et, si demandé, ses fichiers).
+#[tauri::command]
+pub async fn remove_torrent(
+    state: State<'_, AppState>,
+    id: usize,
+    delete_files: bool,
+) -> Result<(), String> {
+    state
+        .torrents
+        .remove(id, delete_files)
+        .await
+        .map_err(|e| e.to_string())
+}

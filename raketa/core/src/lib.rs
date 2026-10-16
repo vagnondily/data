@@ -35,6 +35,7 @@ pub mod filename;
 pub mod hash;
 pub mod metadata;
 pub mod model;
+pub mod segmented;
 pub mod storage;
 
 pub use engine::{Engine, EngineConfig, ProgressFn};

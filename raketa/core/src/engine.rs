@@ -35,6 +35,12 @@ pub struct EngineConfig {
     pub progress_interval: Duration,
     /// Suffixe des fichiers partiels.
     pub part_suffix: String,
+    /// Nombre de connexions parallèles (segments) pour un même fichier.
+    pub connections: usize,
+    /// Taille minimale d'un fichier pour activer le multi-segments.
+    pub segment_threshold: u64,
+    /// Taille minimale d'un segment (évite de sur-découper les petits fichiers).
+    pub min_segment_size: u64,
 }
 
 impl Default for EngineConfig {
@@ -44,6 +50,10 @@ impl Default for EngineConfig {
             base_backoff: Duration::from_millis(500),
             progress_interval: Duration::from_millis(250),
             part_suffix: ".rkt-part".to_string(),
+            // 8 connexions par défaut : bon compromis vitesse / politesse serveur.
+            connections: 8,
+            segment_threshold: 4 * 1024 * 1024, // 4 Mio
+            min_segment_size: 1024 * 1024,      // 1 Mio
         }
     }
 }
@@ -96,6 +106,29 @@ impl Engine {
             .map(|f| filename::sanitize(&f))
             .or_else(|| info.suggested_filename.clone())
             .unwrap_or_else(|| filename::from_url(&info.final_url));
+
+        // Stratégie : multi-segments si la taille est connue, que le serveur
+        // honore Range et que le fichier dépasse le seuil ; sinon flux unique.
+        if self.config.connections > 1 && info.accept_ranges {
+            if let Some(total) = info.size {
+                if total >= self.config.segment_threshold {
+                    let validator = info.etag.clone().or_else(|| info.last_modified.clone());
+                    return crate::segmented::run(
+                        self.client.clone(),
+                        self.config.clone(),
+                        task.clone(),
+                        info.final_url.clone(),
+                        validator,
+                        total,
+                        dir.clone(),
+                        chosen.clone(),
+                        control,
+                        progress,
+                    )
+                    .await;
+                }
+            }
+        }
 
         // Chemin partiel stable (déterministe pour une tâche donnée) ; le nom
         // final est résolu seulement à la finalisation pour éviter l'écrasement.

@@ -48,6 +48,41 @@ body {
   padding: 18px 24px;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, #121419, var(--bg));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-elev-2);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 8px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  background: linear-gradient(90deg, var(--blue-dim), var(--orange-dim));
+  color: #fff;
 }
 
 .brand {
