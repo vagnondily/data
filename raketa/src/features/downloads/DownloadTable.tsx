@@ -98,7 +98,13 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                 </td>
                 <td className="col-size">{formatBytes(d.total_bytes ?? d.downloaded_bytes)}</td>
                 <td className="col-status">
-                  <span className={`pill-${d.status}`}>{statusLabel(d.status)}</span>
+                  {d.status === "completed" && !d.file_exists ? (
+                    <span className="pill-error" title="Le fichier a été supprimé du disque">
+                      Fichier manquant
+                    </span>
+                  ) : (
+                    <span className={`pill-${d.status}`}>{statusLabel(d.status)}</span>
+                  )}
                 </td>
                 <td className="col-progress">
                   <div className="mini-track">
@@ -195,7 +201,9 @@ function ContextMenu({
       {(isActive || isPaused) && (
         <button onClick={() => act(() => cancelDownload(d.id))}>⏹ Arrêter</button>
       )}
-      {isDone && <button onClick={() => act(() => openFile(d.destination))}>📂 Ouvrir le fichier</button>}
+      {isDone && d.file_exists && (
+        <button onClick={() => act(() => openFile(d.destination))}>📂 Ouvrir le fichier</button>
+      )}
       <button onClick={() => act(() => revealInFolder(d.destination))}>🗂️ Ouvrir le dossier</button>
       <div className="ctx-sep" />
       <button onClick={() => { onOpenDetail(d); }}>ⓘ Propriétés</button>

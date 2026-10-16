@@ -28,10 +28,7 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
       setError("Saisissez une URL.");
       return;
     }
-    if (!destDir.trim()) {
-      setError("Choisissez un dossier de destination.");
-      return;
-    }
+    // Dossier optionnel : vide → le dossier par défaut des Paramètres est utilisé.
     try {
       setBusy(true);
       await addDownload({ url: url.trim(), destDir: destDir.trim() });
@@ -88,7 +85,7 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
           />
           <div className="add-row">
             <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
-              {destDir ? "📁 " + shorten(destDir) : "Choisir le dossier"}
+              {destDir ? "📁 " + shorten(destDir) : "📁 Dossier par défaut"}
             </button>
             <button className="btn primary" onClick={submitBatch} disabled={busy}>
               Télécharger le lot
@@ -107,7 +104,7 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
             aria-label="URL à télécharger"
           />
           <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
-            {destDir ? "📁 " + shorten(destDir) : "Choisir le dossier"}
+            {destDir ? "📁 " + shorten(destDir) : "📁 Dossier par défaut"}
           </button>
           <button className="btn primary" onClick={submit} disabled={busy}>
             Télécharger

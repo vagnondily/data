@@ -24,6 +24,7 @@ export interface DownloadDto {
   error_code: string | null;
   created_at: number;
   updated_at: number;
+  file_exists: boolean;
 }
 
 export interface RemoteInfo {

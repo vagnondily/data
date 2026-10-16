@@ -216,6 +216,18 @@ fn spawn_download(
                             segments: None,
                         },
                     );
+                    // Notification système de fin de téléchargement.
+                    use tauri_plugin_notification::NotificationExt;
+                    let fname = std::path::Path::new(&path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| task.id.clone());
+                    let _ = app
+                        .notification()
+                        .builder()
+                        .title("RAKETA — Téléchargement terminé")
+                        .body(fname)
+                        .show();
                 }
                 Ok(Outcome::Paused { downloaded }) => {
                     let _ =

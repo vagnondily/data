@@ -26,6 +26,8 @@ pub struct DownloadDto {
     pub error_code: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
+    /// Le fichier final existe-t-il encore sur le disque ? (pertinent si terminé)
+    pub file_exists: bool,
 }
 
 impl From<raketa_core::DownloadRecord> for DownloadDto {
@@ -44,6 +46,9 @@ impl From<raketa_core::DownloadRecord> for DownloadDto {
             error_code: r.error_code,
             created_at: r.created_at,
             updated_at: r.updated_at,
+            // « Fichier manquant » : terminé mais le fichier n'est plus sur le disque.
+            file_exists: r.status != DownloadStatus::Completed
+                || std::path::Path::new(&r.destination).is_file(),
         }
     }
 }

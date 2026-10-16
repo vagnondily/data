@@ -70,6 +70,15 @@ export function App() {
       if (p.segments && p.segments.length > 0) {
         setSegments((prev) => ({ ...prev, [p.download_id]: p.segments! }));
       }
+      // À la fin (terminé/erreur/annulé) : on efface les segments figés.
+      if (p.status === "completed" || p.status === "error" || p.status === "cancelled") {
+        setSegments((prev) => {
+          if (!prev[p.download_id]) return prev;
+          const next = { ...prev };
+          delete next[p.download_id];
+          return next;
+        });
+      }
       setDownloads((prev) => {
         const next = prev.map((d) =>
           d.id === p.download_id
