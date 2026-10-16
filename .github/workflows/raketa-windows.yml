@@ -48,6 +48,9 @@ jobs:
 
       - name: Compiler RAKETA (Tauri build)
         run: npm run tauri build
+        env:
+          # Numéro de build intégré à l'app (affiché dans Paramètres › Mises à jour).
+          RAKETA_BUILD: ${{ github.run_number }}
 
       - name: Publier l'installeur en artifact
         uses: actions/upload-artifact@v4
@@ -62,15 +65,20 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: raketa-latest
-          name: RAKETA — dernière version (Windows)
+          name: RAKETA — dernière version (build ${{ github.run_number }})
           body: |
-            Installeur Windows de RAKETA, compilé automatiquement depuis la
-            branche `claude/raketa-download-manager`.
+            ## RAKETA — build ${{ github.run_number }}
+
+            Installeur Windows, compilé automatiquement.
 
             - `*-setup.exe` : installeur NSIS (recommandé)
             - `*.msi` : installeur MSI
 
-            Build : ${{ github.sha }}
+            > Compare avec la version affichée dans **Paramètres › Mises à jour**
+            > de ton app. Si ton build est inférieur à **${{ github.run_number }}**,
+            > réinstalle ce `.exe`.
+
+            Commit : ${{ github.sha }}
           prerelease: true
           files: |
             raketa/src-tauri/target/release/bundle/nsis/*.exe

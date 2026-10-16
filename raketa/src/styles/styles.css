@@ -489,6 +489,24 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* ---- Encadré Mises à jour ---- */
+.update-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+.update-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ---- Navigateur ---- */
 .quick-links {
   display: flex;

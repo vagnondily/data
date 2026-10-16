@@ -202,6 +202,15 @@ export function openExternalUrl(url: string): Promise<void> {
   return invoke("open_external_url", { url });
 }
 
+// Version installée de RAKETA (version + build CI).
+export function getAppVersion(): Promise<string> {
+  return invoke<string>("get_app_version");
+}
+
+// Page de la dernière version (release) à télécharger.
+export const RELEASE_URL =
+  "https://github.com/vagnondily/data/releases/tag/raketa-latest";
+
 export const EVENT_CLIPBOARD = "raketa://clipboard-url";
 
 // URL intéressante copiée dans le presse-papiers (capture façon IDM).

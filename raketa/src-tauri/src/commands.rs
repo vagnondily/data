@@ -449,6 +449,13 @@ pub async fn open_external_url(app: AppHandle, url: String) -> Result<(), String
         .map_err(|e| e.to_string())
 }
 
+/// Version installée de RAKETA (version + numéro de build CI).
+#[tauri::command]
+pub fn get_app_version() -> String {
+    let build = option_env!("RAKETA_BUILD").unwrap_or("dev");
+    format!("{} (build {})", env!("CARGO_PKG_VERSION"), build)
+}
+
 /// Ouvre un fichier (ou dossier) avec l'application par défaut du système.
 #[tauri::command]
 pub async fn open_file(app: AppHandle, path: String) -> Result<(), String> {

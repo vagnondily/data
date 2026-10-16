@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getSettings, setSettings, type Settings } from "../../lib/api";
+import {
+  getAppVersion,
+  getSettings,
+  openExternalUrl,
+  RELEASE_URL,
+  setSettings,
+  type Settings,
+} from "../../lib/api";
 
 // Panneau Paramètres : vitesse, connexions, dossier, rangement, popups, presse-papiers.
 export function SettingsPanel() {
   const [s, setS] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState<string>("");
 
   useEffect(() => {
     getSettings()
       .then(setS)
       .catch((e) => setError(String(e)));
+    getAppVersion()
+      .then(setVersion)
+      .catch(() => {});
   }, []);
 
   if (!s) {
@@ -45,6 +56,16 @@ export function SettingsPanel() {
 
   return (
     <section className="add-panel settings" aria-label="Paramètres">
+      <div className="update-box">
+        <div className="update-info">
+          <strong>🚀 Mises à jour</strong>
+          <span className="hint">Version installée : {version || "…"}</span>
+        </div>
+        <button className="btn primary" onClick={() => openExternalUrl(RELEASE_URL)}>
+          Télécharger la dernière version
+        </button>
+      </div>
+
       <div className="setting-row">
         <label>Connexions par téléchargement</label>
         <input
