@@ -10,10 +10,11 @@ import {
   type Progress,
   type TorrentProgress,
 } from "./lib/api";
-import { Stats } from "./features/dashboard/Stats";
 import { AddDownload } from "./features/downloads/AddDownload";
-import { DownloadList } from "./features/downloads/DownloadList";
+import { DownloadTable } from "./features/downloads/DownloadTable";
+import { CategorySidebar } from "./features/downloads/CategorySidebar";
 import { DownloadDetail } from "./features/downloads/DownloadDetail";
+import { matchesCategory, type CatKey } from "./lib/category";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
@@ -28,6 +29,7 @@ export function App() {
   const [speeds, setSpeeds] = useState<Record<string, number>>({});
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [category, setCategory] = useState<CatKey>("all");
   const downloadsRef = useRef<DownloadDto[]>([]);
 
   const refresh = useCallback(async () => {
@@ -147,16 +149,24 @@ export function App() {
 
       <main className="app-main">
         {tab === "http" && (
-          <>
-            <Stats downloads={downloads} speeds={speeds} />
-            <AddDownload onAdded={refresh} />
-            <DownloadList
+          <div className="dl-layout">
+            <CategorySidebar
               downloads={downloads}
-              speeds={speeds}
-              onChanged={refresh}
-              onOpenDetail={(d) => setDetailId(d.id)}
+              selected={category}
+              onSelect={setCategory}
             />
-          </>
+            <div className="dl-main">
+              <AddDownload onAdded={refresh} />
+              <DownloadTable
+                downloads={downloads.filter((d) =>
+                  matchesCategory(category, d.display_name, d.status),
+                )}
+                speeds={speeds}
+                onChanged={refresh}
+                onOpenDetail={(d) => setDetailId(d.id)}
+              />
+            </div>
+          </div>
         )}
         {tab === "torrents" && (
           <TorrentPanel torrents={torrents} onChanged={refreshTorrents} />

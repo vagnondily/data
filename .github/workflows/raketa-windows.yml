@@ -11,6 +11,11 @@ on:
       - ".github/workflows/raketa-windows.yml"
   workflow_dispatch: {}
 
+# Annule un build en cours quand un nouveau push arrive (évite le gaspillage).
+concurrency:
+  group: raketa-build-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
