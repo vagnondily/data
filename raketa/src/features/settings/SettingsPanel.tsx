@@ -59,6 +59,19 @@ export function SettingsPanel() {
       </div>
 
       <div className="setting-row">
+        <label>Téléchargements simultanés</label>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          className="input small"
+          value={s.max_simultaneous}
+          onChange={(e) => update("max_simultaneous", Math.max(1, Number(e.target.value)))}
+        />
+        <span className="hint">Les suivants attendent dans la file (3 recommandé).</span>
+      </div>
+
+      <div className="setting-row">
         <label>Limite de vitesse</label>
         <input
           type="number"

@@ -16,6 +16,7 @@ import { DownloadList } from "./features/downloads/DownloadList";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
+import logoMark from "./assets/logo-mark.svg";
 
 type Tab = "http" | "torrents" | "browser" | "settings";
 
@@ -120,7 +121,7 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">🚀</span>
+          <img className="brand-logo" src={logoMark} alt="RAKETA" />
           <div className="brand-text">
             <h1>RAKETA</h1>
             <p>Smart Service Androy · Gestionnaire de téléchargement</p>
@@ -174,7 +175,7 @@ export function App() {
       )}
 
       <footer className="app-footer">
-        <span>RAKETA v0.3 — multi-segments · torrents · navigateur · lots · limiteur</span>
+        <span>RAKETA v0.4 — multi-segments · torrents · navigateur · file d'attente · limiteur</span>
       </footer>
     </div>
   );

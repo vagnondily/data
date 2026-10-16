@@ -8,10 +8,11 @@ use crate::settings::Settings;
 use raketa_core::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
 use raketa_core::{Engine, Store};
 use raketa_torrent::TorrentManager;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
 
 /// Canal d'événement de progression des téléchargements HTTP.
@@ -31,6 +32,10 @@ pub struct AppState {
     pub torrents: Arc<TorrentManager>,
     /// Préférences utilisateur (appliquées au moteur à chaud).
     pub settings: Arc<Mutex<Settings>>,
+    /// Nombre de téléchargements HTTP actifs (pour la file d'attente).
+    pub active: Arc<AtomicUsize>,
+    /// File d'attente des téléchargements en attente d'un créneau.
+    pub queue: Arc<Mutex<VecDeque<DownloadTask>>>,
 }
 
 impl AppState {
@@ -62,6 +67,8 @@ impl AppState {
             controls: Arc::new(Mutex::new(HashMap::new())),
             torrents: Arc::new(torrents),
             settings: Arc::new(Mutex::new(settings)),
+            active: Arc::new(AtomicUsize::new(0)),
+            queue: Arc::new(Mutex::new(VecDeque::new())),
         })
     }
 
@@ -110,9 +117,32 @@ impl AppState {
         });
     }
 
-    /// Lance un transfert en tâche de fond ; publie la progression et persiste
-    /// les états terminaux (terminé / erreur / pause).
-    pub async fn start_download(&self, app: AppHandle, task: DownloadTask) {
+    /// Soumet un téléchargement : démarre aussitôt s'il reste un créneau, sinon
+    /// il attend dans la file (limite « max simultanés », façon IDM/uTorrent).
+    pub async fn submit(&self, app: AppHandle, task: DownloadTask) {
+        self.queue.lock().await.push_back(task);
+        self.pump(app).await;
+    }
+
+    /// Démarre autant de téléchargements en file que la limite le permet.
+    pub async fn pump(&self, app: AppHandle) {
+        let max = self.settings.lock().await.max_simultaneous.max(1);
+        loop {
+            let task = {
+                let mut q = self.queue.lock().await;
+                if self.active.load(Ordering::SeqCst) >= max || q.is_empty() {
+                    break;
+                }
+                self.active.fetch_add(1, Ordering::SeqCst);
+                q.pop_front().expect("file non vide")
+            };
+            self.run_download_task(app.clone(), task).await;
+        }
+    }
+
+    /// Lance un transfert en tâche de fond ; publie la progression, persiste
+    /// l'état final, puis libère le créneau et relance la file.
+    async fn run_download_task(&self, app: AppHandle, task: DownloadTask) {
         let control = Control::new();
         {
             let mut controls = self.controls.lock().await;
@@ -122,6 +152,7 @@ impl AppState {
         let engine = self.engine.clone();
         let store = self.store.clone();
         let controls = self.controls.clone();
+        let active = self.active.clone();
         let app_for_cb = app.clone();
 
         tokio::spawn(async move {
@@ -182,6 +213,10 @@ impl AppState {
 
             // Nettoyage du jeton de contrôle.
             controls.lock().await.remove(&task.id);
+
+            // Libère le créneau et tente de démarrer le prochain de la file.
+            active.fetch_sub(1, Ordering::SeqCst);
+            app.state::<AppState>().pump(app.clone()).await;
         });
     }
 }

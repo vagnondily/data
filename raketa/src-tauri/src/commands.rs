@@ -121,7 +121,7 @@ pub async fn add_download(
         store.insert(&task, &display_name).map_err(|e| e.to_string())?;
     }
 
-    state.start_download(app, task).await;
+    state.submit(app, task).await;
     Ok(id)
 }
 
@@ -148,7 +148,7 @@ pub async fn add_batch(
                         continue;
                     }
                 }
-                state.start_download(app.clone(), task).await;
+                state.submit(app.clone(), task).await;
                 created += 1;
             }
             Err(_) => continue,
@@ -202,7 +202,7 @@ pub async fn resume_download(
             .update_progress(&id, DownloadStatus::Downloading, record.downloaded_bytes, record.total_bytes)
             .map_err(|e| e.to_string())?;
     }
-    state.start_download(app, task).await;
+    state.submit(app, task).await;
     Ok(())
 }
 
@@ -361,7 +361,7 @@ pub async fn open_browser(
                             let store = state.store.lock().await;
                             let _ = store.insert(&task, &name);
                         }
-                        state.start_download(app.clone(), task).await;
+                        state.submit(app.clone(), task).await;
                     }
                 });
                 return false; // annule le téléchargement natif du webview

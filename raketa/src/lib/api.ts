@@ -147,6 +147,7 @@ export function addBatch(text: string, destDir: string): Promise<number> {
 
 export interface Settings {
   connections: number;
+  max_simultaneous: number;
   speed_limit_kbps: number;
   default_dir: string;
   auto_categorize: boolean;

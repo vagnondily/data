@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     /// Connexions parallèles par téléchargement (vitesse).
     pub connections: usize,
+    /// Nombre maximal de téléchargements simultanés (file d'attente).
+    pub max_simultaneous: usize,
     /// Limite de débit globale en Ko/s (0 = illimité).
     pub speed_limit_kbps: u64,
     /// Dossier de destination par défaut.
@@ -24,6 +26,7 @@ impl Settings {
     pub fn defaults(default_dir: String) -> Self {
         Self {
             connections: 8,
+            max_simultaneous: 3,
             speed_limit_kbps: 0,
             default_dir,
             auto_categorize: false,
@@ -38,6 +41,9 @@ impl Settings {
         if let Ok(map) = store.all_settings() {
             if let Some(v) = map.get("connections").and_then(|v| v.parse().ok()) {
                 s.connections = v;
+            }
+            if let Some(v) = map.get("max_simultaneous").and_then(|v| v.parse().ok()) {
+                s.max_simultaneous = v;
             }
             if let Some(v) = map.get("speed_limit_kbps").and_then(|v| v.parse().ok()) {
                 s.speed_limit_kbps = v;
@@ -64,6 +70,7 @@ impl Settings {
     pub fn save(&self, store: &Store) -> Result<(), String> {
         let put = |k: &str, v: String| store.set_setting(k, &v).map_err(|e| e.to_string());
         put("connections", self.connections.to_string())?;
+        put("max_simultaneous", self.max_simultaneous.to_string())?;
         put("speed_limit_kbps", self.speed_limit_kbps.to_string())?;
         put("default_dir", self.default_dir.clone())?;
         put("auto_categorize", self.auto_categorize.to_string())?;
