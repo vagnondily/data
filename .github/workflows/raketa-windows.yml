@@ -52,6 +52,12 @@ jobs:
           # Numéro de build intégré à l'app (affiché dans Paramètres › Mises à jour).
           RAKETA_BUILD: ${{ github.run_number }}
 
+      - name: Empaqueter l'extension navigateur
+        # Zip de l'extension Chrome/Edge/Firefox, joint aux releases pour que
+        # l'utilisateur l'installe (chargée « non empaquetée »).
+        shell: pwsh
+        run: Compress-Archive -Path browser-extension/* -DestinationPath raketa-extension.zip -Force
+
       - name: Publier l'installeur en artifact
         uses: actions/upload-artifact@v4
         with:
@@ -83,6 +89,7 @@ jobs:
           files: |
             raketa/src-tauri/target/release/bundle/nsis/*.exe
             raketa/src-tauri/target/release/bundle/msi/*.msi
+            raketa/raketa-extension.zip
 
       - name: Initialiser le dépôt public s'il est vide
         # GitHub refuse de publier une release dans un dépôt SANS commit
@@ -132,3 +139,4 @@ jobs:
           files: |
             raketa/src-tauri/target/release/bundle/nsis/*.exe
             raketa/src-tauri/target/release/bundle/msi/*.msi
+            raketa/raketa-extension.zip

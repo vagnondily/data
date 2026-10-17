@@ -450,17 +450,23 @@ export function App() {
 
       {update && (
         <div className="update-banner" role="status">
-          <span>
-            🚀 <strong>Nouvelle version disponible</strong> (build {update.build}) !
+          <span className="update-banner-icon">
+            <Icon name="download" size={16} />
+          </span>
+          <span className="update-banner-text">
+            <strong>Nouvelle version disponible</strong>
+            <span className="update-banner-sub">
+              Build {update.build} — réinstallez pour les dernières améliorations.
+            </span>
           </span>
           <div className="update-banner-actions">
             <button
               className="btn tiny primary"
               onClick={() => openExternalUrl(update.url)}
             >
-              Télécharger
+              <Icon name="download" size={14} /> Télécharger
             </button>
-            <button className="btn tiny" onClick={() => setUpdate(null)}>
+            <button className="btn tiny ghost" onClick={() => setUpdate(null)}>
               Plus tard
             </button>
           </div>

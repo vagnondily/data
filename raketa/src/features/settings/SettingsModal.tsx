@@ -416,6 +416,18 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                   <span className={`badge ${tools?.yt_dlp ? "ok" : "warn"}`}>{tools?.yt_dlp ? "Installé" : "À l'usage"}</span>
                   <span className="hint">Installé automatiquement au premier téléchargement de média.</span>
                 </div>
+                <div className="setting-row">
+                  <label>Extension navigateur</label>
+                  <button className="btn ghost" onClick={() => openExternalUrl(RELEASE_URL)}>
+                    <Icon name="globe" size={15} /> Télécharger l'extension
+                  </button>
+                  <span className="hint">
+                    Pour Chrome/Edge : ajoute le bouton « Télécharger cette vidéo » sur les
+                    pages et capture les téléchargements. Récupérez « raketa-extension.zip »,
+                    décompressez-le, puis chargez le dossier dans chrome://extensions
+                    (activez le « Mode développeur »).
+                  </span>
+                </div>
               </>
             )}
 
