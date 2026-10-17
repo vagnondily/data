@@ -260,9 +260,9 @@ export function getAppVersion(): Promise<string> {
   return invoke<string>("get_app_version");
 }
 
-// Page de la dernière version (release) à télécharger (repli manuel).
+// Page publique des versions à télécharger (repli manuel, toujours valide).
 export const RELEASE_URL =
-  "https://github.com/vagnondily/data/releases/tag/raketa-latest";
+  "https://github.com/vagnondily/raketa-releases/releases";
 
 export interface UpdateInfo {
   build: number;
@@ -306,6 +306,8 @@ export interface MediaProgress {
   downloaded: number;
   total: number | null;
   speed_bps: number;
+  /** Pourcentage fourni par yt-dlp (0–100) ; fiable même sans taille totale. */
+  percent: number | null;
   status: "downloading" | "completed" | "error" | "cancelled";
   detail: string | null;
 }

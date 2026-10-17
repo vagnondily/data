@@ -552,8 +552,16 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    if !resp.status().is_success() {
-        return Ok(None); // pas (encore) de release publiée
+    let status = resp.status();
+    if !status.is_success() {
+        // 404 = aucune release publiée (dépôt pas encore prêt) ; autre code =
+        // service momentanément indisponible. Dans les deux cas on ne peut PAS
+        // affirmer « à jour » : on remonte une erreur pour que l'interface
+        // propose le téléchargement manuel plutôt qu'un faux « Vous êtes à jour ».
+        return Err(format!(
+            "vérification impossible (HTTP {}) — réessayez plus tard ou téléchargez manuellement.",
+            status.as_u16()
+        ));
     }
 
     let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;

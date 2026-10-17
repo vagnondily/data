@@ -279,6 +279,11 @@ pub struct MediaProgress {
     pub downloaded: u64,
     pub total: Option<u64>,
     pub speed_bps: f64,
+    /// Pourcentage calculé par yt-dlp lui-même (0–100). Fiable même quand
+    /// `total` est inconnu : pour les flux fragmentés (DASH/HLS de YouTube &
+    /// co.) yt-dlp ne connaît pas la taille totale en octets mais sait le
+    /// nombre de fragments → c'est ce pourcentage qui fait avancer la barre.
+    pub percent: Option<f64>,
     /// `downloading` | `completed` | `error` | `cancelled`.
     pub status: String,
     /// Chemin final du fichier (à la fin) ou message d'erreur.
@@ -445,8 +450,10 @@ pub async fn download(
         "--print".into(),
         "after_move:RKFILE|%(filepath)s".into(),
         "--progress-template".into(),
-        // Préfixe repérable + champs séparés par des « | ».
-        "download:RKPROG|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s".into(),
+        // Préfixe repérable + champs séparés par des « | ». Le dernier champ
+        // (_percent_str) est le pourcentage « prêt à afficher » de yt-dlp : il
+        // fait avancer la barre même pour les flux fragmentés (total inconnu).
+        "download:RKPROG|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress._percent_str)s".into(),
         "-P".into(),
         dest.display().to_string(),
         "-o".into(),
@@ -481,6 +488,7 @@ pub async fn download(
             downloaded: 0,
             total: None,
             speed_bps: 0.0,
+            percent: None,
             status: "downloading".into(),
             detail: None,
         };
@@ -492,7 +500,7 @@ pub async fn download(
                     let _ = child.start_kill();
                     emit(&app, MediaProgress {
                         id: id_task.clone(), downloaded: last.downloaded, total: last.total,
-                        speed_bps: 0.0, status: "cancelled".into(), detail: None,
+                        speed_bps: 0.0, percent: last.percent, status: "cancelled".into(), detail: None,
                     });
                     cleanup(&id_task).await;
                     return;
@@ -553,6 +561,7 @@ pub async fn download(
                 downloaded: final_bytes,
                 total: Some(final_bytes),
                 speed_bps: 0.0,
+                percent: Some(100.0),
                 status: "completed".into(),
                 detail: filepath,
             });
@@ -573,6 +582,7 @@ pub async fn download(
                 downloaded: last.downloaded,
                 total: last.total,
                 speed_bps: 0.0,
+                percent: last.percent,
                 status: "error".into(),
                 detail: Some("yt-dlp a échoué (lien privé, région, ou ffmpeg requis)".into()),
             });
@@ -599,10 +609,10 @@ fn emit(app: &AppHandle, p: MediaProgress) {
     let _ = app.emit(EVENT_MEDIA, &p);
 }
 
-/// Analyse une ligne de progression `status|downloaded|total|total_est|speed`.
+/// Analyse une ligne `status|downloaded|total|total_est|speed|percent`.
 fn parse_progress(id: &str, rest: &str) -> Option<MediaProgress> {
     let f: Vec<&str> = rest.split('|').collect();
-    if f.len() < 5 {
+    if f.len() < 6 {
         return None;
     }
     let num = |s: &str| -> Option<u64> {
@@ -622,12 +632,60 @@ fn parse_progress(id: &str, rest: &str) -> Option<MediaProgress> {
     } else {
         speed.parse::<f64>().unwrap_or(0.0)
     };
+    // Pourcentage « prêt à afficher » de yt-dlp (« 45.2% ») : on retire le signe
+    // « % » et d'éventuels codes couleur ANSI avant de convertir.
+    let percent = {
+        let p = f[5]
+            .trim()
+            .trim_end_matches('%')
+            .trim_matches(|c: char| !(c.is_ascii_digit() || c == '.'));
+        if p.is_empty() {
+            None
+        } else {
+            p.parse::<f64>().ok().filter(|v| v.is_finite())
+        }
+    };
     Some(MediaProgress {
         id: id.to_string(),
         downloaded,
         total,
         speed_bps,
+        percent,
         status: "downloading".into(),
         detail: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_progress;
+
+    #[test]
+    fn parse_fragmented_stream_uses_percent() {
+        // total_bytes = NA (flux fragmenté) mais yt-dlp fournit le pourcentage.
+        let p = parse_progress("x", "downloading|524288|NA|NA|131072.0| 42.5%").unwrap();
+        assert_eq!(p.downloaded, 524_288);
+        assert_eq!(p.total, None);
+        assert_eq!(p.percent, Some(42.5));
+        assert_eq!(p.speed_bps as u64, 131_072);
+    }
+
+    #[test]
+    fn parse_known_total_still_works() {
+        let p = parse_progress("x", "downloading|1000|2000|2000|500.0|50.0%").unwrap();
+        assert_eq!(p.total, Some(2000));
+        assert_eq!(p.percent, Some(50.0));
+    }
+
+    #[test]
+    fn parse_na_percent_is_none() {
+        let p = parse_progress("x", "downloading|0|NA|NA|NA|NA").unwrap();
+        assert_eq!(p.percent, None);
+        assert_eq!(p.speed_bps, 0.0);
+    }
+
+    #[test]
+    fn parse_too_few_fields_rejected() {
+        assert!(parse_progress("x", "downloading|0|NA|NA|NA").is_none());
+    }
 }

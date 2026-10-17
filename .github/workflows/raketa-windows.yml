@@ -84,6 +84,37 @@ jobs:
             raketa/src-tauri/target/release/bundle/nsis/*.exe
             raketa/src-tauri/target/release/bundle/msi/*.msi
 
+      - name: Initialiser le dépôt public s'il est vide
+        # GitHub refuse de publier une release dans un dépôt SANS commit
+        # (« Repository is empty ») : l'asset est bien envoyé mais la release
+        # reste à l'état brouillon, donc invisible pour `releases/latest` — d'où
+        # un faux « Vous êtes à jour » côté app. On crée donc un README la
+        # première fois ; ensuite le fichier existe et l'étape ne fait rien.
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "RELEASES_TOKEN absent : étape ignorée."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/vagnondily/raketa-releases/contents/README.md)
+          echo "contents/README.md -> HTTP $code"
+          if [ "$code" = "404" ]; then
+            echo "Dépôt public vide : création du README initial."
+            content=$(printf '# RAKETA releases\n\nWindows installers published automatically by CI.\nManaged by the RAKETA app (Settings > Updates).\n' | base64 | tr -d '\n')
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/vagnondily/raketa-releases/contents/README.md \
+              -d "{\"message\":\"chore: initialize releases repository\",\"content\":\"$content\"}" \
+              -o /dev/null -w "create README -> HTTP %{http_code}\n"
+          fi
+
       - name: Publier sur le dépôt public (mise à jour auto)
         # Requiert le secret RELEASES_TOKEN (PAT avec accès au dépôt
         # vagnondily/raketa-releases). Tolérant : n'échoue pas le build s'il manque.

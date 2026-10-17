@@ -66,7 +66,8 @@ export function SettingsModal({ onClose, onSaved }: Props) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState<string>("");
-  const [upd, setUpd] = useState<UpdateInfo | null | "checking" | "uptodate">(null);
+  const [upd, setUpd] = useState<UpdateInfo | null | "checking" | "uptodate" | "error">(null);
+  const [updMsg, setUpdMsg] = useState<string | null>(null);
   const [tools, setTools] = useState<ToolsStatus | null>(null);
   const [ffmpegBusy, setFfmpegBusy] = useState(false);
   const [ffmpegProg, setFfmpegProg] = useState<FfmpegProgress | null>(null);
@@ -162,10 +163,14 @@ export function SettingsModal({ onClose, onSaved }: Props) {
 
   async function doCheckUpdate() {
     setUpd("checking");
+    setUpdMsg(null);
     try {
+      // null → à jour ; objet → nouvelle version disponible.
       setUpd((await checkUpdate()) ?? "uptodate");
-    } catch {
-      setUpd("uptodate");
+    } catch (e) {
+      // Erreur réseau ou aucune version publiée : on ne prétend pas « à jour ».
+      setUpd("error");
+      setUpdMsg(String(e).replace(/^Error:\s*/, ""));
     }
   }
 
@@ -438,8 +443,15 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                   <button className="btn ghost" onClick={doCheckUpdate}>Vérifier maintenant</button>
                   {upd === "checking" && <span className="hint">Vérification…</span>}
                   {upd === "uptodate" && <span className="badge ok">À jour</span>}
+                  {upd === "error" && <span className="badge warn">Impossible de vérifier</span>}
                   {upd && typeof upd === "object" && <span className="badge warn">Nouvelle version : build {upd.build}</span>}
                 </div>
+                {upd === "error" && (
+                  <p className="hint" style={{ marginTop: -4 }}>
+                    {updMsg ?? "Vérification indisponible."} Vous pouvez télécharger la
+                    dernière version manuellement ci-dessous.
+                  </p>
+                )}
                 <div className="setting-row">
                   <label>Télécharger</label>
                   {upd && typeof upd === "object" ? (

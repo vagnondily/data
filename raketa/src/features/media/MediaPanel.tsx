@@ -112,7 +112,7 @@ export function MediaPanel({ items, onStarted }: Props) {
         id,
         title: info.title,
         thumbnail: info.thumbnail,
-        p: { id, downloaded: 0, total: null, speed_bps: 0, status: "downloading", detail: null },
+        p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", detail: null },
       });
       setInfo(null);
       setUrl("");
@@ -211,7 +211,9 @@ export function MediaPanel({ items, onStarted }: Props) {
       ) : (
         <div className="media-list">
           {items.map((m) => {
-            const pct = percent(m.p.downloaded, m.p.total);
+            // Priorité au pourcentage de yt-dlp (avance même sans taille totale,
+            // ex. flux fragmentés) ; repli sur le calcul octets si absent.
+            const pct = m.p.percent ?? percent(m.p.downloaded, m.p.total);
             const done = m.p.status === "completed";
             return (
               <div key={m.id} className={`media-row ${m.p.status}`}>
@@ -240,8 +242,12 @@ export function MediaPanel({ items, onStarted }: Props) {
                       <span className="err">Annulé</span>
                     ) : (
                       <span>
-                        {formatBytes(m.p.downloaded)}
-                        {m.p.total ? ` / ${formatBytes(m.p.total)}` : ""} · {formatSpeed(m.p.speed_bps)}
+                        {m.p.total
+                          ? `${formatBytes(m.p.downloaded)} / ${formatBytes(m.p.total)}`
+                          : m.p.percent != null
+                            ? `${Math.round(m.p.percent)} %`
+                            : formatBytes(m.p.downloaded)}
+                        {m.p.speed_bps > 0 ? ` · ${formatSpeed(m.p.speed_bps)}` : ""}
                       </span>
                     )}
                   </div>
