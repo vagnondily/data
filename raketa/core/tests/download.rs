@@ -142,6 +142,7 @@ async fn telechargement_simple_integrite_ok() {
         filename: None,
         // On impose l'empreinte attendue : le moteur DOIT la valider.
         expected_sha256: Some(sha_hex(&data)),
+        auth: None,
     };
 
     let outcome = engine
@@ -181,6 +182,7 @@ async fn reprise_apres_coupure_sans_corruption() {
         dest_dir: dir.path().display().to_string(),
         filename: Some("resume.bin".into()),
         expected_sha256: Some(sha_hex(&data)),
+        auth: None,
     };
 
     let outcome = engine
@@ -232,6 +234,7 @@ async fn telechargement_multisegments_integrite_ok() {
         dest_dir: dir.path().display().to_string(),
         filename: Some("multi.bin".into()),
         expected_sha256: Some(sha_hex(&data)),
+        auth: None,
     };
 
     let outcome = engine
@@ -267,6 +270,7 @@ async fn multisegments_reprise_sous_parallelisme() {
         dest_dir: dir.path().display().to_string(),
         filename: Some("multi-resume.bin".into()),
         expected_sha256: Some(sha_hex(&data)),
+        auth: None,
     };
 
     let outcome = engine
@@ -298,6 +302,7 @@ async fn serveur_sans_range_mono_flux() {
         dest_dir: dir.path().display().to_string(),
         filename: None,
         expected_sha256: None,
+        auth: None,
     };
 
     let outcome = engine
@@ -329,6 +334,7 @@ async fn nom_malveillant_reste_dans_le_dossier() {
         dest_dir: dir.path().display().to_string(),
         filename: Some("../../../../etc/passwd".into()),
         expected_sha256: None,
+        auth: None,
     };
 
     let outcome = engine

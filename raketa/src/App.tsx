@@ -335,7 +335,7 @@ export function App() {
           </div>
         </div>
         <div className="header-right">
-          <nav className="tabs" aria-label="Sections">
+          <nav className="tabs" aria-label="Sections principales">
             <button className={`tab ${tab === "http" ? "active" : ""}`} onClick={() => setTab("http")}>
               <Icon name="download" size={16} /> <span className="tab-label">Téléchargements</span>
             </button>
@@ -345,16 +345,33 @@ export function App() {
             <button className={`tab ${tab === "media" ? "active" : ""}`} onClick={() => setTab("media")}>
               <Icon name="youtube" size={16} /> <span className="tab-label">Médias</span>
             </button>
-            <button className={`tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>
-              <Icon name="clock" size={16} /> <span className="tab-label">Historique</span>
-            </button>
-            <button className={`tab ${tab === "browser" ? "active" : ""}`} onClick={() => setTab("browser")}>
-              <Icon name="globe" size={16} /> <span className="tab-label">Navigateur</span>
-            </button>
-            <button className={`tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
-              <Icon name="settings" size={16} /> <span className="tab-label">Paramètres</span>
-            </button>
           </nav>
+          <div className="tool-group" aria-label="Outils">
+            <button
+              className={`win-btn ${tab === "history" ? "active" : ""}`}
+              onClick={() => setTab("history")}
+              title="Historique"
+              aria-pressed={tab === "history"}
+            >
+              <Icon name="clock" size={17} />
+            </button>
+            <button
+              className={`win-btn ${tab === "browser" ? "active" : ""}`}
+              onClick={() => setTab("browser")}
+              title="Navigateur intégré"
+              aria-pressed={tab === "browser"}
+            >
+              <Icon name="globe" size={17} />
+            </button>
+            <button
+              className={`win-btn ${tab === "settings" ? "active" : ""}`}
+              onClick={() => setTab("settings")}
+              title="Paramètres"
+              aria-pressed={tab === "settings"}
+            >
+              <Icon name="settings" size={17} />
+            </button>
+          </div>
           <div className="win-controls">
             <button
               className={`win-btn ${pinned ? "active" : ""}`}

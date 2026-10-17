@@ -15,7 +15,10 @@
 use crate::engine::EngineConfig;
 use crate::error::{EngineError, Result};
 use crate::filename;
-use crate::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress, SegmentInfo};
+use crate::metadata::apply_auth;
+use crate::model::{
+    Control, Credentials, DownloadStatus, DownloadTask, Outcome, Progress, SegmentInfo,
+};
 use crate::{ProgressFn, RateLimiter};
 use futures_util::future::join_all;
 use futures_util::StreamExt;
@@ -109,6 +112,7 @@ pub async fn run(
             limiter.clone(),
             final_url.clone(),
             validator.clone(),
+            task.auth.clone(),
             start,
             end,
             part_path(i),
@@ -159,6 +163,7 @@ async fn fetch_segment(
     limiter: RateLimiter,
     url: String,
     validator: Option<String>,
+    auth: Option<Credentials>,
     start: u64,
     end: u64,
     path: PathBuf,
@@ -183,9 +188,10 @@ async fn fetch_segment(
         }
 
         let from = start + existing;
-        let mut req = client
-            .get(&url)
-            .header(RANGE, format!("bytes={from}-{end}"));
+        let mut req = apply_auth(
+            client.get(&url).header(RANGE, format!("bytes={from}-{end}")),
+            auth.as_ref(),
+        );
         if let Some(v) = &validator {
             req = req.header(IF_RANGE, v.clone());
         }

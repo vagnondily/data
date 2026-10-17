@@ -65,12 +65,16 @@ export function addDownload(args: {
   destDir: string;
   filename?: string;
   expectedSha256?: string;
+  username?: string;
+  password?: string;
 }): Promise<string> {
   return invoke<string>("add_download", {
     url: args.url,
     destDir: args.destDir,
     filename: args.filename ?? null,
     expectedSha256: args.expectedSha256 ?? null,
+    username: args.username ?? null,
+    password: args.password ?? null,
   });
 }
 

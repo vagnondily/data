@@ -466,6 +466,7 @@ mod tests {
             dest_dir: "/tmp".to_string(),
             filename: None,
             expected_sha256: None,
+            auth: None,
         }
     }
 

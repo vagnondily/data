@@ -59,6 +59,14 @@ pub struct RemoteInfo {
     pub suggested_filename: Option<String>,
 }
 
+/// Identifiants d'authentification HTTP (Basic), pour les liens protégés par
+/// mot de passe.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
+}
+
 /// Décrit un téléchargement à exécuter.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadTask {
@@ -70,6 +78,9 @@ pub struct DownloadTask {
     pub filename: Option<String>,
     /// Empreinte SHA-256 attendue (hex), vérifiée en fin de transfert si fournie.
     pub expected_sha256: Option<String>,
+    /// Identifiants (Basic auth) pour les téléchargements protégés.
+    #[serde(default)]
+    pub auth: Option<Credentials>,
 }
 
 /// État d'un segment (connexion parallèle) pour l'affichage façon IDM.

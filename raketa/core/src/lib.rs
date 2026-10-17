@@ -20,6 +20,7 @@
 //!     dest_dir: "/tmp/raketa".into(),
 //!     filename: None,
 //!     expected_sha256: None,
+//!     auth: None,
 //! };
 //! let outcome = engine
 //!     .download(&task, Control::new(), Arc::new(|p| println!("{} octets", p.downloaded)))

@@ -107,7 +107,7 @@ impl Engine {
 
     /// Sonde les métadonnées distantes sans télécharger le corps.
     pub async fn probe(&self, url: &str) -> Result<RemoteInfo> {
-        metadata::probe(&self.client, url).await
+        metadata::probe(&self.client, url, None).await
     }
 
     /// Exécute un téléchargement avec reprise, tentatives et vérifications.
@@ -121,7 +121,7 @@ impl Engine {
         progress: ProgressFn,
     ) -> Result<Outcome> {
         metadata::validate_scheme(&task.url)?;
-        let info = self.probe(&task.url).await?;
+        let info = metadata::probe(&self.client, &task.url, task.auth.as_ref()).await?;
 
         let dir = PathBuf::from(&task.dest_dir);
         fs::create_dir_all(&dir).await?;
@@ -210,7 +210,7 @@ impl Engine {
         let can_resume = existing > 0 && info.accept_ranges;
         let validator = info.etag.clone().or_else(|| info.last_modified.clone());
 
-        let mut req = self.client.get(&info.final_url);
+        let mut req = metadata::apply_auth(self.client.get(&info.final_url), task.auth.as_ref());
         if can_resume {
             req = req.header(RANGE, format!("bytes={existing}-"));
             if let Some(v) = &validator {

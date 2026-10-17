@@ -5,7 +5,7 @@
 //! de progression typés publiés vers l'interface (section 5.1).
 
 use crate::settings::Settings;
-use raketa_core::model::{Control, DownloadStatus, DownloadTask, Outcome, Progress};
+use raketa_core::model::{Control, Credentials, DownloadStatus, DownloadTask, Outcome, Progress};
 use raketa_core::{Engine, ProgressFn, Store};
 use raketa_torrent::TorrentManager;
 use std::collections::{HashMap, VecDeque};
@@ -44,6 +44,10 @@ pub struct AppState {
     pub active: Arc<AtomicUsize>,
     /// File d'attente des téléchargements en attente d'un créneau.
     pub queue: Arc<Mutex<VecDeque<DownloadTask>>>,
+    /// Identifiants (Basic auth) par identifiant de téléchargement, pour les
+    /// liens protégés par mot de passe. En mémoire uniquement (jamais persistés
+    /// en clair) : permet la reprise et le re-téléchargement dans la session.
+    pub auth_store: Arc<Mutex<HashMap<String, Credentials>>>,
     /// Réveille l'ordonnanceur (nouvel ajout ou créneau libéré).
     notify: Arc<Notify>,
 }
@@ -79,6 +83,7 @@ impl AppState {
             settings: Arc::new(Mutex::new(settings)),
             active: Arc::new(AtomicUsize::new(0)),
             queue: Arc::new(Mutex::new(VecDeque::new())),
+            auth_store: Arc::new(Mutex::new(HashMap::new())),
             notify: Arc::new(Notify::new()),
         })
     }

@@ -33,15 +33,12 @@ const PATHS: Record<string, ReactNode> = {
   ),
   settings: (
     <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3" />
-      <path d="M12 19v3" />
-      <path d="M2 12h3" />
-      <path d="M19 12h3" />
-      <path d="m4.9 4.9 2.1 2.1" />
-      <path d="m17 17 2.1 2.1" />
-      <path d="m19.1 4.9-2.1 2.1" />
-      <path d="m7 17-2.1 2.1" />
+      <path d="M4 7h10" />
+      <path d="M18 7h2" />
+      <path d="M4 17h2" />
+      <path d="M10 17h10" />
+      <circle cx="16" cy="7" r="2.4" />
+      <circle cx="8" cy="17" r="2.4" />
     </>
   ),
   clipboard: (

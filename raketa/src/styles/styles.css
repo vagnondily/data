@@ -1643,3 +1643,44 @@ input[type="time"].input {
     padding: 6px 8px;
   }
 }
+
+/* ---- Groupe « Outils » (Historique / Navigateur / Paramètres) ---- */
+.tool-group {
+  display: flex;
+  gap: 4px;
+  padding-left: 10px;
+  margin-left: 6px;
+  border-left: 1px solid var(--border);
+}
+.win-controls {
+  padding-left: 10px;
+  margin-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+/* ---- Authentification (lien protégé par mot de passe) ---- */
+.auth-block {
+  margin-top: 10px;
+}
+.auth-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12.5px;
+  padding: 2px 0;
+  font-family: inherit;
+}
+.auth-toggle:hover {
+  color: var(--text);
+}
+.auth-fields {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.auth-fields .input {
+  flex: 1;
+  min-width: 160px;
+}

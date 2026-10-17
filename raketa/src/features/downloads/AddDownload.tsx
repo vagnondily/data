@@ -17,6 +17,10 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [batchMode, setBatchMode] = useState(false);
   const [batchText, setBatchText] = useState("");
+  // Authentification (liens protégés par mot de passe).
+  const [showAuth, setShowAuth] = useState(false);
+  const [authUser, setAuthUser] = useState("");
+  const [authPass, setAuthPass] = useState("");
 
   async function chooseFolder() {
     const selected = await open({ directory: true, multiple: false });
@@ -32,8 +36,15 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
     // Dossier optionnel : vide → le dossier par défaut des Paramètres est utilisé.
     try {
       setBusy(true);
-      await addDownload({ url: url.trim(), destDir: destDir.trim() });
+      await addDownload({
+        url: url.trim(),
+        destDir: destDir.trim(),
+        username: showAuth ? authUser.trim() : undefined,
+        password: showAuth ? authPass : undefined,
+      });
       setUrl("");
+      setAuthUser("");
+      setAuthPass("");
       onAdded();
     } catch (e) {
       setError(String(e));
@@ -112,6 +123,40 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
           <button className="btn primary" onClick={submit} disabled={busy}>
             <Icon name="download" size={16} /> Télécharger
           </button>
+        </div>
+      )}
+
+      {!batchMode && (
+        <div className="auth-block">
+          <button
+            type="button"
+            className="auth-toggle"
+            onClick={() => setShowAuth((v) => !v)}
+            aria-expanded={showAuth}
+          >
+            {showAuth ? "▾" : "▸"} Authentification (lien protégé par mot de passe)
+          </button>
+          {showAuth && (
+            <div className="auth-fields">
+              <input
+                type="text"
+                className="input"
+                placeholder="Nom d'utilisateur"
+                value={authUser}
+                autoComplete="off"
+                onChange={(e) => setAuthUser(e.target.value)}
+              />
+              <input
+                type="password"
+                className="input"
+                placeholder="Mot de passe"
+                value={authPass}
+                autoComplete="off"
+                onChange={(e) => setAuthPass(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+              />
+            </div>
+          )}
         </div>
       )}
 

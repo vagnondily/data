@@ -102,6 +102,7 @@ async fn prepare_task(
         dest_dir: dir,
         filename,
         expected_sha256,
+        auth: None,
     };
     Ok((task, display_name))
 }
@@ -115,10 +116,27 @@ pub async fn add_download(
     dest_dir: String,
     filename: Option<String>,
     expected_sha256: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
 ) -> Result<String, String> {
-    let (task, display_name) =
+    let (mut task, display_name) =
         prepare_task(&state, url, dest_dir, filename, expected_sha256).await?;
     let id = task.id.clone();
+
+    // Identifiants (lien protégé par mot de passe) : appliqués à la tâche et
+    // mémorisés pour la reprise / le re-téléchargement dans cette session.
+    if let Some(u) = username.filter(|u| !u.is_empty()) {
+        let creds = raketa_core::model::Credentials {
+            username: u,
+            password: password.unwrap_or_default(),
+        };
+        state
+            .auth_store
+            .lock()
+            .await
+            .insert(id.clone(), creds.clone());
+        task.auth = Some(creds);
+    }
 
     {
         let store = state.store.lock().await;
@@ -239,12 +257,15 @@ pub async fn resume_download(
         return Err("téléchargement introuvable".into());
     };
 
+    // Restaure d'éventuels identifiants (lien protégé) mémorisés dans la session.
+    let auth = state.auth_store.lock().await.get(&id).cloned();
     let task = DownloadTask {
         id: record.id.clone(),
         url: record.url,
         dest_dir: record.destination,
         filename: Some(record.display_name),
         expected_sha256: record.sha256,
+        auth,
     };
     {
         let store = state.store.lock().await;
@@ -828,9 +849,20 @@ pub async fn redownload(
     } else {
         record.destination.clone()
     };
-    let (task, display_name) =
+    let (mut task, display_name) =
         prepare_task(&state, record.url, dir, Some(record.display_name), None).await?;
     let new_id = task.id.clone();
+    // Reporte les identifiants (lien protégé) sur la nouvelle tâche. On lit
+    // d'abord (verrou relâché) avant de ré-insérer, pour éviter tout blocage.
+    let creds = state.auth_store.lock().await.get(&id).cloned();
+    if let Some(creds) = creds {
+        state
+            .auth_store
+            .lock()
+            .await
+            .insert(new_id.clone(), creds.clone());
+        task.auth = Some(creds);
+    }
     {
         let store = state.store.lock().await;
         store.insert(&task, &display_name).map_err(|e| e.to_string())?;

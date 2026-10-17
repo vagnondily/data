@@ -9,12 +9,21 @@
 
 use crate::error::{EngineError, Result};
 use crate::filename;
-use crate::model::RemoteInfo;
+use crate::model::{Credentials, RemoteInfo};
 use reqwest::header::{
     ACCEPT_RANGES, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG,
     LAST_MODIFIED, RANGE,
 };
-use reqwest::Client;
+use reqwest::{Client, RequestBuilder};
+
+/// Applique l'authentification HTTP Basic à une requête, si des identifiants
+/// sont fournis (téléchargements protégés par mot de passe).
+pub(crate) fn apply_auth(req: RequestBuilder, auth: Option<&Credentials>) -> RequestBuilder {
+    match auth {
+        Some(c) => req.basic_auth(&c.username, Some(&c.password)),
+        None => req,
+    }
+}
 
 /// Vérifie que l'URL utilise un schéma autorisé (http/https uniquement, section 12).
 pub fn validate_scheme(url: &str) -> Result<()> {
@@ -26,12 +35,10 @@ pub fn validate_scheme(url: &str) -> Result<()> {
 }
 
 /// Interroge le serveur pour découvrir taille, support des plages et validateurs.
-pub async fn probe(client: &Client, url: &str) -> Result<RemoteInfo> {
+pub async fn probe(client: &Client, url: &str, auth: Option<&Credentials>) -> Result<RemoteInfo> {
     validate_scheme(url)?;
 
-    let resp = client
-        .get(url)
-        .header(RANGE, "bytes=0-0")
+    let resp = apply_auth(client.get(url).header(RANGE, "bytes=0-0"), auth)
         .send()
         .await?;
 
