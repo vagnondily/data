@@ -1,3 +1,5 @@
+import { Icon } from "../../components/Icon";
+
 interface Counts {
   active: number;
   paused: number;
@@ -32,7 +34,9 @@ function Tool({ icon, label, onClick, disabled, danger, badge }: ToolProps) {
       disabled={disabled}
       title={label}
     >
-      <span className="tool-icon">{icon}</span>
+      <span className="tool-icon">
+        <Icon name={icon} size={20} />
+      </span>
       <span className="tool-label">{label}</span>
       {badge ? <span className="tool-badge">{badge}</span> : null}
     </button>
@@ -51,17 +55,17 @@ export function Toolbar({
 }: Props) {
   return (
     <div className="toolbar">
-      <Tool icon="📋" label="Coller le lien" onClick={onPaste} />
+      <Tool icon="clipboard" label="Coller le lien" onClick={onPaste} />
       <div className="tool-sep" />
       <Tool
-        icon="▶"
+        icon="play"
         label="Tout reprendre"
         onClick={onResumeAll}
         disabled={counts.paused === 0}
         badge={counts.paused}
       />
       <Tool
-        icon="⏸"
+        icon="pause"
         label="Tout suspendre"
         onClick={onPauseAll}
         disabled={counts.active === 0}
@@ -69,21 +73,21 @@ export function Toolbar({
       />
       <div className="tool-sep" />
       <Tool
-        icon="🧹"
+        icon="check-circle"
         label="Nettoyer terminés"
         onClick={onClearCompleted}
         disabled={counts.completed === 0}
         badge={counts.completed}
       />
       <Tool
-        icon="🗑"
+        icon="trash"
         label="Tout supprimer"
         onClick={onClearAll}
         disabled={counts.total === 0}
         danger
       />
       <div className="tool-spacer" />
-      <Tool icon="⚙️" label="Paramètres" onClick={onSettings} />
+      <Tool icon="settings" label="Paramètres" onClick={onSettings} />
     </div>
   );
 }

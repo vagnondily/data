@@ -44,21 +44,23 @@ export function categoryOf(filename: string): CatKey {
   return EXT[ext] ?? "document";
 }
 
-// Icône emoji par catégorie (pour l'affichage dans le tableau).
+// Nom d'icône (composant Icon) par catégorie.
+const ICON: Record<CatKey, string> = {
+  all: "inbox",
+  video: "film",
+  audio: "music",
+  image: "image",
+  document: "file-text",
+  archive: "archive",
+  program: "cpu",
+  game: "gamepad",
+  incomplete: "clock",
+  completed: "check-circle",
+};
+
+// Icône du type d'un fichier (pour l'affichage dans le tableau).
 export function iconFor(filename: string): string {
-  const map: Record<CatKey, string> = {
-    all: "📥",
-    video: "🎬",
-    audio: "🎵",
-    image: "🖼️",
-    document: "📄",
-    archive: "🗜️",
-    program: "⚙️",
-    game: "🎮",
-    incomplete: "⏳",
-    completed: "✅",
-  };
-  return map[categoryOf(filename)];
+  return ICON[categoryOf(filename)];
 }
 
 export interface CatDef {
@@ -69,16 +71,16 @@ export interface CatDef {
 
 // Liste ordonnée des catégories de la barre latérale (façon IDM).
 export const CATEGORIES: CatDef[] = [
-  { key: "all", label: "Tous les téléchargements", icon: "📥" },
-  { key: "video", label: "Vidéos", icon: "🎬" },
-  { key: "audio", label: "Musique", icon: "🎵" },
-  { key: "image", label: "Images", icon: "🖼️" },
-  { key: "document", label: "Documents", icon: "📄" },
-  { key: "archive", label: "Compressé", icon: "🗜️" },
-  { key: "program", label: "Programmes", icon: "⚙️" },
-  { key: "game", label: "Jeux", icon: "🎮" },
-  { key: "incomplete", label: "Incomplets", icon: "⏳" },
-  { key: "completed", label: "Terminés", icon: "✅" },
+  { key: "all", label: "Tous les téléchargements", icon: "inbox" },
+  { key: "video", label: "Vidéos", icon: "film" },
+  { key: "audio", label: "Musique", icon: "music" },
+  { key: "image", label: "Images", icon: "image" },
+  { key: "document", label: "Documents", icon: "file-text" },
+  { key: "archive", label: "Compressé", icon: "archive" },
+  { key: "program", label: "Programmes", icon: "cpu" },
+  { key: "game", label: "Jeux", icon: "gamepad" },
+  { key: "incomplete", label: "Incomplets", icon: "clock" },
+  { key: "completed", label: "Terminés", icon: "check-circle" },
 ];
 
 // Préfixe des clés de catégories personnalisées.
@@ -89,7 +91,7 @@ export function categoriesFor(customs: CustomCategory[]): CatDef[] {
   const extra: CatDef[] = customs.map((c) => ({
     key: (CUSTOM_PREFIX + c.name) as CatKey,
     label: c.name,
-    icon: "🏷️",
+    icon: "tag",
   }));
   // Insère les perso juste avant les filtres d'état (Incomplets/Terminés).
   const base = CATEGORIES.slice(0, -2);

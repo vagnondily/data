@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { addBatch, addDownload } from "../../lib/api";
+import { Icon } from "../../components/Icon";
 
 interface Props {
   onAdded: () => void;
@@ -85,10 +86,11 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
           />
           <div className="add-row">
             <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
-              {destDir ? "📁 " + shorten(destDir) : "📁 Dossier par défaut"}
+              <Icon name="folder" size={16} />
+              {destDir ? shorten(destDir) : "Dossier par défaut"}
             </button>
             <button className="btn primary" onClick={submitBatch} disabled={busy}>
-              Télécharger le lot
+              <Icon name="download" size={16} /> Télécharger le lot
             </button>
           </div>
         </>
@@ -104,10 +106,11 @@ export function AddDownload({ onAdded, prefillUrl }: Props) {
             aria-label="URL à télécharger"
           />
           <button className="btn ghost" onClick={chooseFolder} disabled={busy}>
-            {destDir ? "📁 " + shorten(destDir) : "📁 Dossier par défaut"}
+            <Icon name="folder" size={16} />
+            {destDir ? shorten(destDir) : "Dossier par défaut"}
           </button>
           <button className="btn primary" onClick={submit} disabled={busy}>
-            Télécharger
+            <Icon name="download" size={16} /> Télécharger
           </button>
         </div>
       )}

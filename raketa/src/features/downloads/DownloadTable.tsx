@@ -9,6 +9,7 @@ import {
   type DownloadDto,
 } from "../../lib/api";
 import { iconFor } from "../../lib/category";
+import { Icon } from "../../components/Icon";
 import {
   formatBytes,
   formatDate,
@@ -54,7 +55,9 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
   if (downloads.length === 0) {
     return (
       <div className="empty-state">
-        <div className="empty-emoji">🌵</div>
+        <div className="empty-icon">
+          <Icon name="cactus" size={40} />
+        </div>
         <p className="empty-title">Aucun téléchargement ici</p>
         <p className="empty-hint">Collez une URL ci-dessus ou choisissez une autre catégorie.</p>
       </div>
@@ -72,7 +75,7 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
             <th className="col-status">Statut</th>
             <th className="col-progress">Progression</th>
             <th className="col-speed">Débit</th>
-            <th className="col-eta">Temps restant</th>
+            <th className="col-eta">Restant</th>
             <th className="col-date">Ajouté</th>
             <th className="col-actions"></th>
           </tr>
@@ -90,7 +93,9 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                 onDoubleClick={() => onOpenDetail(d)}
                 onContextMenu={(e) => openMenu(e, d)}
               >
-                <td className="col-icon">{iconFor(d.display_name)}</td>
+                <td className="col-icon">
+                  <Icon name={iconFor(d.display_name)} size={17} />
+                </td>
                 <td className="col-name">
                   <span className="cell-name clickable" title={d.display_name} onClick={() => onOpenDetail(d)}>
                     {d.display_name}
@@ -124,24 +129,24 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                   <div className="row-actions">
                     {isActive && (
                       <button className="icon-act" title="Pause" onClick={() => act(() => pauseDownload(d.id))}>
-                        ⏸
+                        <Icon name="pause" size={15} />
                       </button>
                     )}
                     {isPaused && (
                       <button className="icon-act" title="Reprendre" onClick={() => act(() => resumeDownload(d.id))}>
-                        ▶
+                        <Icon name="play" size={15} />
                       </button>
                     )}
                     {(isActive || isPaused) && (
                       <button className="icon-act" title="Arrêter" onClick={() => act(() => cancelDownload(d.id))}>
-                        ⏹
+                        <Icon name="stop" size={15} />
                       </button>
                     )}
-                    <button className="icon-act" title="Supprimer" onClick={() => act(() => removeDownload(d.id, false))}>
-                      🗑
+                    <button className="icon-act danger" title="Supprimer" onClick={() => act(() => removeDownload(d.id, false))}>
+                      <Icon name="trash" size={15} />
                     </button>
                     <button className="icon-act" title="Détails" onClick={() => onOpenDetail(d)}>
-                      ⓘ
+                      <Icon name="info" size={15} />
                     </button>
                   </div>
                 </td>
@@ -196,21 +201,39 @@ function ContextMenu({
 
   return (
     <div className="ctx-menu" style={style}>
-      {isActive && <button onClick={() => act(() => pauseDownload(d.id))}>⏸ Pause</button>}
-      {isPaused && <button onClick={() => act(() => resumeDownload(d.id))}>▶ Reprendre</button>}
+      {isActive && (
+        <button onClick={() => act(() => pauseDownload(d.id))}>
+          <Icon name="pause" size={16} /> Pause
+        </button>
+      )}
+      {isPaused && (
+        <button onClick={() => act(() => resumeDownload(d.id))}>
+          <Icon name="play" size={16} /> Reprendre
+        </button>
+      )}
       {(isActive || isPaused) && (
-        <button onClick={() => act(() => cancelDownload(d.id))}>⏹ Arrêter</button>
+        <button onClick={() => act(() => cancelDownload(d.id))}>
+          <Icon name="stop" size={16} /> Arrêter
+        </button>
       )}
       {isDone && d.file_exists && (
-        <button onClick={() => act(() => openFile(d.destination))}>📂 Ouvrir le fichier</button>
+        <button onClick={() => act(() => openFile(d.destination))}>
+          <Icon name="external" size={16} /> Ouvrir le fichier
+        </button>
       )}
-      <button onClick={() => act(() => revealInFolder(d.destination))}>🗂️ Ouvrir le dossier</button>
+      <button onClick={() => act(() => revealInFolder(d.destination))}>
+        <Icon name="folder" size={16} /> Ouvrir le dossier
+      </button>
       <div className="ctx-sep" />
-      <button onClick={() => { onOpenDetail(d); }}>ⓘ Propriétés</button>
+      <button onClick={() => { onOpenDetail(d); }}>
+        <Icon name="info" size={16} /> Propriétés
+      </button>
       <div className="ctx-sep" />
-      <button onClick={() => act(() => removeDownload(d.id, false))}>🗑 Retirer de la liste</button>
+      <button onClick={() => act(() => removeDownload(d.id, false))}>
+        <Icon name="x" size={16} /> Retirer de la liste
+      </button>
       <button className="danger" onClick={() => act(() => removeDownload(d.id, true))}>
-        ❌ Supprimer + fichier
+        <Icon name="trash" size={16} /> Supprimer + fichier
       </button>
     </div>
   );

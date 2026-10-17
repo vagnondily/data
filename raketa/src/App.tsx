@@ -30,6 +30,7 @@ import { DownloadDetail } from "./features/downloads/DownloadDetail";
 import { Toolbar } from "./features/downloads/Toolbar";
 import { matchesCategory } from "./lib/category";
 import { playCompletionSound } from "./lib/sound";
+import { Icon } from "./components/Icon";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
@@ -293,25 +294,25 @@ export function App() {
         <div className="brand">
           <img className="brand-logo" src={logoMark} alt="RAKETA" />
           <div className="brand-text">
-            <h1>RAKETA</h1>
+            <h1>RAKE<span className="brand-accent">T</span>A</h1>
             <p>Smart Service Androy · Gestionnaire de téléchargement</p>
           </div>
         </div>
         <nav className="tabs" aria-label="Sections">
           <button className={`tab ${tab === "http" ? "active" : ""}`} onClick={() => setTab("http")}>
-            Téléchargements
+            <Icon name="download" size={16} /> Téléchargements
           </button>
           <button className={`tab ${tab === "torrents" ? "active" : ""}`} onClick={() => setTab("torrents")}>
-            Torrents
+            <Icon name="magnet" size={16} /> Torrents
           </button>
           <button className={`tab ${tab === "media" ? "active" : ""}`} onClick={() => setTab("media")}>
-            YouTube
+            <Icon name="youtube" size={16} /> YouTube
           </button>
           <button className={`tab ${tab === "browser" ? "active" : ""}`} onClick={() => setTab("browser")}>
-            Navigateur
+            <Icon name="globe" size={16} /> Navigateur
           </button>
           <button className={`tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
-            Paramètres
+            <Icon name="settings" size={16} /> Paramètres
           </button>
         </nav>
       </header>

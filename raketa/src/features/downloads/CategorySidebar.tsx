@@ -1,5 +1,6 @@
 import type { CustomCategory, DownloadDto } from "../../lib/api";
 import { categoriesFor, matchesCategory } from "../../lib/category";
+import { Icon } from "../../components/Icon";
 
 interface Props {
   downloads: DownloadDto[];
@@ -25,7 +26,9 @@ export function CategorySidebar({ downloads, selected, onSelect, customs = [] }:
             className={`cat-item ${selected === c.key ? "active" : ""} ${separator ? "cat-sep" : ""}`}
             onClick={() => onSelect(c.key)}
           >
-            <span className="cat-icon">{c.icon}</span>
+            <span className="cat-icon">
+              <Icon name={c.icon} size={17} />
+            </span>
             <span className="cat-label">{c.label}</span>
             <span className="cat-count">{n}</span>
           </button>

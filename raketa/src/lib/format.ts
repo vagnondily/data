@@ -54,7 +54,7 @@ export function statusLabel(status: string): string {
   const map: Record<string, string> = {
     queued: "En file",
     probing: "Analyse…",
-    downloading: "Téléchargement",
+    downloading: "En cours",
     paused: "En pause",
     completed: "Terminé",
     error: "Erreur",

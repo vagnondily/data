@@ -14,16 +14,16 @@
     "windows": [
       {
         "title": "RAKETA — Smart Service Androy",
-        "width": 1180,
-        "height": 760,
-        "minWidth": 900,
-        "minHeight": 600,
+        "width": 1240,
+        "height": 800,
+        "minWidth": 940,
+        "minHeight": 620,
         "resizable": true,
         "theme": "Dark"
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; img-src 'self' asset: data: https:; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

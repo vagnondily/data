@@ -2,21 +2,48 @@
    Bleu zébu #2FA4E7 · Orange raketa #F59E0B · fond nuit. */
 
 :root {
-  --bg: #0a0b0d;
-  --bg-elev: #14161a;
-  --bg-elev-2: #1c1f25;
-  --border: #272b33;
-  --text: #e8eaed;
-  --text-muted: #9aa0a8;
-  --blue: #2fa4e7;
-  --blue-dim: #1d7bb3;
+  /* Surfaces (échelle d'élévation) */
+  --bg: #0b0d11;
+  --bg-elev: #13161c;   /* surface 1 */
+  --bg-elev-2: #1a1e26; /* surface 2 */
+  --surface-3: #232833; /* surface 3 (survol, puces) */
+
+  /* Bordures */
+  --border: #262b35;
+  --border-strong: #353c49;
+
+  /* Texte */
+  --text: #e9ebef;
+  --text-2: #aeb6c2;
+  --text-muted: #828b99;
+
+  /* Accent principal : bleu zébu (interactions, liens, progression) */
+  --blue: #3d9bff;
+  --blue-dim: #2b6fb8;
+  --accent-soft: rgba(61, 155, 255, 0.14);
+
+  /* Accent de marque : orange raketa (logo, mises en avant) */
   --orange: #f59e0b;
   --orange-dim: #b9760a;
-  --red: #ef5350;
-  --green: #4caf82;
+
+  /* Sémantique */
+  --red: #f0595a;
+  --green: #30c288;
+  --warn: #f5b942;
+
+  /* Rayons */
+  --radius-lg: 16px;
   --radius: 12px;
   --radius-sm: 8px;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --radius-pill: 999px;
+
+  /* Ombres */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -34,7 +61,45 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Icônes « ligne » : alignées sur le texte, ne rétrécissent pas. */
+.icon {
+  flex-shrink: 0;
+  vertical-align: -0.18em;
+}
+
+/* Focus clavier visible et cohérent (accessibilité). */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Barres de défilement discrètes, assorties au thème. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: padding-box;
 }
 
 .app {
@@ -45,9 +110,9 @@ body {
 
 /* ---- En-tête / marque ---- */
 .app-header {
-  padding: 18px 24px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, #121419, var(--bg));
+  background: var(--bg-elev);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -57,61 +122,69 @@ body {
 
 .tabs {
   display: flex;
-  gap: 6px;
+  gap: 2px;
   background: var(--bg-elev-2);
   padding: 4px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
 }
 
 .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  padding: 8px 18px;
-  border-radius: 7px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .tab:hover {
   color: var(--text);
+  background: var(--surface-3);
 }
 
 .tab.active {
-  background: linear-gradient(90deg, var(--blue-dim), var(--orange-dim));
-  color: #fff;
+  background: var(--accent-soft);
+  color: var(--blue);
+}
+.tab .icon {
+  opacity: 0.9;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.35));
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 22px;
-  letter-spacing: 3px;
-  background: linear-gradient(90deg, var(--blue), var(--orange));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+.brand-text h1 .brand-accent {
+  color: var(--orange);
 }
 
 .brand-text p {
-  margin: 2px 0 0;
-  font-size: 12px;
+  margin: 1px 0 0;
+  font-size: 11.5px;
   color: var(--text-muted);
+  letter-spacing: 0.01em;
 }
 
 /* ---- Contenu ---- */
@@ -180,13 +253,19 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
-  padding: 10px 12px;
+  padding: 9px 12px;
   font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input::placeholder {
+  color: var(--text-muted);
 }
 
 .input:focus {
   outline: none;
   border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .url-input {
@@ -195,46 +274,58 @@ body {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid var(--border);
   background: var(--bg-elev-2);
   color: var(--text);
-  padding: 10px 16px;
+  padding: 9px 15px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.15s ease;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
 }
 
-.btn:hover {
-  border-color: var(--blue);
+.btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .btn.primary {
-  background: linear-gradient(90deg, var(--orange), var(--orange-dim));
+  background: var(--blue);
   border-color: transparent;
-  color: #1a1206;
+  color: #06121f;
   font-weight: 600;
 }
 
-.btn.primary:hover {
-  filter: brightness(1.08);
+.btn.primary:hover:not(:disabled) {
+  background: #54a8ff;
+  filter: none;
 }
 
 .btn.ghost {
   background: transparent;
 }
-
-.btn.tiny {
-  padding: 6px 12px;
-  font-size: 12px;
+.btn.ghost:hover:not(:disabled) {
+  background: var(--bg-elev-2);
 }
 
-.btn.danger:hover {
+.btn.tiny {
+  padding: 6px 11px;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.btn.danger:hover:not(:disabled) {
   border-color: var(--red);
   color: var(--red);
 }
@@ -315,28 +406,48 @@ body {
   text-overflow: ellipsis;
 }
 
-.dl-status {
+.dl-status,
+.pill-downloading,
+.pill-completed,
+.pill-error,
+.pill-paused {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
-  padding: 2px 10px;
-  border-radius: 999px;
+  font-weight: 600;
+  line-height: 1.6;
+  padding: 1px 9px 1px 8px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
-  background: var(--bg-elev-2);
+  background: var(--surface-3);
   color: var(--text-muted);
 }
+/* Point coloré devant chaque pastille (indicateur discret). */
+.pill-downloading::before,
+.pill-completed::before,
+.pill-error::before,
+.pill-paused::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
 .pill-downloading {
-  background: rgba(47, 164, 231, 0.18);
-  color: var(--blue);
+  background: rgba(61, 155, 255, 0.14);
+  color: #68b2ff;
 }
 .pill-completed {
-  background: rgba(76, 175, 130, 0.18);
+  background: rgba(48, 194, 136, 0.14);
   color: var(--green);
 }
 .pill-error {
-  background: rgba(239, 83, 80, 0.18);
-  color: var(--red);
+  background: rgba(240, 89, 90, 0.15);
+  color: #ff7a7b;
 }
 .pill-paused {
-  background: rgba(245, 158, 11, 0.18);
+  background: rgba(245, 158, 11, 0.15);
   color: var(--orange);
 }
 
@@ -349,9 +460,9 @@ body {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--blue), var(--orange));
+  background: linear-gradient(180deg, #4ea6ff, var(--blue-dim));
   border-radius: 999px;
-  transition: width 0.2s ease;
+  transition: width 0.25s ease;
 }
 
 .progress-fill.indeterminate {
@@ -390,15 +501,24 @@ body {
 /* ---- État vide ---- */
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
+  padding: 64px 20px;
   color: var(--text-muted);
 }
-.empty-emoji {
-  font-size: 48px;
-  margin-bottom: 8px;
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  margin-bottom: 14px;
+  border-radius: 20px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--green);
 }
 .empty-title {
   font-size: 16px;
+  font-weight: 600;
   color: var(--text);
   margin: 0 0 4px;
 }
@@ -452,6 +572,14 @@ body {
 .tool-icon {
   font-size: 19px;
   line-height: 1;
+  color: var(--text-2);
+  display: flex;
+}
+.tool-btn:hover:not(:disabled) .tool-icon {
+  color: var(--blue);
+}
+.tool-btn.danger:hover:not(:disabled) .tool-icon {
+  color: var(--red);
 }
 .tool-label {
   font-size: 11px;
@@ -470,8 +598,8 @@ body {
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--blue), var(--orange));
-  color: #0a0b0d;
+  background: var(--blue);
+  color: #06121f;
   font-size: 10px;
   font-weight: 700;
   display: flex;
@@ -683,31 +811,46 @@ body {
 .cat-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px 10px;
+  gap: 10px;
+  padding: 8px 11px;
   border: none;
+  border-left: 2px solid transparent;
   background: transparent;
-  color: var(--text);
+  color: var(--text-2);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
+  font-weight: 500;
   text-align: left;
   width: 100%;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 .cat-item:hover {
   background: var(--bg-elev-2);
+  color: var(--text);
 }
 .cat-item.active {
-  background: rgba(47, 164, 231, 0.16);
+  background: var(--accent-soft);
+  border-left-color: var(--blue);
   color: var(--blue);
 }
 .cat-item.cat-sep {
   margin-top: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: 14px;
+  position: relative;
+}
+.cat-item.cat-sep::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  right: 8px;
+  height: 1px;
+  background: var(--border);
 }
 .cat-icon {
-  font-size: 15px;
+  display: flex;
+  color: currentColor;
 }
 .cat-label {
   flex: 1;
@@ -778,14 +921,18 @@ body {
   color: var(--red);
 }
 
-.col-icon { width: 36px; text-align: center; }
-.col-size { width: 92px; text-align: right; }
-.col-status { width: 112px; }
-.col-progress { width: 150px; }
-.col-speed { width: 90px; text-align: right; }
-.col-eta { width: 108px; }
-.col-date { width: 150px; color: var(--text-muted); }
-.col-actions { width: 112px; }
+.col-icon { width: 34px; text-align: center; }
+.col-size { width: 76px; text-align: right; }
+.col-status { width: 110px; }
+.col-progress { width: 116px; }
+.col-speed { width: 76px; text-align: right; }
+.col-eta { width: 84px; }
+.col-date { width: 100px; color: var(--text-muted); }
+.col-actions { width: 132px; }
+/* Le nom prend tout l'espace restant et ne se laisse pas écraser. */
+.col-name { width: auto; min-width: 180px; }
+.dl-table thead th { white-space: nowrap; }
+.col-actions { padding-right: 12px; }
 
 .cell-name {
   display: block;
@@ -803,7 +950,7 @@ body {
 
 .mini-track {
   display: inline-block;
-  width: 90px;
+  width: 58px;
   height: 6px;
   background: var(--bg-elev-2);
   border-radius: 999px;
@@ -812,8 +959,9 @@ body {
 }
 .mini-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--blue), var(--orange));
+  background: linear-gradient(180deg, #4ea6ff, var(--blue-dim));
   border-radius: 999px;
+  transition: width 0.25s ease;
 }
 .mini-fill.indeterminate {
   width: 35%;
@@ -827,7 +975,8 @@ body {
 
 .row-actions {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  justify-content: flex-end;
   opacity: 0;
   transition: opacity 0.12s;
 }
@@ -835,19 +984,30 @@ body {
   opacity: 1;
 }
 .icon-act {
-  width: 24px;
-  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   border: 1px solid var(--border);
-  background: var(--bg-elev);
-  color: var(--text-muted);
-  border-radius: 6px;
+  background: var(--bg-elev-2);
+  color: var(--text-2);
+  border-radius: 7px;
   cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .icon-act:hover {
   color: var(--blue);
   border-color: var(--blue-dim);
+  background: var(--accent-soft);
+}
+.icon-act.danger:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(240, 89, 90, 0.12);
+}
+.col-icon .icon {
+  color: var(--text-muted);
 }
 
 .dl-statusbar {
@@ -1231,4 +1391,73 @@ body {
 }
 input[type="time"].input {
   color-scheme: dark;
+}
+
+/* ---- Finitions « qualité » (profondeur, cohérence) ---- */
+.add-panel,
+.toolbar,
+.cat-sidebar,
+.dl-table-wrap,
+.stat-tile,
+.update-box,
+.media-card,
+.media-row {
+  box-shadow: var(--shadow-1);
+}
+
+/* Icônes du menu contextuel : discrètes, se colorent avec la ligne active. */
+.ctx-menu button .icon {
+  color: var(--text-muted);
+}
+.ctx-menu button:hover .icon {
+  color: var(--text);
+}
+.ctx-menu button.danger:hover .icon {
+  color: var(--red);
+}
+
+/* Pastilles de statut : un peu plus marquées et lisibles. */
+.dl-status,
+.pill-downloading,
+.pill-completed,
+.pill-error,
+.pill-paused {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Barre d'état sous le tableau : séparateurs légers. */
+.dl-statusbar {
+  justify-content: flex-start;
+  align-items: center;
+}
+.dl-statusbar span {
+  position: relative;
+  padding-right: 24px;
+}
+.dl-statusbar span + span::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 1px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: var(--border);
+}
+
+/* Tuiles de statistiques : valeur plus présente. */
+.stat-value {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* En-tête de section Paramètres : premier sans marge haute excessive. */
+.settings-h:first-of-type {
+  margin-top: 4px;
+}
+
+/* Encart Mises à jour : intitulé un peu plus présent. */
+.update-info strong {
+  font-size: 14px;
 }
