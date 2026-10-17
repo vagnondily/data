@@ -629,3 +629,36 @@ pub async fn remove_download(
     state.controls.lock().await.remove(&id);
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Téléchargeur de contenu média (YouTube & co., via yt-dlp)
+// ---------------------------------------------------------------------------
+
+/// Analyse une URL média : titre, miniature, durée et qualités proposées.
+/// yt-dlp est provisionné automatiquement au premier appel.
+#[tauri::command]
+pub async fn media_probe(url: String) -> Result<crate::media::MediaInfo, String> {
+    let url = url.trim().to_string();
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err("URL invalide (http/https attendu)".into());
+    }
+    crate::media::probe(url).await
+}
+
+/// Lance un téléchargement média. `quality` ∈ {auto, 2160, 1440, 1080, 720,
+/// 480, audio}. `dest_dir` vide → dossier de téléchargement par défaut.
+#[tauri::command]
+pub async fn media_download(
+    app: AppHandle,
+    url: String,
+    quality: String,
+    dest_dir: String,
+) -> Result<String, String> {
+    crate::media::download(app, url, quality, dest_dir).await
+}
+
+/// Annule un téléchargement média en cours.
+#[tauri::command]
+pub async fn media_cancel(id: String) -> Result<(), String> {
+    crate::media::cancel(id).await
+}

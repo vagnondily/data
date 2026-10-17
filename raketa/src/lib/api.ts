@@ -230,3 +230,56 @@ export const EVENT_CLIPBOARD = "raketa://clipboard-url";
 export function onClipboardUrl(cb: (url: string) => void): Promise<UnlistenFn> {
   return listen<string>(EVENT_CLIPBOARD, (event) => cb(event.payload));
 }
+
+// ---------------------------------------------------------------------------
+// Téléchargeur média (YouTube & co., via yt-dlp)
+// ---------------------------------------------------------------------------
+
+export interface MediaFormat {
+  quality: string;
+  label: string;
+}
+
+export interface MediaInfo {
+  title: string;
+  uploader: string | null;
+  duration: number | null;
+  thumbnail: string | null;
+  ffmpeg: boolean;
+  formats: MediaFormat[];
+}
+
+export interface MediaProgress {
+  id: string;
+  downloaded: number;
+  total: number | null;
+  speed_bps: number;
+  status: "downloading" | "completed" | "error" | "cancelled";
+  detail: string | null;
+}
+
+export const EVENT_MEDIA = "raketa://media-progress";
+
+// Analyse une URL média (titre, miniature, qualités). Provisionne yt-dlp.
+export function mediaProbe(url: string): Promise<MediaInfo> {
+  return invoke<MediaInfo>("media_probe", { url });
+}
+
+// Lance un téléchargement média ; renvoie son identifiant.
+export function mediaDownload(
+  url: string,
+  quality: string,
+  destDir: string,
+): Promise<string> {
+  return invoke<string>("media_download", { url, quality, destDir });
+}
+
+export function mediaCancel(id: string): Promise<void> {
+  return invoke("media_cancel", { id });
+}
+
+export function onMediaProgress(
+  cb: (p: MediaProgress) => void,
+): Promise<UnlistenFn> {
+  return listen<MediaProgress>(EVENT_MEDIA, (event) => cb(event.payload));
+}

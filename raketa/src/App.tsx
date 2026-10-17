@@ -5,6 +5,7 @@ import {
   listDownloads,
   listTorrents,
   onClipboardUrl,
+  onMediaProgress,
   onProgress,
   onTorrentProgress,
   openExternalUrl,
@@ -12,6 +13,7 @@ import {
   removeDownload,
   resumeDownload,
   type DownloadDto,
+  type MediaProgress,
   type Progress,
   type SegmentInfo,
   type TorrentProgress,
@@ -25,10 +27,11 @@ import { Toolbar } from "./features/downloads/Toolbar";
 import { matchesCategory, type CatKey } from "./lib/category";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
+import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import logoMark from "./assets/logo-mark.svg";
 
-type Tab = "http" | "torrents" | "browser" | "settings";
+type Tab = "http" | "torrents" | "media" | "browser" | "settings";
 
 export function App() {
   const [tab, setTab] = useState<Tab>("http");
@@ -39,6 +42,8 @@ export function App() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [category, setCategory] = useState<CatKey>("all");
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  // Téléchargements média (YouTube & co.) suivis globalement.
+  const [media, setMedia] = useState<MediaItem[]>([]);
   // Détail des segments (connexions) en direct, par identifiant.
   const [segments, setSegments] = useState<Record<string, SegmentInfo[]>>({});
   const downloadsRef = useRef<DownloadDto[]>([]);
@@ -125,6 +130,21 @@ export function App() {
     };
   }, []);
 
+  // Progression des téléchargements média (yt-dlp).
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onMediaProgress((p: MediaProgress) =>
+      setMedia((prev) =>
+        prev.map((m) => (m.id === p.id ? { ...m, p } : m)),
+      ),
+    )
+      .then((fn) => (unlisten = fn))
+      .catch(() => {});
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   // Capture presse-papiers : propose le lien copié (façon IDM).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -192,6 +212,9 @@ export function App() {
           <button className={`tab ${tab === "torrents" ? "active" : ""}`} onClick={() => setTab("torrents")}>
             Torrents
           </button>
+          <button className={`tab ${tab === "media" ? "active" : ""}`} onClick={() => setTab("media")}>
+            YouTube
+          </button>
           <button className={`tab ${tab === "browser" ? "active" : ""}`} onClick={() => setTab("browser")}>
             Navigateur
           </button>
@@ -252,6 +275,12 @@ export function App() {
         )}
         {tab === "torrents" && (
           <TorrentPanel torrents={torrents} onChanged={refreshTorrents} />
+        )}
+        {tab === "media" && (
+          <MediaPanel
+            items={media}
+            onStarted={(item) => setMedia((prev) => [item, ...prev])}
+          />
         )}
         {tab === "browser" && <BrowserPanel />}
         {tab === "settings" && <SettingsPanel />}

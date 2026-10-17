@@ -3,6 +3,7 @@
 mod bridge;
 mod commands;
 mod manager;
+mod media;
 mod settings;
 
 use directories::{ProjectDirs, UserDirs};
@@ -75,6 +76,9 @@ pub fn run() {
             commands::open_external_url,
             commands::get_app_version,
             commands::check_update,
+            commands::media_probe,
+            commands::media_download,
+            commands::media_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");
