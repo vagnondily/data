@@ -216,6 +216,12 @@ const PATHS: Record<string, ReactNode> = {
   ),
   "chevron-down": <path d="m6 9 6 6 6-6" />,
   check: <path d="M20 6 9 17l-5-5" />,
+  shield: (
+    <>
+      <path d="M12 3 5 6v5c0 4.5 3 7.6 7 9 4-1.4 7-4.5 7-9V6l-7-3z" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
 };
 
 interface Props {

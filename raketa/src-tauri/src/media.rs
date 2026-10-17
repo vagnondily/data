@@ -66,15 +66,8 @@ fn yt_dlp_path() -> PathBuf {
     bin_dir().join(name)
 }
 
-/// S'assure que yt-dlp est présent ; le télécharge au premier usage.
-async fn ensure_yt_dlp() -> Result<PathBuf, String> {
-    let path = yt_dlp_path();
-    if path.is_file() {
-        return Ok(path);
-    }
-    let dir = bin_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| format!("création du dossier bin : {e}"))?;
-
+/// Télécharge (ou re-télécharge) la dernière version de yt-dlp vers `path`.
+async fn download_yt_dlp(path: &std::path::Path) -> Result<(), String> {
     let bytes = reqwest::Client::new()
         .get(YT_DLP_URL)
         .header("User-Agent", "RAKETA")
@@ -87,13 +80,35 @@ async fn ensure_yt_dlp() -> Result<PathBuf, String> {
         .await
         .map_err(|e| format!("lecture de yt-dlp : {e}"))?;
 
-    std::fs::write(&path, &bytes).map_err(|e| format!("écriture de yt-dlp : {e}"))?;
+    std::fs::write(path, &bytes).map_err(|e| format!("écriture de yt-dlp : {e}"))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755));
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755));
     }
+    Ok(())
+}
+
+/// S'assure que yt-dlp est présent ; le télécharge au premier usage, et le
+/// rafraîchit s'il date de plus de 10 jours (YouTube & co. changent souvent :
+/// un yt-dlp périmé est une cause fréquente d'échec de téléchargement).
+async fn ensure_yt_dlp() -> Result<PathBuf, String> {
+    let path = yt_dlp_path();
+    if path.is_file() {
+        let stale = std::fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .map(|t| t.elapsed().map(|d| d.as_secs() > 10 * 24 * 3600).unwrap_or(false))
+            .unwrap_or(false);
+        if stale {
+            // Best-effort : en cas d'échec réseau, on garde le binaire existant.
+            let _ = download_yt_dlp(&path).await;
+        }
+        return Ok(path);
+    }
+    let dir = bin_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("création du dossier bin : {e}"))?;
+    download_yt_dlp(&path).await?;
     Ok(path)
 }
 
@@ -470,15 +485,35 @@ pub async fn download(
 
     let mut child = command(&bin)
         .args(&args)
-        // stderr ignoré : on ne le lit pas (un tube plein bloquerait yt-dlp).
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        // stderr capturé dans une tâche dédiée (pas de blocage du tube) pour
+        // remonter l'erreur RÉELLE de yt-dlp au lieu d'un message générique.
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("lancement de yt-dlp : {e}"))?;
 
     let stdout = child.stdout.take().ok_or("sortie yt-dlp indisponible")?;
+    let stderr = child.stderr.take();
     let id_task = id.clone();
     let app_hist = app.clone();
+
+    // Tampon des dernières lignes de stderr (borné à 60 lignes), partagé avec
+    // la tâche. Vec<String> : pas de risque de couper un caractère UTF-8.
+    let errbuf = Arc::new(Mutex::new(Vec::<String>::new()));
+    if let Some(se) = stderr {
+        let errbuf2 = errbuf.clone();
+        tokio::spawn(async move {
+            let mut lines = BufReader::new(se).lines();
+            while let Ok(Some(l)) = lines.next_line().await {
+                let mut b = errbuf2.lock().await;
+                b.push(l);
+                if b.len() > 60 {
+                    let drop = b.len() - 60;
+                    b.drain(0..drop);
+                }
+            }
+        });
+    }
 
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
@@ -573,9 +608,11 @@ pub async fn download(
                 .body(name)
                 .show();
         } else {
+            let raw = errbuf.lock().await.join("\n");
+            let msg = friendly_media_error(&raw);
             crate::logx::error(
                 "média",
-                "yt-dlp a échoué (lien privé, région, ou ffmpeg requis)",
+                if raw.trim().is_empty() { msg.as_str() } else { raw.trim() },
             );
             emit(&app, MediaProgress {
                 id: id_task.clone(),
@@ -584,7 +621,7 @@ pub async fn download(
                 speed_bps: 0.0,
                 percent: last.percent,
                 status: "error".into(),
-                detail: Some("yt-dlp a échoué (lien privé, région, ou ffmpeg requis)".into()),
+                detail: Some(msg),
             });
         }
         cleanup(&id_task).await;
@@ -607,6 +644,40 @@ async fn cleanup(id: &str) {
 
 fn emit(app: &AppHandle, p: MediaProgress) {
     let _ = app.emit(EVENT_MEDIA, &p);
+}
+
+/// Traduit la sortie d'erreur brute de yt-dlp en message clair et actionnable.
+fn friendly_media_error(raw: &str) -> String {
+    let low = raw.to_lowercase();
+    if low.contains("unsupported url") || low.contains("no video") {
+        "Cette page ne contient pas de vidéo téléchargeable. Ouvrez d'abord la vidéo elle-même (pas la page d'accueil).".into()
+    } else if low.contains("sign in to confirm") || (low.contains("confirm") && low.contains("bot")) {
+        "YouTube demande une vérification anti-robot. Réessayez dans un instant, ou mettez yt-dlp à jour (Préférences › Outils).".into()
+    } else if low.contains("private video")
+        || low.contains("video unavailable")
+        || low.contains("not available")
+        || low.contains("removed")
+    {
+        "Vidéo indisponible, privée, supprimée ou soumise à une restriction régionale.".into()
+    } else if low.contains("requested format is not available") {
+        "Format demandé indisponible. Installez ffmpeg (Préférences › Outils) pour plus de qualités.".into()
+    } else if low.contains("ffmpeg") {
+        "Cette qualité nécessite ffmpeg. Installez-le depuis Préférences › Outils.".into()
+    } else if raw.trim().is_empty() {
+        "Échec du téléchargement (yt-dlp). Vérifiez le lien et votre connexion.".into()
+    } else {
+        // Dernière ligne significative de yt-dlp (souvent explicite), nettoyée.
+        let line = raw
+            .lines()
+            .rev()
+            .find(|l| !l.trim().is_empty())
+            .unwrap_or("Échec du téléchargement")
+            .trim()
+            .trim_start_matches("ERROR:")
+            .trim();
+        let line: String = line.chars().take(200).collect();
+        format!("yt-dlp : {line}")
+    }
 }
 
 /// Analyse une ligne `status|downloaded|total|total_est|speed|percent`.

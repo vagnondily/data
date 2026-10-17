@@ -2,6 +2,7 @@
 
 mod bridge;
 mod commands;
+mod firewall;
 mod logx;
 mod manager;
 mod media;
@@ -168,6 +169,8 @@ pub fn run() {
             commands::read_log,
             commands::open_log,
             commands::clear_log,
+            commands::firewall_status,
+            commands::firewall_authorize,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");

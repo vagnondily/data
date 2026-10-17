@@ -447,6 +447,26 @@ export function clearLog(): Promise<void> {
   return invoke("clear_log");
 }
 
+// ---------------------------------------------------------------------------
+// Pare-feu Windows (connexions entrantes des pairs torrent)
+// ---------------------------------------------------------------------------
+
+export interface FirewallStatus {
+  /** La vérification a-t-elle pu aboutir ? (false hors Windows ou si refusée.) */
+  checked: boolean;
+  /** RAKETA est-il déjà autorisé dans le pare-feu ? */
+  allowed: boolean;
+}
+
+export function firewallStatus(): Promise<FirewallStatus> {
+  return invoke<FirewallStatus>("firewall_status");
+}
+
+// Ajoute la règle de pare-feu (déclenche une invite UAC). Résout si autorisé.
+export function firewallAuthorize(): Promise<void> {
+  return invoke("firewall_authorize");
+}
+
 export function setAlwaysOnTop(on: boolean): Promise<void> {
   return invoke("set_always_on_top", { on });
 }

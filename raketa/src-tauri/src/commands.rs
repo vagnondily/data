@@ -500,7 +500,7 @@ const NAV_JS: &str = r#"(function(){
     if (document.getElementById('__raketa_bar')) return;
     var bar = document.createElement('div');
     bar.id = '__raketa_bar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:42px;z-index:2147483647;background:#14161a;border-bottom:1px solid #272b33;display:flex;align-items:center;gap:6px;padding:0 8px;font-family:Segoe UI,Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4);';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:42px;z-index:2147483647;background:#14161a;border-bottom:1px solid #272b33;display:flex;align-items:center;gap:6px;padding:0 8px;font-family:Segoe UI,Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.4);transform:translateY(-100%);transition:transform .18s ease;will-change:transform;';
     function btn(t,fn){var b=document.createElement('button');b.textContent=t;b.style.cssText='background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:6px;height:28px;min-width:32px;cursor:pointer;font-size:15px;';b.onclick=fn;return b;}
     var back=btn('◀',function(){history.back();});
     var fwd=btn('▶',function(){history.forward();});
@@ -509,7 +509,16 @@ const NAV_JS: &str = r#"(function(){
     addr.value=location.href;
     addr.spellcheck=false;
     addr.style.cssText='flex:1;height:28px;background:#0a0b0d;color:#e8eaed;border:1px solid #272b33;border-radius:6px;padding:0 10px;font-size:12px;outline:none;';
-    addr.addEventListener('keydown',function(e){if(e.key==='Enter'){var u=addr.value.trim();if(u&&!/^https?:\/\//i.test(u))u='https://'+u;if(u)location.href=u;}});
+    // Barre d'adresse = aussi une recherche : URL complète ou domaine →
+    // navigation ; sinon → recherche YouTube (pratique quand la barre du site
+    // est masquée).
+    addr.addEventListener('keydown',function(e){
+      if(e.key!=='Enter') return;
+      var u=addr.value.trim(); if(!u) return;
+      if(/^https?:\/\//i.test(u)) location.href=u;
+      else if(/^[^\s]+\.[^\s]{2,}($|[\/?#])/.test(u)) location.href='https://'+u;
+      else location.href='https://www.youtube.com/results?search_query='+encodeURIComponent(u);
+    });
     var grab=document.createElement('button');
     grab.textContent='⬇ Récupérer la vidéo';
     grab.title='Détecter et télécharger la vidéo de cette page avec RAKETA';
@@ -517,7 +526,18 @@ const NAV_JS: &str = r#"(function(){
     grab.onclick=function(){showGrab();};
     bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(addr);bar.appendChild(grab);
     (document.documentElement||document.body).appendChild(bar);
-    try{document.body.style.marginTop='42px';}catch(e){}
+    // Barre auto-masquée : elle n'empiète plus sur le site (plus de décalage du
+    // contenu, plus d'en-tête du site caché). Elle glisse vers le bas quand la
+    // souris touche le haut de la fenêtre, ou quand on clique dans l'adresse.
+    function showBar(){ bar.style.transform='translateY(0)'; }
+    function hideBar(){ if(document.activeElement!==addr) bar.style.transform='translateY(-100%)'; }
+    try{
+      window.addEventListener('mousemove',function(e){ if(e.clientY<=4) showBar(); else if(e.clientY>58) hideBar(); },true);
+      addr.addEventListener('focus',showBar);
+      addr.addEventListener('blur',function(){ setTimeout(hideBar,150); });
+    }catch(e){}
+    // Aperçu au chargement, puis masquage pour laisser le site pleine hauteur.
+    showBar(); setTimeout(hideBar,2200);
   }
 
   // --- 4) Récupérateur de médias : détecte les vidéos (lecteurs embarqués,
@@ -574,6 +594,47 @@ const NAV_JS: &str = r#"(function(){
     (document.documentElement||document.body).appendChild(panel);
     setTimeout(function(){document.addEventListener('mousedown',function onDoc(e){if(!panel.contains(e.target)){try{panel.remove();}catch(_){}document.removeEventListener('mousedown',onDoc);}});},0);
   }
+
+  // --- 5) Bouton FLOTTANT « Télécharger cette vidéo », posé directement sur le
+  //        lecteur (façon IDM). Apparaît automatiquement dès qu'une vidéo est
+  //        détectée (YouTube, Dailymotion, Vimeo, <video>…), suit le lecteur,
+  //        et se referme d'un clic sur ✕.
+  var floatDismissed=false, floatUrl=location.href;
+  function biggestMedia(){
+    var best=null, area=0;
+    function consider(el){
+      var r=el.getBoundingClientRect();
+      var a=r.width*r.height;
+      if(a>area && r.width>=220 && r.height>=120 && r.bottom>40 && r.top<innerHeight){ area=a; best=r; }
+    }
+    try{Array.prototype.forEach.call(document.querySelectorAll('video'),consider);}catch(e){}
+    if(!best){try{Array.prototype.forEach.call(document.querySelectorAll('iframe[src]'),function(f){if(/youtube|youtube-nocookie|vimeo|dailymotion|player/i.test(f.src))consider(f);});}catch(e){}}
+    return best;
+  }
+  function ensureFloat(){
+    var btn=document.getElementById('__raketa_float');
+    if(floatDismissed){ if(btn)btn.remove(); return; }
+    var r=biggestMedia();
+    if(!r){ if(btn)btn.style.display='none'; return; }
+    if(!btn){
+      btn=document.createElement('div');
+      btn.id='__raketa_float';
+      btn.style.cssText='position:fixed;z-index:2147483647;display:flex;align-items:center;gap:10px;background:rgba(31,111,235,.97);color:#fff;font-family:Segoe UI,Arial,sans-serif;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.5);cursor:pointer;';
+      var dl=document.createElement('span');dl.textContent='⬇ Télécharger cette vidéo';
+      var x=document.createElement('span');x.textContent='✕';x.title='Masquer';x.style.cssText='opacity:.85;font-weight:700;padding:0 2px;';
+      dl.onclick=function(){toast('Envoyé à RAKETA');sendGrab('media',location.href,document.title);};
+      x.onclick=function(e){e.stopPropagation();floatDismissed=true;btn.remove();};
+      btn.appendChild(dl);btn.appendChild(x);
+      (document.documentElement||document.body).appendChild(btn);
+    }
+    btn.style.display='flex';
+    btn.style.top=Math.max(8, r.top+10)+'px';
+    btn.style.left=(r.left+r.width/2)+'px';
+    btn.style.transform='translateX(-50%)';
+  }
+  function floatTick(){ if(location.href!==floatUrl){ floatUrl=location.href; floatDismissed=false; } ensureFloat(); }
+  try{setInterval(floatTick,1200);}catch(e){}
+  try{window.addEventListener('scroll',ensureFloat,true);window.addEventListener('resize',ensureFloat);}catch(e){}
 
   if(document.body){build();}else{document.addEventListener('DOMContentLoaded',build);}
 })();"#;
@@ -881,6 +942,26 @@ pub async fn set_rate_limit_live(state: State<'_, AppState>, kbps: u64) -> Resul
 #[tauri::command]
 pub async fn media_tools_status() -> Result<crate::media::ToolsStatus, String> {
     Ok(crate::media::tools_status().await)
+}
+
+// ---------------------------------------------------------------------------
+// Pare-feu Windows (autorisation des connexions entrantes des pairs torrent)
+// ---------------------------------------------------------------------------
+
+/// Indique si RAKETA est déjà autorisé dans le pare-feu Windows.
+#[tauri::command]
+pub async fn firewall_status() -> Result<crate::firewall::FirewallStatus, String> {
+    tokio::task::spawn_blocking(crate::firewall::status)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Ajoute la règle de pare-feu autorisant RAKETA (invite UAC ponctuelle).
+#[tauri::command]
+pub async fn firewall_authorize() -> Result<(), String> {
+    tokio::task::spawn_blocking(crate::firewall::authorize)
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Télécharge et installe ffmpeg (fusion HD vidéo+audio, conversion MP3).

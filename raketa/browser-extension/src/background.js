@@ -74,6 +74,14 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get({ autoCapture: true }, () => {});
 });
 
+// Bouton flottant « Télécharger cette vidéo » (content script) : il nous envoie
+// l'URL de la page, qu'on transmet au téléchargeur média de RAKETA.
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "raketa-grab" && msg.url) {
+    capture(msg.url, msg.kind || "media");
+  }
+});
+
 chrome.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId === "raketa-grab-video") {
     // Page ou lecteur embarqué : yt-dlp sait extraire la vidéo. On évite les

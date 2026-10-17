@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   addTorrent,
   addTorrentFile,
+  firewallAuthorize,
   pauseTorrent,
   removeTorrent,
   resumeTorrent,
@@ -66,6 +67,19 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  // Autorisation pare-feu (connexions entrantes des pairs) : "idle" | "busy" | "done".
+  const [fw, setFw] = useState<"idle" | "busy" | "done">("idle");
+
+  async function authorizeFirewall() {
+    setFw("busy");
+    try {
+      await firewallAuthorize();
+      setFw("done");
+      onChanged();
+    } catch {
+      setFw("idle");
+    }
+  }
 
   async function submitMagnet() {
     const url = magnet.trim();
@@ -180,6 +194,21 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
                   <p className={note.tone === "err" ? "error-text torrent-err" : "hint torrent-hint"}>
                     {note.text}
                   </p>
+                )}
+                {!t.error && t.health === "no_connection" && (
+                  <button
+                    className="btn tiny primary torrent-fw-btn"
+                    style={{ marginTop: 6, alignSelf: "flex-start" }}
+                    onClick={authorizeFirewall}
+                    disabled={fw === "busy"}
+                  >
+                    <Icon name="shield" size={14} />{" "}
+                    {fw === "busy"
+                      ? "Autorisation…"
+                      : fw === "done"
+                        ? "Autorisé — relancez le torrent"
+                        : "Autoriser RAKETA dans le pare-feu"}
+                  </button>
                 )}
 
                 <div className="torrent-actions">

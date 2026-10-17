@@ -3,6 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   checkUpdate,
   clearLog,
+  firewallAuthorize,
+  firewallStatus,
   getAppVersion,
   getSettings,
   installFfmpeg,
@@ -15,6 +17,7 @@ import {
   RELEASE_URL,
   setSettings,
   type FfmpegProgress,
+  type FirewallStatus,
   type LogEntry,
   type Settings,
   type ToolsStatus,
@@ -72,6 +75,8 @@ export function SettingsModal({ onClose, onSaved }: Props) {
   const [ffmpegBusy, setFfmpegBusy] = useState(false);
   const [ffmpegProg, setFfmpegProg] = useState<FfmpegProgress | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [fw, setFw] = useState<FirewallStatus | null>(null);
+  const [fwBusy, setFwBusy] = useState(false);
 
   const refreshLog = () => {
     readLog()
@@ -111,7 +116,21 @@ export function SettingsModal({ onClose, onSaved }: Props) {
       .catch((e) => setError(String(e)));
     getAppVersion().then(setVersion).catch(() => {});
     mediaToolsStatus().then(setTools).catch(() => {});
+    firewallStatus().then(setFw).catch(() => {});
   }, []);
+
+  async function doAuthorizeFirewall() {
+    setFwBusy(true);
+    try {
+      await firewallAuthorize();
+      const s = await firewallStatus();
+      setFw(s);
+    } catch {
+      /* invite UAC refusée : on laisse l'utilisateur réessayer */
+    } finally {
+      setFwBusy(false);
+    }
+  }
 
   if (!s) {
     return (
@@ -263,6 +282,21 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                     <input type="checkbox" checked={s.autostart} onChange={(e) => update("autostart", e.target.checked)} />
                     <span className="hint">Lancer RAKETA automatiquement à l'ouverture de session.</span>
                   </label>
+                </div>
+                <div className="setting-row">
+                  <label>Pare-feu Windows</label>
+                  {fw?.allowed ? (
+                    <span className="badge ok">Autorisé</span>
+                  ) : (
+                    <button className="btn ghost" onClick={doAuthorizeFirewall} disabled={fwBusy}>
+                      <Icon name="shield" size={15} />{" "}
+                      {fwBusy ? "Autorisation…" : "Autoriser RAKETA"}
+                    </button>
+                  )}
+                  <span className="hint">
+                    Autorise les connexions entrantes des pairs (meilleures vitesses torrent).
+                    Une seule confirmation administrateur suffit.
+                  </span>
                 </div>
               </>
             )}
