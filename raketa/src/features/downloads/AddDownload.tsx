@@ -7,15 +7,19 @@ interface Props {
   onAdded: () => void;
   // URL pré-remplie (ex. depuis le presse-papiers).
   prefillUrl?: string;
+  // Mode d'ajout contrôlé par le parent (menu Téléchargement).
+  mode?: "single" | "batch";
+  onModeChange?: (m: "single" | "batch") => void;
 }
 
 // Zone de commande : coller une URL, choisir la destination, lancer (section 11.1).
-export function AddDownload({ onAdded, prefillUrl }: Props) {
+export function AddDownload({ onAdded, prefillUrl, mode = "single", onModeChange }: Props) {
   const [url, setUrl] = useState(prefillUrl ?? "");
   const [destDir, setDestDir] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [batchMode, setBatchMode] = useState(false);
+  const batchMode = mode === "batch";
+  const setBatchMode = (b: boolean) => onModeChange?.(b ? "batch" : "single");
   const [batchText, setBatchText] = useState("");
   // Authentification (liens protégés par mot de passe).
   const [showAuth, setShowAuth] = useState(false);

@@ -1684,3 +1684,104 @@ input[type="time"].input {
   flex: 1;
   min-width: 160px;
 }
+
+/* ---- Menu « Téléchargement » déroulant ---- */
+.dl-menu {
+  position: relative;
+}
+.dl-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dl-menu-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
+.dl-menu-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--blue-dim);
+  color: var(--blue);
+}
+.dl-menu-caret {
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+.dl-menu-btn.open .dl-menu-caret {
+  transform: rotate(180deg);
+}
+
+.dl-menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 288px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 6px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dl-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dl-menu-item:hover {
+  background: var(--bg-elev);
+}
+.dl-menu-item.active {
+  background: var(--accent-soft);
+}
+.dl-menu-item-icon {
+  display: flex;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.dl-menu-item.active .dl-menu-item-icon {
+  color: var(--blue);
+}
+.dl-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.dl-menu-item-label {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.dl-menu-item.active .dl-menu-item-label {
+  color: var(--blue);
+}
+.dl-menu-item-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.dl-menu-check {
+  color: var(--blue);
+  flex-shrink: 0;
+}

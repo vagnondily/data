@@ -27,6 +27,7 @@ import {
   type UpdateInfo,
 } from "./lib/api";
 import { AddDownload } from "./features/downloads/AddDownload";
+import { DownloadMenu, type DlChoice } from "./features/downloads/DownloadMenu";
 import { DownloadTable } from "./features/downloads/DownloadTable";
 import { CategorySidebar } from "./features/downloads/CategorySidebar";
 import { DownloadDetail } from "./features/downloads/DownloadDetail";
@@ -77,6 +78,8 @@ export function App() {
   // Ergonomie fenêtre : épinglée (au-dessus) et mode réduit (ancré à droite).
   const [pinned, setPinned] = useState(false);
   const [compact, setCompact] = useState(false);
+  // Mode d'ajout (menu Téléchargement) : lien unique ou en masse.
+  const [addMode, setAddMode] = useState<"single" | "batch">("single");
   const downloadsRef = useRef<DownloadDto[]>([]);
   const settingsRef = useRef<Settings | null>(null);
   settingsRef.current = settings;
@@ -105,6 +108,16 @@ export function App() {
       await setAlwaysOnTop(next);
     } catch {
       /* hors Tauri */
+    }
+  }
+
+  // Sélection dans le menu Téléchargement (lien unique / en masse / médias / torrents).
+  function selectDownload(c: DlChoice) {
+    if (c === "media") setTab("media");
+    else if (c === "torrents") setTab("torrents");
+    else {
+      setAddMode(c);
+      setTab("http");
     }
   }
 
@@ -335,17 +348,19 @@ export function App() {
           </div>
         </div>
         <div className="header-right">
-          <nav className="tabs" aria-label="Sections principales">
-            <button className={`tab ${tab === "http" ? "active" : ""}`} onClick={() => setTab("http")}>
-              <Icon name="download" size={16} /> <span className="tab-label">Téléchargements</span>
-            </button>
-            <button className={`tab ${tab === "torrents" ? "active" : ""}`} onClick={() => setTab("torrents")}>
-              <Icon name="magnet" size={16} /> <span className="tab-label">Torrents</span>
-            </button>
-            <button className={`tab ${tab === "media" ? "active" : ""}`} onClick={() => setTab("media")}>
-              <Icon name="youtube" size={16} /> <span className="tab-label">Médias</span>
-            </button>
-          </nav>
+          <DownloadMenu
+            active={
+              tab === "media"
+                ? "media"
+                : tab === "torrents"
+                  ? "torrents"
+                  : addMode === "batch"
+                    ? "batch"
+                    : "single"
+            }
+            highlighted={tab === "http" || tab === "media" || tab === "torrents"}
+            onSelect={selectDownload}
+          />
           <div className="tool-group" aria-label="Outils">
             <button
               className={`win-btn ${tab === "history" ? "active" : ""}`}
@@ -431,7 +446,7 @@ export function App() {
                 onClearAll={clearAll}
                 onSettings={() => setTab("settings")}
               />
-              <AddDownload onAdded={refresh} />
+              <AddDownload onAdded={refresh} mode={addMode} onModeChange={setAddMode} />
               <DownloadTable
                 downloads={downloads.filter((d) =>
                   matchesCategory(category, d.display_name, d.status, customs),

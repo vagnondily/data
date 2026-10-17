@@ -207,6 +207,15 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   maximize: <rect x="4" y="4" width="16" height="16" rx="2" />,
+  layers: (
+    <>
+      <path d="m12 2 9 5-9 5-9-5 9-5z" />
+      <path d="m3 12 9 5 9-5" />
+      <path d="m3 17 9 5 9-5" />
+    </>
+  ),
+  "chevron-down": <path d="m6 9 6 6 6-6" />,
+  check: <path d="M20 6 9 17l-5-5" />,
 };
 
 interface Props {
