@@ -7,6 +7,7 @@ import {
   dockRight,
   listTorrents,
   onClipboardUrl,
+  onGrabbed,
   onMediaProgress,
   onProgress,
   onTorrentProgress,
@@ -288,6 +289,43 @@ export function App() {
       if (unlisten) unlisten();
     };
   }, []);
+
+  // Récupération depuis une page (navigateur intégré ou extension) : affiche
+  // aussitôt le transfert dans le bon onglet. La fenêtre est ramenée au premier
+  // plan côté Rust.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onGrabbed((e) => {
+      if (e.kind === "media" && e.id) {
+        const id = e.id;
+        setMedia((prev) =>
+          prev.some((m) => m.id === id)
+            ? prev
+            : [
+                {
+                  id,
+                  title: e.title || "Média",
+                  thumbnail: null,
+                  p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", detail: null },
+                },
+                ...prev,
+              ],
+        );
+        setTab("media");
+      } else if (e.kind === "torrent") {
+        refreshTorrents();
+        setTab("torrents");
+      } else {
+        refresh();
+        setTab("http");
+      }
+    })
+      .then((fn) => (unlisten = fn))
+      .catch(() => {});
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [refresh, refreshTorrents]);
 
   // Capture presse-papiers : propose le lien copié (façon IDM).
   useEffect(() => {

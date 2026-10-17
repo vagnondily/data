@@ -372,6 +372,22 @@ export function onMediaProgress(
   return listen<MediaProgress>(EVENT_MEDIA, (event) => cb(event.payload));
 }
 
+// Contenu « récupéré » depuis une page (navigateur intégré ou extension) :
+// vidéo (yt-dlp), torrent (magnet/.torrent) ou lien HTTP, routé vers le bon
+// moteur. L'interface s'en sert pour afficher aussitôt le transfert.
+export interface GrabbedEvent {
+  kind: "media" | "torrent" | "http";
+  id: string | null;
+  title: string | null;
+  url: string;
+}
+
+export const EVENT_GRABBED = "raketa://grabbed";
+
+export function onGrabbed(cb: (e: GrabbedEvent) => void): Promise<UnlistenFn> {
+  return listen<GrabbedEvent>(EVENT_GRABBED, (event) => cb(event.payload));
+}
+
 // ---------------------------------------------------------------------------
 // Historique des téléchargements (persistant)
 // ---------------------------------------------------------------------------

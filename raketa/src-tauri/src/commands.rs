@@ -164,6 +164,73 @@ pub(crate) async fn add_url(
     Ok(id)
 }
 
+/// Événement « média/torrent récupéré depuis une page » (navigateur intégré ou
+/// extension), publié pour que l'interface affiche aussitôt le transfert.
+#[derive(Debug, Clone, Serialize)]
+pub struct GrabbedEvent {
+    /// `media` | `torrent` | `http`.
+    pub kind: String,
+    /// Identifiant du média (pour lier la progression), si pertinent.
+    pub id: Option<String>,
+    pub title: Option<String>,
+    pub url: String,
+}
+
+/// Oriente un contenu « récupéré » sur une page vers le bon moteur : les vidéos
+/// vers le téléchargeur média (yt-dlp), les magnets/.torrent vers le moteur
+/// torrent, le reste vers le moteur HTTP. Généraliste : fonctionne sur
+/// n'importe quelle page (aucun site n'est ciblé en particulier).
+pub(crate) async fn route_grab(app: AppHandle, kind: String, url: String, title: Option<String>) {
+    use tauri::Emitter;
+
+    // Ramène la fenêtre principale au premier plan pour montrer le transfert.
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+
+    match kind.as_str() {
+        "media" => match crate::media::download(
+            app.clone(),
+            url.clone(),
+            "auto".to_string(),
+            String::new(),
+        )
+        .await
+        {
+            Ok(id) => {
+                let _ = app.emit(
+                    "raketa://grabbed",
+                    GrabbedEvent { kind: "media".into(), id: Some(id), title, url },
+                );
+            }
+            Err(e) => crate::logx::error("récupération", &e),
+        },
+        "torrent" => {
+            let state = app.state::<AppState>();
+            match state.torrents.add_magnet_or_url(&url, false, None).await {
+                Ok(_) => {
+                    let _ = app.emit(
+                        "raketa://grabbed",
+                        GrabbedEvent { kind: "torrent".into(), id: None, title, url },
+                    );
+                }
+                Err(e) => crate::logx::error("récupération", &e.to_string()),
+            }
+        }
+        _ => {
+            let state = app.state::<AppState>();
+            if add_url(app.clone(), state.inner(), url.clone()).await.is_ok() {
+                let _ = app.emit(
+                    "raketa://grabbed",
+                    GrabbedEvent { kind: "http".into(), id: None, title, url },
+                );
+            }
+        }
+    }
+}
+
 /// Ajoute un lot de téléchargements depuis un motif `[1-100]` ou une liste
 /// collée (une URL/motif par ligne). Renvoie le nombre de tâches créées.
 #[tauri::command]
@@ -443,10 +510,71 @@ const NAV_JS: &str = r#"(function(){
     addr.spellcheck=false;
     addr.style.cssText='flex:1;height:28px;background:#0a0b0d;color:#e8eaed;border:1px solid #272b33;border-radius:6px;padding:0 10px;font-size:12px;outline:none;';
     addr.addEventListener('keydown',function(e){if(e.key==='Enter'){var u=addr.value.trim();if(u&&!/^https?:\/\//i.test(u))u='https://'+u;if(u)location.href=u;}});
-    bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(addr);
+    var grab=document.createElement('button');
+    grab.textContent='⬇ Récupérer la vidéo';
+    grab.title='Détecter et télécharger la vidéo de cette page avec RAKETA';
+    grab.style.cssText='background:#1f6feb;color:#fff;border:1px solid #1f6feb;border-radius:6px;height:28px;padding:0 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;';
+    grab.onclick=function(){showGrab();};
+    bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(addr);bar.appendChild(grab);
     (document.documentElement||document.body).appendChild(bar);
     try{document.body.style.marginTop='42px';}catch(e){}
   }
+
+  // --- 4) Récupérateur de médias : détecte les vidéos (lecteurs embarqués,
+  //        balises <video>, flux HLS/DASH) et les torrents (magnet / .torrent)
+  //        présents sur la page, puis les envoie au moteur RAKETA adéquat.
+  //        Généraliste : aucun site n'est ciblé en particulier.
+  function collectMedia(){
+    var items=[], seen={};
+    function add(kind,u,label){
+      if(!u) return;
+      var isMagnet=/^magnet:/i.test(u);
+      if(!isMagnet){ try{u=new URL(u, location.href).href;}catch(e){return;} }
+      if(seen[u]) return; seen[u]=1;
+      items.push({kind:kind,url:u,label:label});
+    }
+    var hosts=[['youtube.com/embed/','YouTube'],['youtube-nocookie.com/embed/','YouTube'],['player.vimeo.com/','Vimeo'],['dailymotion.com/embed/','Dailymotion'],['facebook.com/plugins/video','Facebook'],['w.soundcloud.com/player','SoundCloud']];
+    try{Array.prototype.forEach.call(document.querySelectorAll('iframe[src]'),function(f){var src=f.src||'';for(var i=0;i<hosts.length;i++){if(src.indexOf(hosts[i][0])>=0)add('media',src,'Vidéo intégrée · '+hosts[i][1]);}});}catch(e){}
+    try{Array.prototype.forEach.call(document.querySelectorAll('video'),function(v){if(v.currentSrc)add('media',v.currentSrc,'Vidéo en lecture');Array.prototype.forEach.call(v.querySelectorAll('source[src]'),function(s){add('media',s.src,'Source vidéo');});});}catch(e){}
+    try{Array.prototype.forEach.call(document.querySelectorAll('a[href]'),function(a){var raw=a.getAttribute('href')||'';var h=a.href||'';if(/^magnet:/i.test(raw))add('torrent',raw,'Torrent (magnet)');else if(/\.torrent(\?|$)/i.test(h))add('torrent',h,'Fichier .torrent');else if(/\.m3u8(\?|$)/i.test(h)||/\.mpd(\?|$)/i.test(h))add('media',h,'Flux vidéo');});}catch(e){}
+    add('media', location.href, 'Cette page (extraction automatique)');
+    return items;
+  }
+
+  function toast(msg){
+    var t=document.createElement('div');
+    t.textContent=msg;
+    t.style.cssText='position:fixed;top:50px;right:12px;z-index:2147483647;background:#1f6feb;color:#fff;padding:10px 14px;border-radius:8px;font-family:Segoe UI,Arial,sans-serif;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.5);';
+    (document.documentElement||document.body).appendChild(t);
+    setTimeout(function(){try{t.remove();}catch(e){}},2600);
+  }
+
+  // Envoie le choix à RAKETA via une navigation sentinelle (interceptée et
+  // annulée côté Rust : la page courante n'est jamais quittée).
+  function sendGrab(kind,url,title){
+    location.href='https://grab.raketa.invalid/?kind='+encodeURIComponent(kind)+'&url='+encodeURIComponent(url)+'&title='+encodeURIComponent(title||document.title||'');
+  }
+
+  function showGrab(){
+    var old=document.getElementById('__raketa_grab'); if(old){old.remove();return;}
+    var items=collectMedia();
+    var panel=document.createElement('div');
+    panel.id='__raketa_grab';
+    panel.style.cssText='position:fixed;top:46px;right:8px;width:360px;max-height:70vh;overflow:auto;z-index:2147483647;background:#14161a;border:1px solid #272b33;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-family:Segoe UI,Arial,sans-serif;padding:8px;';
+    var head=document.createElement('div');head.textContent='Médias détectés sur la page';head.style.cssText='color:#9aa0a6;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;';panel.appendChild(head);
+    items.forEach(function(it){
+      var row=document.createElement('button');
+      row.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:8px;padding:8px 10px;margin:4px 0;cursor:pointer;';
+      var l=document.createElement('span');l.textContent=(it.kind==='torrent'?'🧲 ':'🎬 ')+it.label;l.style.cssText='font-size:13px;font-weight:600;';
+      var u=document.createElement('span');u.textContent=it.url;u.style.cssText='font-size:11px;color:#9aa0a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:330px;';
+      row.appendChild(l);row.appendChild(u);
+      row.onclick=function(){toast('Envoyé à RAKETA');panel.remove();sendGrab(it.kind,it.url,document.title);};
+      panel.appendChild(row);
+    });
+    (document.documentElement||document.body).appendChild(panel);
+    setTimeout(function(){document.addEventListener('mousedown',function onDoc(e){if(!panel.contains(e.target)){try{panel.remove();}catch(_){}document.removeEventListener('mousedown',onDoc);}});},0);
+  }
+
   if(document.body){build();}else{document.addEventListener('DOMContentLoaded',build);}
 })();"#;
 
@@ -466,11 +594,44 @@ pub async fn open_browser(
 
     let label = format!("browser-{}", Uuid::new_v4().simple());
     let app_for_dl = app.clone();
+    let app_for_nav = app.clone();
 
     let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::External(parsed))
         .title("RAKETA — Navigateur")
         .inner_size(1120.0, 800.0)
-        .on_navigation(|u| matches!(u.scheme(), "http" | "https" | "about"))
+        .on_navigation(move |u| {
+            // Sentinelle du récupérateur de médias : le script injecté « navigue »
+            // vers grab.raketa.invalid avec les paramètres du média choisi. On
+            // intercepte (sans jamais réellement naviguer) et on route vers le
+            // bon moteur. C'est le canal de l'interface vers RAKETA dans le
+            // navigateur intégré (les pages externes n'ont pas l'IPC Tauri).
+            if u.host_str() == Some("grab.raketa.invalid") {
+                let mut kind = String::from("media");
+                let mut target = String::new();
+                let mut title: Option<String> = None;
+                for (k, v) in u.query_pairs() {
+                    match k.as_ref() {
+                        "kind" => kind = v.into_owned(),
+                        "url" => target = v.into_owned(),
+                        "title" => {
+                            let t = v.into_owned();
+                            if !t.is_empty() {
+                                title = Some(t);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                if !target.is_empty() {
+                    let app2 = app_for_nav.clone();
+                    tauri::async_runtime::spawn(async move {
+                        route_grab(app2, kind, target, title).await;
+                    });
+                }
+                return false; // annule la navigation sentinelle
+            }
+            matches!(u.scheme(), "http" | "https" | "about")
+        })
         .on_download(move |_webview, event| {
             if let DownloadEvent::Requested { url, .. } = &event {
                 let link = url.to_string();

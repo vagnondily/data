@@ -12,11 +12,12 @@ const RAKETA = "http://127.0.0.1:47623";
 
 // --- Envoi d'un lien à RAKETA -------------------------------------------------
 
-async function sendToRaketa(url) {
+// kind : "auto" (lien direct), "media" (vidéo → yt-dlp) ou "torrent".
+async function sendToRaketa(url, kind) {
   const resp = await fetch(RAKETA + "/add", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, kind: kind || "auto" }),
   });
   if (!resp.ok) throw new Error("HTTP " + resp.status);
 }
@@ -43,10 +44,10 @@ function notify(title, message) {
   }
 }
 
-async function capture(url) {
+async function capture(url, kind) {
   if (!/^https?:\/\//i.test(url)) return false;
   try {
-    await sendToRaketa(url);
+    await sendToRaketa(url, kind);
     return true;
   } catch {
     notify("RAKETA", "RAKETA n'est pas lancé. Démarre l'application puis réessaie.");
@@ -62,11 +63,25 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Télécharger avec RAKETA",
     contexts: ["link", "image", "video", "audio", "selection", "page"],
   });
+  // Récupère la vidéo de la page (ou du lecteur embarqué) via yt-dlp — façon
+  // « grabber » : on vise la page/l'iframe, pas un lien de fichier direct.
+  chrome.contextMenus.create({
+    id: "raketa-grab-video",
+    title: "Récupérer la vidéo avec RAKETA",
+    contexts: ["page", "video", "frame", "link"],
+  });
   // Capture automatique activée par défaut.
   chrome.storage.local.get({ autoCapture: true }, () => {});
 });
 
 chrome.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId === "raketa-grab-video") {
+    // Page ou lecteur embarqué : yt-dlp sait extraire la vidéo. On évite les
+    // blob: (non téléchargeables) en préférant l'iframe puis la page.
+    const url = info.frameUrl || info.pageUrl || info.linkUrl;
+    if (url) capture(url, "media");
+    return;
+  }
   const url = info.linkUrl || info.srcUrl || info.pageUrl;
   if (url) capture(url);
 });

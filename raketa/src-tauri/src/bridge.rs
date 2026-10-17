@@ -6,9 +6,8 @@
 //! que depuis une origine d'extension (`chrome-extension://` / `moz-extension://`),
 //! ce qui empêche une page web quelconque de déclencher des téléchargements.
 
-use crate::manager::AppState;
 use std::io::Read;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Port fixe du pont (connu de l'extension).
 pub const BRIDGE_PORT: u16 = 47623;
@@ -60,13 +59,24 @@ pub fn start(app: AppHandle) {
                 let v: serde_json::Value =
                     serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
 
+                // `kind` (optionnel) : "media" (vidéo → yt-dlp), "torrent" ou
+                // "auto"/absent (lien HTTP classique). Permet à l'extension de
+                // « récupérer » la vidéo d'une page, pas seulement un lien direct.
+                let kind = v
+                    .get("kind")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("auto")
+                    .to_string();
+                let title = v
+                    .get("title")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
                 match v.get("url").and_then(|x| x.as_str()) {
                     Some(u) if u.starts_with("http://") || u.starts_with("https://") => {
                         let app2 = app.clone();
                         let url = u.to_string();
                         tauri::async_runtime::spawn(async move {
-                            let state = app2.state::<AppState>();
-                            let _ = crate::commands::add_url(app2.clone(), state.inner(), url).await;
+                            crate::commands::route_grab(app2, kind, url, title).await;
                         });
                         let _ = req.respond(cors(&origin, 200, "ok"));
                     }
