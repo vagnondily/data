@@ -863,6 +863,79 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
     }
 }
 
+/// Canal de progression du téléchargement de la mise à jour.
+pub const EVENT_UPDATE: &str = "raketa://update-progress";
+
+/// Progression du téléchargement de l'installeur de mise à jour.
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateProgress {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+    pub done: bool,
+}
+
+/// Télécharge l'installeur de la nouvelle version DANS RAKETA (dossier
+/// temporaire), en publiant la progression sur `raketa://update-progress`.
+/// Renvoie le chemin local du `.exe`. Évite de passer par le navigateur.
+#[tauri::command]
+pub async fn download_update(app: AppHandle, url: String) -> Result<String, String> {
+    use futures_util::StreamExt;
+    use std::io::Write;
+    use tauri::Emitter;
+
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err("URL de mise à jour invalide".into());
+    }
+    let resp = reqwest::Client::new()
+        .get(url.as_str())
+        .header("User-Agent", "RAKETA-Updater")
+        .send()
+        .await
+        .map_err(|e| format!("téléchargement de la mise à jour : {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("téléchargement de la mise à jour : {e}"))?;
+
+    let total = resp.content_length();
+    // Nom de fichier tiré de l'URL (sinon nom générique).
+    let fname = url
+        .rsplit('/')
+        .next()
+        .filter(|s| s.to_lowercase().ends_with(".exe"))
+        .unwrap_or("RAKETA-setup.exe");
+    let dest = std::env::temp_dir().join(fname);
+
+    let mut file =
+        std::fs::File::create(&dest).map_err(|e| format!("création du fichier : {e}"))?;
+    let mut stream = resp.bytes_stream();
+    let mut downloaded: u64 = 0;
+    let mut last = std::time::Instant::now();
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| format!("lecture : {e}"))?;
+        file.write_all(&bytes).map_err(|e| format!("écriture : {e}"))?;
+        downloaded += bytes.len() as u64;
+        if last.elapsed() >= std::time::Duration::from_millis(200) {
+            let _ = app.emit(EVENT_UPDATE, UpdateProgress { downloaded, total, done: false });
+            last = std::time::Instant::now();
+        }
+    }
+    file.flush().map_err(|e| format!("finalisation : {e}"))?;
+    let _ = app.emit(EVENT_UPDATE, UpdateProgress { downloaded, total, done: true });
+    Ok(dest.display().to_string())
+}
+
+/// Lance l'installeur téléchargé, puis ferme RAKETA (pour que l'installeur
+/// puisse remplacer les fichiers de l'application).
+#[tauri::command]
+pub async fn run_installer(app: AppHandle, path: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|e| e.to_string())?;
+    // L'installeur est lancé (ShellExecute, détaché) : on peut quitter.
+    app.exit(0);
+    Ok(())
+}
+
 /// Ouvre un fichier (ou dossier) avec l'application par défaut du système.
 #[tauri::command]
 pub async fn open_file(app: AppHandle, path: String) -> Result<(), String> {

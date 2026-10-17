@@ -280,6 +280,32 @@ export function checkUpdate(): Promise<UpdateInfo | null> {
   return invoke<UpdateInfo | null>("check_update");
 }
 
+// Progression du téléchargement de l'installeur de mise à jour (dans l'app).
+export interface UpdateProgress {
+  downloaded: number;
+  total: number | null;
+  done: boolean;
+}
+
+export const EVENT_UPDATE = "raketa://update-progress";
+
+// Télécharge l'installeur DANS RAKETA (pas via le navigateur). Renvoie le
+// chemin local du .exe.
+export function downloadUpdate(url: string): Promise<string> {
+  return invoke<string>("download_update", { url });
+}
+
+// Lance l'installeur téléchargé et ferme RAKETA.
+export function runInstaller(path: string): Promise<void> {
+  return invoke("run_installer", { path });
+}
+
+export function onUpdateProgress(
+  cb: (p: UpdateProgress) => void,
+): Promise<UnlistenFn> {
+  return listen<UpdateProgress>(EVENT_UPDATE, (event) => cb(event.payload));
+}
+
 export const EVENT_CLIPBOARD = "raketa://clipboard-url";
 
 // URL intéressante copiée dans le presse-papiers (capture façon IDM).

@@ -153,6 +153,8 @@ pub fn run() {
             commands::open_external_url,
             commands::get_app_version,
             commands::check_update,
+            commands::download_update,
+            commands::run_installer,
             commands::media_probe,
             commands::media_download,
             commands::media_cancel,

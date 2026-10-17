@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDownload,
   checkUpdate,
+  downloadUpdate,
   getSettings,
   listDownloads,
   dockRight,
+  onUpdateProgress,
+  runInstaller,
   listTorrents,
   onClipboardUrl,
   onGrabbed,
@@ -70,6 +73,10 @@ export function App() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("all");
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  // Mise à jour dans l'app : état du téléchargement de l'installeur.
+  const [updDl, setUpdDl] = useState<"idle" | "downloading" | "ready">("idle");
+  const [updPct, setUpdPct] = useState(0);
+  const [updPath, setUpdPath] = useState<string | null>(null);
   // Téléchargements média (YouTube & co.) suivis globalement.
   const [media, setMedia] = useState<MediaItem[]>([]);
   // Détail des segments (connexions) en direct, par identifiant.
@@ -102,6 +109,40 @@ export function App() {
   const chime = useCallback(() => {
     if (settingsRef.current?.completion_sound) playCompletionSound();
   }, []);
+
+  // Télécharge l'installeur de la mise à jour DANS l'app (barre de progression),
+  // puis propose de l'installer. Repli sur le navigateur en cas d'échec.
+  async function startUpdateDownload() {
+    if (!update) return;
+    setUpdDl("downloading");
+    setUpdPct(0);
+    let un: (() => void) | undefined;
+    try {
+      un = await onUpdateProgress((p) => {
+        if (p.total) setUpdPct(Math.min(100, Math.round((p.downloaded / p.total) * 100)));
+      });
+      const path = await downloadUpdate(update.url);
+      setUpdPath(path);
+      setUpdPct(100);
+      setUpdDl("ready");
+    } catch {
+      setUpdDl("idle");
+      // Repli : ouvrir la page de téléchargement dans le navigateur.
+      if (update) openExternalUrl(update.url);
+    } finally {
+      if (un) un();
+    }
+  }
+
+  async function installUpdate() {
+    if (updPath) {
+      try {
+        await runInstaller(updPath);
+      } catch {
+        /* l'app se ferme normalement juste après */
+      }
+    }
+  }
 
   // Épingler la fenêtre au-dessus des autres.
   async function togglePin() {
@@ -460,12 +501,24 @@ export function App() {
             </span>
           </span>
           <div className="update-banner-actions">
-            <button
-              className="btn tiny primary"
-              onClick={() => openExternalUrl(update.url)}
-            >
-              <Icon name="download" size={14} /> Télécharger
-            </button>
+            {updDl === "idle" && (
+              <button className="btn tiny primary" onClick={startUpdateDownload}>
+                <Icon name="download" size={14} /> Télécharger
+              </button>
+            )}
+            {updDl === "downloading" && (
+              <span className="update-dl">
+                <span className="update-dl-bar">
+                  <span className="update-dl-fill" style={{ width: `${updPct}%` }} />
+                </span>
+                {updPct}%
+              </span>
+            )}
+            {updDl === "ready" && (
+              <button className="btn tiny primary" onClick={installUpdate}>
+                <Icon name="check" size={14} /> Installer et redémarrer
+              </button>
+            )}
             <button className="btn tiny ghost" onClick={() => setUpdate(null)}>
               Plus tard
             </button>
