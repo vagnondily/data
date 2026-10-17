@@ -331,6 +331,21 @@ export function installFfmpeg(): Promise<void> {
   return invoke("install_ffmpeg");
 }
 
+export interface FfmpegProgress {
+  downloaded: number;
+  total: number | null;
+  phase: "download" | "extract" | "done" | "error";
+  message: string | null;
+}
+
+export const EVENT_FFMPEG = "raketa://ffmpeg-progress";
+
+export function onFfmpegProgress(
+  cb: (p: FfmpegProgress) => void,
+): Promise<UnlistenFn> {
+  return listen<FfmpegProgress>(EVENT_FFMPEG, (event) => cb(event.payload));
+}
+
 // Applique une limite de débit « à chaud » (planificateur horaire), sans la
 // persister dans les paramètres.
 export function setRateLimitLive(kbps: number): Promise<void> {

@@ -1785,3 +1785,15 @@ input[type="time"].input {
   color: var(--blue);
   flex-shrink: 0;
 }
+
+/* ---- Progression d'installation ffmpeg ---- */
+.ffmpeg-progress-row {
+  margin-top: -8px;
+}
+.ffmpeg-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 460px;
+}

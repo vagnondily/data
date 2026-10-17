@@ -32,6 +32,21 @@ const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/downl
 const FFMPEG_URL: &str =
     "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip";
 
+/// Canal d'événement de progression de l'installation de ffmpeg.
+pub const EVENT_FFMPEG: &str = "raketa://ffmpeg-progress";
+
+/// Crée une commande externe SANS fenêtre console (indispensable sous Windows :
+/// sinon chaque appel à yt-dlp/ffmpeg fait clignoter une fenêtre `cmd`).
+fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut c = Command::new(program);
+    #[cfg(windows)]
+    {
+        // CREATE_NO_WINDOW : le processus tourne en arrière-plan, invisible.
+        c.creation_flags(0x0800_0000);
+    }
+    c
+}
+
 /// Registre des annulations : identifiant de média → signal d'annulation.
 fn cancels() -> &'static Mutex<HashMap<String, Arc<Notify>>> {
     static CANCELS: OnceLock<Mutex<HashMap<String, Arc<Notify>>>> = OnceLock::new();
@@ -103,7 +118,7 @@ async fn ffmpeg_available() -> bool {
     if ffmpeg_location().is_some() {
         return true;
     }
-    Command::new("ffmpeg")
+    command("ffmpeg")
         .arg("-version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -128,36 +143,80 @@ pub async fn tools_status() -> ToolsStatus {
     }
 }
 
-/// Télécharge et installe ffmpeg (build statique) dans le dossier bin.
-/// Extrait `ffmpeg.exe` et `ffprobe.exe` depuis l'archive zip officielle.
-pub async fn install_ffmpeg() -> Result<(), String> {
+/// Progression de l'installation de ffmpeg (publiée vers l'interface).
+#[derive(Debug, Clone, Serialize)]
+pub struct FfmpegProgress {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+    /// `download` | `extract` | `done` | `error`.
+    pub phase: String,
+    pub message: Option<String>,
+}
+
+fn ffmpeg_emit(app: &AppHandle, downloaded: u64, total: Option<u64>, phase: &str) {
+    let _ = app.emit(
+        EVENT_FFMPEG,
+        FfmpegProgress {
+            downloaded,
+            total,
+            phase: phase.to_string(),
+            message: None,
+        },
+    );
+}
+
+/// Télécharge et installe ffmpeg (build statique) dans le dossier bin, en
+/// publiant une progression claire (téléchargement %, extraction, terminé).
+pub async fn install_ffmpeg(app: AppHandle) -> Result<(), String> {
+    use futures_util::StreamExt;
+    use std::time::{Duration, Instant};
+
     if ffmpeg_location().is_some() {
+        ffmpeg_emit(&app, 0, None, "done");
         return Ok(());
     }
     let dir = bin_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("création du dossier bin : {e}"))?;
 
-    let bytes = reqwest::Client::new()
+    let resp = reqwest::Client::new()
         .get(FFMPEG_URL)
         .header("User-Agent", "RAKETA")
         .send()
         .await
         .map_err(|e| format!("téléchargement de ffmpeg : {e}"))?
         .error_for_status()
-        .map_err(|e| format!("téléchargement de ffmpeg : {e}"))?
-        .bytes()
-        .await
-        .map_err(|e| format!("lecture de ffmpeg : {e}"))?;
+        .map_err(|e| format!("téléchargement de ffmpeg : {e}"))?;
 
-    // Extraction en tâche bloquante (zip est synchrone).
+    let total = resp.content_length();
+    ffmpeg_emit(&app, 0, total, "download");
+
+    // Téléchargement en flux pour une vraie barre de progression.
+    let mut stream = resp.bytes_stream();
+    let mut buf: Vec<u8> = Vec::with_capacity(total.unwrap_or(0) as usize);
+    let mut downloaded: u64 = 0;
+    let mut last = Instant::now();
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| format!("téléchargement de ffmpeg : {e}"))?;
+        downloaded += bytes.len() as u64;
+        buf.extend_from_slice(&bytes);
+        if last.elapsed() >= Duration::from_millis(200) {
+            ffmpeg_emit(&app, downloaded, total, "download");
+            last = Instant::now();
+        }
+    }
+
+    // Extraction (zip synchrone, en tâche bloquante).
+    ffmpeg_emit(&app, downloaded, total, "extract");
     let dir2 = dir.clone();
-    tokio::task::spawn_blocking(move || extract_ffmpeg(&bytes, &dir2))
+    tokio::task::spawn_blocking(move || extract_ffmpeg(&buf, &dir2))
         .await
         .map_err(|e| format!("extraction interrompue : {e}"))??;
 
     if ffmpeg_bin().is_file() {
+        ffmpeg_emit(&app, downloaded, total, "done");
         Ok(())
     } else {
+        ffmpeg_emit(&app, downloaded, total, "error");
         Err("ffmpeg.exe introuvable après extraction".into())
     }
 }
@@ -252,7 +311,7 @@ struct YtFormat {
 /// Analyse une URL : titre, miniature, durée et qualités proposées.
 pub async fn probe(url: String) -> Result<MediaInfo, String> {
     let bin = ensure_yt_dlp().await?;
-    let out = Command::new(&bin)
+    let out = command(&bin)
         .args(["-J", "--no-playlist", "--no-warnings"])
         .arg(&url)
         .stdout(Stdio::piped())
@@ -402,7 +461,7 @@ pub async fn download(
     let url_for_hist = url.clone();
     args.push(url);
 
-    let mut child = Command::new(&bin)
+    let mut child = command(&bin)
         .args(&args)
         // stderr ignoré : on ne le lit pas (un tube plein bloquerait yt-dlp).
         .stdout(Stdio::piped())
@@ -466,6 +525,14 @@ pub async fn download(
                 .and_then(|p| std::path::Path::new(p).file_name())
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "média".to_string());
+            // Taille réelle lue sur le disque : yt-dlp ne rapporte pas toujours
+            // la taille finale (surtout après fusion vidéo+audio) → on évite le
+            // « 0 o » trompeur en interrogeant le fichier.
+            let real_size = filepath
+                .as_deref()
+                .and_then(|p| std::fs::metadata(p).ok())
+                .map(|m| m.len());
+            let final_bytes = real_size.or(last.total).unwrap_or(last.downloaded);
             // Historique persistant (re-téléchargement possible plus tard).
             if let Some(fp) = filepath.clone() {
                 let state = app_hist.state::<crate::manager::AppState>();
@@ -475,7 +542,7 @@ pub async fn download(
                     url: url_for_hist.clone(),
                     display_name: name.clone(),
                     destination: fp,
-                    total_bytes: last.total,
+                    total_bytes: Some(final_bytes),
                     sha256: None,
                     source: "media".to_string(),
                     completed_at: crate::manager::now_secs(),
@@ -483,8 +550,8 @@ pub async fn download(
             }
             emit(&app, MediaProgress {
                 id: id_task.clone(),
-                downloaded: last.total.unwrap_or(last.downloaded),
-                total: last.total,
+                downloaded: final_bytes,
+                total: Some(final_bytes),
                 speed_bps: 0.0,
                 status: "completed".into(),
                 detail: filepath,

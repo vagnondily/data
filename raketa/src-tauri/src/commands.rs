@@ -700,8 +700,8 @@ pub async fn media_tools_status() -> Result<crate::media::ToolsStatus, String> {
 
 /// Télécharge et installe ffmpeg (fusion HD vidéo+audio, conversion MP3).
 #[tauri::command]
-pub async fn install_ffmpeg() -> Result<(), String> {
-    crate::media::install_ffmpeg().await
+pub async fn install_ffmpeg(app: AppHandle) -> Result<(), String> {
+    crate::media::install_ffmpeg(app).await
 }
 
 // ---------------------------------------------------------------------------

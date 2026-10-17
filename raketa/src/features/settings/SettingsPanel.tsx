@@ -6,14 +6,17 @@ import {
   getSettings,
   installFfmpeg,
   mediaToolsStatus,
+  onFfmpegProgress,
   openExternalUrl,
   parseCustomCategories,
   RELEASE_URL,
   setSettings,
+  type FfmpegProgress,
   type Settings,
   type ToolsStatus,
   type UpdateInfo,
 } from "../../lib/api";
+import { formatBytes } from "../../lib/format";
 
 // Ligne d'édition d'une catégorie personnalisée (extensions en texte).
 interface CatRow {
@@ -36,6 +39,15 @@ export function SettingsPanel({ onSaved }: Props) {
   const [upd, setUpd] = useState<UpdateInfo | null | "checking" | "uptodate">(null);
   const [tools, setTools] = useState<ToolsStatus | null>(null);
   const [ffmpegBusy, setFfmpegBusy] = useState(false);
+  const [ffmpegProg, setFfmpegProg] = useState<FfmpegProgress | null>(null);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onFfmpegProgress((p) => setFfmpegProg(p))
+      .then((fn) => (unlisten = fn))
+      .catch(() => {});
+    return () => unlisten?.();
+  }, []);
 
   async function doCheckUpdate() {
     setUpd("checking");
@@ -118,6 +130,7 @@ export function SettingsPanel({ onSaved }: Props) {
   async function doInstallFfmpeg() {
     setFfmpegBusy(true);
     setError(null);
+    setFfmpegProg({ downloaded: 0, total: null, phase: "download", message: null });
     try {
       await installFfmpeg();
       refreshTools();
@@ -125,6 +138,7 @@ export function SettingsPanel({ onSaved }: Props) {
       setError(String(e));
     } finally {
       setFfmpegBusy(false);
+      setFfmpegProg(null);
     }
   }
 
@@ -375,16 +389,39 @@ export function SettingsPanel({ onSaved }: Props) {
         </label>
       </div>
       <div className="setting-row">
-        <label>ffmpeg (YouTube HD / MP3)</label>
+        <label>ffmpeg (vidéo HD / MP3)</label>
         {tools?.ffmpeg ? (
           <span className="badge ok">Installé ✓</span>
         ) : (
           <button className="btn ghost" onClick={doInstallFfmpeg} disabled={ffmpegBusy}>
-            {ffmpegBusy ? "Installation… (~80 Mo)" : "Installer ffmpeg"}
+            {ffmpegBusy ? "Installation en cours…" : "Installer ffmpeg (~80 Mo)"}
           </button>
         )}
-        <span className="hint">Débloque le 1080p+ et l'audio MP3 dans l'onglet YouTube.</span>
+        <span className="hint">Active le 1080p et plus, et l'audio MP3 dans l'onglet Médias.</span>
       </div>
+      {ffmpegBusy && ffmpegProg && (
+        <div className="setting-row ffmpeg-progress-row">
+          <div className="ffmpeg-progress">
+            <div className="progress-track">
+              <div
+                className={`progress-fill ${ffmpegProg.phase === "download" && ffmpegProg.total ? "" : "indeterminate"}`}
+                style={
+                  ffmpegProg.phase === "download" && ffmpegProg.total
+                    ? { width: `${Math.round((ffmpegProg.downloaded / ffmpegProg.total) * 100)}%` }
+                    : undefined
+                }
+              />
+            </div>
+            <span className="hint">
+              {ffmpegProg.phase === "extract"
+                ? "Extraction en cours…"
+                : ffmpegProg.phase === "done"
+                  ? "Terminé ✓"
+                  : `Téléchargement… ${formatBytes(ffmpegProg.downloaded)}${ffmpegProg.total ? " / " + formatBytes(ffmpegProg.total) : ""}`}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="setting-actions">
         <button className="btn primary" onClick={save}>
