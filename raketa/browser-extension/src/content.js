@@ -116,4 +116,30 @@
   setInterval(tick, 1200);
   window.addEventListener("scroll", ensure, true);
   window.addEventListener("resize", ensure);
+
+  // Grabber « autres téléchargements » : à la demande (menu contextuel), on
+  // collecte les liens de fichiers de la page et on les envoie à RAKETA.
+  const FILE_RE =
+    /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|iso|img|bin|exe|msi|apk|xapk|dmg|pkg|deb|rpm|pdf|docx?|xlsx?|pptx?|mp3|flac|wav|m4a|aac|ogg|opus|mp4|mkv|avi|mov|webm|wmv|flv|ts|epub|mobi|psd|ai|csv|srt)(\?|#|$)/i;
+  try {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (!msg || msg.type !== "collect-files") return;
+      const seen = {};
+      let n = 0;
+      document.querySelectorAll("a[href]").forEach((a) => {
+        const h = a.href || "";
+        if (/^https?:/i.test(h) && FILE_RE.test(h) && !seen[h]) {
+          seen[h] = 1;
+          n++;
+          chrome.runtime.sendMessage(
+            { type: "raketa-grab", url: h, kind: "auto" },
+            () => void chrome.runtime.lastError,
+          );
+        }
+      });
+      toast(n > 0 ? "Envoi de " + n + " fichier(s) à RAKETA" : "Aucun fichier détecté sur la page");
+    });
+  } catch (e) {
+    /* hors extension */
+  }
 })();

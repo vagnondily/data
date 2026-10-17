@@ -520,8 +520,8 @@ const NAV_JS: &str = r#"(function(){
       else location.href='https://www.youtube.com/results?search_query='+encodeURIComponent(u);
     });
     var grab=document.createElement('button');
-    grab.textContent='⬇ Récupérer la vidéo';
-    grab.title='Détecter et télécharger la vidéo de cette page avec RAKETA';
+    grab.textContent='⬇ Récupérer';
+    grab.title='Détecter les vidéos et les fichiers téléchargeables de cette page';
     grab.style.cssText='background:#1f6feb;color:#fff;border:1px solid #1f6feb;border-radius:6px;height:28px;padding:0 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;';
     grab.onclick=function(){showGrab();};
     bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(addr);bar.appendChild(grab);
@@ -556,7 +556,14 @@ const NAV_JS: &str = r#"(function(){
     var hosts=[['youtube.com/embed/','YouTube'],['youtube-nocookie.com/embed/','YouTube'],['player.vimeo.com/','Vimeo'],['dailymotion.com/embed/','Dailymotion'],['facebook.com/plugins/video','Facebook'],['w.soundcloud.com/player','SoundCloud']];
     try{Array.prototype.forEach.call(document.querySelectorAll('iframe[src]'),function(f){var src=f.src||'';for(var i=0;i<hosts.length;i++){if(src.indexOf(hosts[i][0])>=0)add('media',src,'Vidéo intégrée · '+hosts[i][1]);}});}catch(e){}
     try{Array.prototype.forEach.call(document.querySelectorAll('video'),function(v){if(v.currentSrc)add('media',v.currentSrc,'Vidéo en lecture');Array.prototype.forEach.call(v.querySelectorAll('source[src]'),function(s){add('media',s.src,'Source vidéo');});});}catch(e){}
-    try{Array.prototype.forEach.call(document.querySelectorAll('a[href]'),function(a){var raw=a.getAttribute('href')||'';var h=a.href||'';if(/^magnet:/i.test(raw))add('torrent',raw,'Torrent (magnet)');else if(/\.torrent(\?|$)/i.test(h))add('torrent',h,'Fichier .torrent');else if(/\.m3u8(\?|$)/i.test(h)||/\.mpd(\?|$)/i.test(h))add('media',h,'Flux vidéo');});}catch(e){}
+    var fileRe=/\.(zip|rar|7z|tar|gz|tgz|bz2|xz|iso|img|bin|exe|msi|apk|xapk|dmg|pkg|deb|rpm|pdf|docx?|xlsx?|pptx?|mp3|flac|wav|m4a|aac|ogg|opus|mp4|mkv|avi|mov|webm|wmv|flv|ts|epub|mobi|psd|ai|csv|srt)(\?|#|$)/i;
+    try{Array.prototype.forEach.call(document.querySelectorAll('a[href]'),function(a){
+      var raw=a.getAttribute('href')||'';var h=a.href||'';
+      if(/^magnet:/i.test(raw))add('torrent',raw,'Torrent (magnet)');
+      else if(/\.torrent(\?|$)/i.test(h))add('torrent',h,'Fichier .torrent');
+      else if(/\.m3u8(\?|$)/i.test(h)||/\.mpd(\?|$)/i.test(h))add('media',h,'Flux vidéo');
+      else if(/^https?:/i.test(h)&&fileRe.test(h)){var fn='';try{fn=decodeURIComponent((h.split('#')[0].split('?')[0].split('/').pop())||'');}catch(_){fn=(h.split('/').pop()||'');}add('file',h,fn||'Fichier');}
+    });}catch(e){}
     add('media', location.href, 'Cette page (extraction automatique)');
     return items;
   }
@@ -574,19 +581,34 @@ const NAV_JS: &str = r#"(function(){
   function sendGrab(kind,url,title){
     location.href='https://grab.raketa.invalid/?kind='+encodeURIComponent(kind)+'&url='+encodeURIComponent(url)+'&title='+encodeURIComponent(title||document.title||'');
   }
+  // Envoi groupé (« Tout télécharger ») : une seule navigation sentinelle avec
+  // un tableau d'URL (côté Rust, chacune est routée vers le bon moteur).
+  function sendGrabMany(kind,urls){
+    location.href='https://grab.raketa.invalid/?kind='+encodeURIComponent(kind)+'&urls='+encodeURIComponent(JSON.stringify(urls));
+  }
+  function kindIcon(k){ return k==='torrent'?'🧲 ':k==='file'?'📄 ':'🎬 '; }
 
   function showGrab(){
     var old=document.getElementById('__raketa_grab'); if(old){old.remove();return;}
     var items=collectMedia();
+    var files=items.filter(function(it){return it.kind==='file';});
     var panel=document.createElement('div');
     panel.id='__raketa_grab';
-    panel.style.cssText='position:fixed;top:46px;right:8px;width:360px;max-height:70vh;overflow:auto;z-index:2147483647;background:#14161a;border:1px solid #272b33;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-family:Segoe UI,Arial,sans-serif;padding:8px;';
-    var head=document.createElement('div');head.textContent='Médias détectés sur la page';head.style.cssText='color:#9aa0a6;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;';panel.appendChild(head);
+    panel.style.cssText='position:fixed;top:46px;right:8px;width:380px;max-height:72vh;overflow:auto;z-index:2147483647;background:#14161a;border:1px solid #272b33;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-family:Segoe UI,Arial,sans-serif;padding:8px;';
+    var head=document.createElement('div');head.textContent='Détecté sur la page';head.style.cssText='color:#9aa0a6;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;';panel.appendChild(head);
+    // Bouton « Tout télécharger » quand plusieurs fichiers sont détectés.
+    if(files.length>1){
+      var all=document.createElement('button');
+      all.textContent='⬇ Tout télécharger ('+files.length+' fichiers)';
+      all.style.cssText='width:100%;background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:9px 10px;margin:2px 0 6px;cursor:pointer;font-size:13px;font-weight:700;';
+      all.onclick=function(){toast('Envoi de '+files.length+' fichiers à RAKETA');panel.remove();sendGrabMany('file',files.map(function(f){return f.url;}));};
+      panel.appendChild(all);
+    }
     items.forEach(function(it){
       var row=document.createElement('button');
       row.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:8px;padding:8px 10px;margin:4px 0;cursor:pointer;';
-      var l=document.createElement('span');l.textContent=(it.kind==='torrent'?'🧲 ':'🎬 ')+it.label;l.style.cssText='font-size:13px;font-weight:600;';
-      var u=document.createElement('span');u.textContent=it.url;u.style.cssText='font-size:11px;color:#9aa0a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:330px;';
+      var l=document.createElement('span');l.textContent=kindIcon(it.kind)+it.label;l.style.cssText='font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:344px;';
+      var u=document.createElement('span');u.textContent=it.url;u.style.cssText='font-size:11px;color:#9aa0a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:344px;';
       row.appendChild(l);row.appendChild(u);
       row.onclick=function(){toast('Envoyé à RAKETA');panel.remove();sendGrab(it.kind,it.url,document.title);};
       panel.appendChild(row);
@@ -669,11 +691,13 @@ pub async fn open_browser(
             if u.host_str() == Some("grab.raketa.invalid") {
                 let mut kind = String::from("media");
                 let mut target = String::new();
+                let mut urls_json: Option<String> = None;
                 let mut title: Option<String> = None;
                 for (k, v) in u.query_pairs() {
                     match k.as_ref() {
                         "kind" => kind = v.into_owned(),
                         "url" => target = v.into_owned(),
+                        "urls" => urls_json = Some(v.into_owned()),
                         "title" => {
                             let t = v.into_owned();
                             if !t.is_empty() {
@@ -682,6 +706,22 @@ pub async fn open_browser(
                         }
                         _ => {}
                     }
+                }
+                // Envoi groupé (« Tout télécharger ») : tableau JSON d'URL.
+                if let Some(j) = urls_json {
+                    if let Ok(list) = serde_json::from_str::<Vec<String>>(&j) {
+                        for one in list.into_iter().take(200) {
+                            if one.trim().is_empty() {
+                                continue;
+                            }
+                            let app2 = app_for_nav.clone();
+                            let kind2 = kind.clone();
+                            tauri::async_runtime::spawn(async move {
+                                route_grab(app2, kind2, one, None).await;
+                            });
+                        }
+                    }
+                    return false;
                 }
                 if !target.is_empty() {
                     let app2 = app_for_nav.clone();

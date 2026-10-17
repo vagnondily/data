@@ -70,6 +70,13 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Récupérer la vidéo avec RAKETA",
     contexts: ["page", "video", "frame", "link"],
   });
+  // Grabber « autres téléchargements » : récupère tous les fichiers de la page
+  // (archives, ISO, PDF, exe, audio…) en une fois, façon « Download all links ».
+  chrome.contextMenus.create({
+    id: "raketa-grab-files",
+    title: "Récupérer les fichiers de la page (RAKETA)",
+    contexts: ["page", "frame"],
+  });
   // Capture automatique activée par défaut.
   chrome.storage.local.get({ autoCapture: true }, () => {});
 });
@@ -82,12 +89,19 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-chrome.contextMenus.onClicked.addListener((info) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "raketa-grab-video") {
     // Page ou lecteur embarqué : yt-dlp sait extraire la vidéo. On évite les
     // blob: (non téléchargeables) en préférant l'iframe puis la page.
     const url = info.frameUrl || info.pageUrl || info.linkUrl;
     if (url) capture(url, "media");
+    return;
+  }
+  if (info.menuItemId === "raketa-grab-files") {
+    // Le content script collecte les liens de fichiers et nous les renvoie.
+    if (tab && tab.id != null) {
+      chrome.tabs.sendMessage(tab.id, { type: "collect-files" }, () => void chrome.runtime.lastError);
+    }
     return;
   }
   const url = info.linkUrl || info.srcUrl || info.pageUrl;
