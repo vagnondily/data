@@ -20,6 +20,24 @@ pub struct Settings {
     pub block_popups: bool,
     /// Surveiller le presse-papiers pour proposer les URLs copiées.
     pub clipboard_watch: bool,
+    /// Jouer un son à la fin d'un téléchargement.
+    pub completion_sound: bool,
+    /// Planificateur : suspendre/reprendre la file à heures fixes.
+    pub scheduler_enabled: bool,
+    /// Heure de reprise de la file (format « HH:MM », vide = jamais).
+    pub start_time: String,
+    /// Heure de suspension de la file (format « HH:MM », vide = jamais).
+    pub stop_time: String,
+    /// Limite de vitesse nocturne (fenêtre horaire dédiée).
+    pub night_limit_enabled: bool,
+    /// Débit nocturne en Ko/s (0 = illimité) appliqué dans la fenêtre.
+    pub night_limit_kbps: u64,
+    /// Début de la fenêtre nocturne (« HH:MM »).
+    pub night_start: String,
+    /// Fin de la fenêtre nocturne (« HH:MM »).
+    pub night_end: String,
+    /// Catégories personnalisées (JSON opaque géré par l'interface).
+    pub custom_categories: String,
 }
 
 impl Settings {
@@ -32,6 +50,15 @@ impl Settings {
             auto_categorize: false,
             block_popups: true,
             clipboard_watch: false,
+            completion_sound: true,
+            scheduler_enabled: false,
+            start_time: String::new(),
+            stop_time: String::new(),
+            night_limit_enabled: false,
+            night_limit_kbps: 0,
+            night_start: "00:00".into(),
+            night_end: "07:00".into(),
+            custom_categories: "[]".into(),
         }
     }
 
@@ -62,6 +89,39 @@ impl Settings {
             if let Some(v) = map.get("clipboard_watch") {
                 s.clipboard_watch = v == "true";
             }
+            if let Some(v) = map.get("completion_sound") {
+                s.completion_sound = v == "true";
+            }
+            if let Some(v) = map.get("scheduler_enabled") {
+                s.scheduler_enabled = v == "true";
+            }
+            if let Some(v) = map.get("start_time") {
+                s.start_time = v.clone();
+            }
+            if let Some(v) = map.get("stop_time") {
+                s.stop_time = v.clone();
+            }
+            if let Some(v) = map.get("night_limit_enabled") {
+                s.night_limit_enabled = v == "true";
+            }
+            if let Some(v) = map.get("night_limit_kbps").and_then(|v| v.parse().ok()) {
+                s.night_limit_kbps = v;
+            }
+            if let Some(v) = map.get("night_start") {
+                if !v.is_empty() {
+                    s.night_start = v.clone();
+                }
+            }
+            if let Some(v) = map.get("night_end") {
+                if !v.is_empty() {
+                    s.night_end = v.clone();
+                }
+            }
+            if let Some(v) = map.get("custom_categories") {
+                if !v.is_empty() {
+                    s.custom_categories = v.clone();
+                }
+            }
         }
         s
     }
@@ -76,6 +136,15 @@ impl Settings {
         put("auto_categorize", self.auto_categorize.to_string())?;
         put("block_popups", self.block_popups.to_string())?;
         put("clipboard_watch", self.clipboard_watch.to_string())?;
+        put("completion_sound", self.completion_sound.to_string())?;
+        put("scheduler_enabled", self.scheduler_enabled.to_string())?;
+        put("start_time", self.start_time.clone())?;
+        put("stop_time", self.stop_time.clone())?;
+        put("night_limit_enabled", self.night_limit_enabled.to_string())?;
+        put("night_limit_kbps", self.night_limit_kbps.to_string())?;
+        put("night_start", self.night_start.clone())?;
+        put("night_end", self.night_end.clone())?;
+        put("custom_categories", self.custom_categories.clone())?;
         Ok(())
     }
 

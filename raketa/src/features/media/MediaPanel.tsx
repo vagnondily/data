@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  installFfmpeg,
   mediaCancel,
   mediaDownload,
   mediaProbe,
@@ -40,6 +41,21 @@ export function MediaPanel({ items, onStarted }: Props) {
   const [quality, setQuality] = useState("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ffmpegBusy, setFfmpegBusy] = useState(false);
+
+  async function addFfmpeg() {
+    setFfmpegBusy(true);
+    setError(null);
+    try {
+      await installFfmpeg();
+      // Relance l'analyse pour proposer les qualités HD / MP3.
+      await analyse();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setFfmpegBusy(false);
+    }
+  }
 
   async function analyse() {
     const u = url.trim();
@@ -128,9 +144,11 @@ export function MediaPanel({ items, onStarted }: Props) {
               </button>
             </div>
             {!info.ffmpeg && (
-              <p className="hint">
-                ⚙️ ffmpeg absent : qualité limitée à 720p et audio en M4A.
-                Installe ffmpeg pour le 1080p+ et le MP3.
+              <p className="hint ffmpeg-hint">
+                ⚙️ ffmpeg absent : qualité limitée à 720p et audio en M4A.{" "}
+                <button className="btn ghost tiny" onClick={addFfmpeg} disabled={ffmpegBusy}>
+                  {ffmpegBusy ? "Installation… (~80 Mo)" : "Installer ffmpeg (1080p+/MP3)"}
+                </button>
               </p>
             )}
           </div>

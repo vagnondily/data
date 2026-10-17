@@ -1,20 +1,22 @@
-import type { DownloadDto } from "../../lib/api";
-import { CATEGORIES, matchesCategory, type CatKey } from "../../lib/category";
+import type { CustomCategory, DownloadDto } from "../../lib/api";
+import { categoriesFor, matchesCategory } from "../../lib/category";
 
 interface Props {
   downloads: DownloadDto[];
-  selected: CatKey;
-  onSelect: (key: CatKey) => void;
+  selected: string;
+  onSelect: (key: string) => void;
+  customs?: CustomCategory[];
 }
 
 // Barre latérale des catégories (façon IDM), avec compteur par catégorie.
-export function CategorySidebar({ downloads, selected, onSelect }: Props) {
-  const count = (key: CatKey) =>
-    downloads.filter((d) => matchesCategory(key, d.display_name, d.status)).length;
+export function CategorySidebar({ downloads, selected, onSelect, customs = [] }: Props) {
+  const cats = categoriesFor(customs);
+  const count = (key: string) =>
+    downloads.filter((d) => matchesCategory(key, d.display_name, d.status, customs)).length;
 
   return (
     <nav className="cat-sidebar" aria-label="Catégories">
-      {CATEGORIES.map((c) => {
+      {cats.map((c) => {
         const n = count(c.key);
         const separator = c.key === "incomplete";
         return (

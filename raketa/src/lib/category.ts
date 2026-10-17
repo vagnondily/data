@@ -29,11 +29,18 @@ reg(["pdf","doc","docx","xls","xlsx","ppt","pptx","txt","epub","mobi","odt","ods
 reg(["zip","rar","7z","tar","gz","bz2","xz","zst","tgz"], "archive");
 reg(["exe","msi","apk","dmg","deb","rpm","appimage","bat","sh","flatpak"], "program");
 
+import type { CustomCategory } from "./api";
+
+// Extension (sans point, en minuscules) d'un nom de fichier.
+export function extOf(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  return dot < 0 ? "" : filename.slice(dot + 1).toLowerCase();
+}
+
 // Catégorie « type » d'un fichier d'après son extension.
 export function categoryOf(filename: string): CatKey {
-  const dot = filename.lastIndexOf(".");
-  if (dot < 0) return "document";
-  const ext = filename.slice(dot + 1).toLowerCase();
+  const ext = extOf(filename);
+  if (!ext) return "document";
   return EXT[ext] ?? "document";
 }
 
@@ -74,12 +81,34 @@ export const CATEGORIES: CatDef[] = [
   { key: "completed", label: "Terminés", icon: "✅" },
 ];
 
-// Teste si un téléchargement appartient à une catégorie.
+// Préfixe des clés de catégories personnalisées.
+export const CUSTOM_PREFIX = "custom:";
+
+// Définitions de la barre latérale, catégories personnalisées incluses.
+export function categoriesFor(customs: CustomCategory[]): CatDef[] {
+  const extra: CatDef[] = customs.map((c) => ({
+    key: (CUSTOM_PREFIX + c.name) as CatKey,
+    label: c.name,
+    icon: "🏷️",
+  }));
+  // Insère les perso juste avant les filtres d'état (Incomplets/Terminés).
+  const base = CATEGORIES.slice(0, -2);
+  const tail = CATEGORIES.slice(-2);
+  return [...base, ...extra, ...tail];
+}
+
+// Teste si un téléchargement appartient à une catégorie (perso comprises).
 export function matchesCategory(
-  cat: CatKey,
+  cat: string,
   filename: string,
   status: string,
+  customs: CustomCategory[] = [],
 ): boolean {
+  if (cat.startsWith(CUSTOM_PREFIX)) {
+    const name = cat.slice(CUSTOM_PREFIX.length);
+    const def = customs.find((c) => c.name === name);
+    return def ? def.exts.includes(extOf(filename)) : false;
+  }
   switch (cat) {
     case "all":
       return true;

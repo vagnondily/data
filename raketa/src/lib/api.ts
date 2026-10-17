@@ -184,6 +184,37 @@ export interface Settings {
   auto_categorize: boolean;
   block_popups: boolean;
   clipboard_watch: boolean;
+  completion_sound: boolean;
+  scheduler_enabled: boolean;
+  start_time: string;
+  stop_time: string;
+  night_limit_enabled: boolean;
+  night_limit_kbps: number;
+  night_start: string;
+  night_end: string;
+  // JSON opaque : [{ name, exts: string[] }]
+  custom_categories: string;
+}
+
+// Catégorie personnalisée définie par l'utilisateur.
+export interface CustomCategory {
+  name: string;
+  exts: string[];
+}
+
+export function parseCustomCategories(json: string): CustomCategory[] {
+  try {
+    const v = JSON.parse(json || "[]");
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter((c) => c && typeof c.name === "string" && Array.isArray(c.exts))
+      .map((c) => ({
+        name: String(c.name),
+        exts: c.exts.map((e: unknown) => String(e).toLowerCase().replace(/^\./, "")),
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export function getSettings(): Promise<Settings> {
@@ -276,6 +307,25 @@ export function mediaDownload(
 
 export function mediaCancel(id: string): Promise<void> {
   return invoke("media_cancel", { id });
+}
+
+export interface ToolsStatus {
+  yt_dlp: boolean;
+  ffmpeg: boolean;
+}
+
+export function mediaToolsStatus(): Promise<ToolsStatus> {
+  return invoke<ToolsStatus>("media_tools_status");
+}
+
+export function installFfmpeg(): Promise<void> {
+  return invoke("install_ffmpeg");
+}
+
+// Applique une limite de débit « à chaud » (planificateur horaire), sans la
+// persister dans les paramètres.
+export function setRateLimitLive(kbps: number): Promise<void> {
+  return invoke("set_rate_limit_live", { kbps });
 }
 
 export function onMediaProgress(

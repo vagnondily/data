@@ -662,3 +662,23 @@ pub async fn media_download(
 pub async fn media_cancel(id: String) -> Result<(), String> {
     crate::media::cancel(id).await
 }
+
+/// Applique une limite de débit « à chaud » sans la persister (utilisé par le
+/// planificateur horaire côté interface : vitesse réduite la nuit, etc.).
+#[tauri::command]
+pub async fn set_rate_limit_live(state: State<'_, AppState>, kbps: u64) -> Result<(), String> {
+    state.engine.set_rate_limit(kbps.saturating_mul(1024));
+    Ok(())
+}
+
+/// État des outils média externes (yt-dlp, ffmpeg).
+#[tauri::command]
+pub async fn media_tools_status() -> Result<crate::media::ToolsStatus, String> {
+    Ok(crate::media::tools_status().await)
+}
+
+/// Télécharge et installe ffmpeg (fusion HD vidéo+audio, conversion MP3).
+#[tauri::command]
+pub async fn install_ffmpeg() -> Result<(), String> {
+    crate::media::install_ffmpeg().await
+}

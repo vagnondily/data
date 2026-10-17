@@ -1201,3 +1201,34 @@ body {
 .progress-fill.cancelled {
   background: var(--red);
 }
+
+/* ---- Paramètres : sections avancées ---- */
+.settings-h {
+  margin: 20px 0 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--blue);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.time-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.setting-row.cat-edit {
+  gap: 8px;
+}
+.setting-row.cat-edit .input.small {
+  max-width: 160px;
+}
+.ffmpeg-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+input[type="time"].input {
+  color-scheme: dark;
+}

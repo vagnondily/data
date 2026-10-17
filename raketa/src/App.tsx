@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDownload,
   checkUpdate,
+  getSettings,
   listDownloads,
   listTorrents,
   onClipboardUrl,
@@ -9,13 +10,16 @@ import {
   onProgress,
   onTorrentProgress,
   openExternalUrl,
+  parseCustomCategories,
   pauseDownload,
   removeDownload,
   resumeDownload,
+  setRateLimitLive,
   type DownloadDto,
   type MediaProgress,
   type Progress,
   type SegmentInfo,
+  type Settings,
   type TorrentProgress,
   type UpdateInfo,
 } from "./lib/api";
@@ -24,7 +28,8 @@ import { DownloadTable } from "./features/downloads/DownloadTable";
 import { CategorySidebar } from "./features/downloads/CategorySidebar";
 import { DownloadDetail } from "./features/downloads/DownloadDetail";
 import { Toolbar } from "./features/downloads/Toolbar";
-import { matchesCategory, type CatKey } from "./lib/category";
+import { matchesCategory } from "./lib/category";
+import { playCompletionSound } from "./lib/sound";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
@@ -33,6 +38,22 @@ import logoMark from "./assets/logo-mark.svg";
 
 type Tab = "http" | "torrents" | "media" | "browser" | "settings";
 
+// Heure locale au format « HH:MM ».
+function hhmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// « now » est-il dans la fenêtre [start, end) (gère le passage de minuit) ?
+function withinWindow(now: string, start: string, end: string): boolean {
+  if (!start || !end) return false;
+  const m = (t: string) => {
+    const [h, mi] = t.split(":").map(Number);
+    return (h || 0) * 60 + (mi || 0);
+  };
+  const [n, s, e] = [m(now), m(start), m(end)];
+  return s <= e ? n >= s && n < e : n >= s || n < e;
+}
+
 export function App() {
   const [tab, setTab] = useState<Tab>("http");
   const [downloads, setDownloads] = useState<DownloadDto[]>([]);
@@ -40,13 +61,33 @@ export function App() {
   const [speeds, setSpeeds] = useState<Record<string, number>>({});
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [category, setCategory] = useState<CatKey>("all");
+  const [category, setCategory] = useState<string>("all");
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   // Téléchargements média (YouTube & co.) suivis globalement.
   const [media, setMedia] = useState<MediaItem[]>([]);
   // Détail des segments (connexions) en direct, par identifiant.
   const [segments, setSegments] = useState<Record<string, SegmentInfo[]>>({});
+  // Préférences (planificateur, son, catégories perso…) chargées globalement.
+  const [settings, setSettings] = useState<Settings | null>(null);
   const downloadsRef = useRef<DownloadDto[]>([]);
+  const settingsRef = useRef<Settings | null>(null);
+  settingsRef.current = settings;
+
+  const customs = useMemo(
+    () => (settings ? parseCustomCategories(settings.custom_categories) : []),
+    [settings],
+  );
+
+  const loadSettings = useCallback(() => {
+    getSettings()
+      .then(setSettings)
+      .catch(() => {});
+  }, []);
+
+  // Joue le son de fin si l'option est active.
+  const chime = useCallback(() => {
+    if (settingsRef.current?.completion_sound) playCompletionSound();
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -69,11 +110,62 @@ export function App() {
   useEffect(() => {
     refresh();
     refreshTorrents();
+    loadSettings();
     // Vérifie les mises à jour au démarrage (silencieux si à jour / hors ligne).
     checkUpdate()
       .then((u) => u && setUpdate(u))
       .catch(() => {});
-  }, [refresh, refreshTorrents]);
+  }, [refresh, refreshTorrents, loadSettings]);
+
+  // Planificateur horaire (façon IDM) : suspend/reprend la file et applique la
+  // limite de vitesse nocturne. La fenêtre de l'app étant ouverte tant que des
+  // téléchargements tournent, l'horloge vit côté interface.
+  useEffect(() => {
+    if (!settings) return;
+    let nightOn = false;
+
+    const pauseAllNow = async () => {
+      const list = await listDownloads().catch(() => [] as DownloadDto[]);
+      await Promise.all(
+        list
+          .filter((d) => d.status === "downloading")
+          .map((d) => pauseDownload(d.id).catch(() => {})),
+      );
+      refresh();
+    };
+    const resumeAllNow = async () => {
+      const list = await listDownloads().catch(() => [] as DownloadDto[]);
+      await Promise.all(
+        list
+          .filter((d) => d.status === "paused")
+          .map((d) => resumeDownload(d.id).catch(() => {})),
+      );
+      refresh();
+    };
+
+    const tick = () => {
+      const s = settingsRef.current;
+      if (!s) return;
+      const now = hhmm(new Date());
+      if (s.scheduler_enabled) {
+        if (s.stop_time && now === s.stop_time) void pauseAllNow();
+        if (s.start_time && now === s.start_time) void resumeAllNow();
+      }
+      if (s.night_limit_enabled) {
+        const inWin = withinWindow(now, s.night_start, s.night_end);
+        if (inWin && !nightOn) {
+          nightOn = true;
+          void setRateLimitLive(s.night_limit_kbps).catch(() => {});
+        } else if (!inWin && nightOn) {
+          nightOn = false;
+          void setRateLimitLive(s.speed_limit_kbps).catch(() => {});
+        }
+      }
+    };
+    tick();
+    const h = window.setInterval(tick, 20000);
+    return () => window.clearInterval(h);
+  }, [settings, refresh]);
 
   // Progression des téléchargements HTTP.
   useEffect(() => {
@@ -112,6 +204,7 @@ export function App() {
         }
         return next;
       });
+      if (p.status === "completed") chime();
     }
 
     return () => {
@@ -133,11 +226,10 @@ export function App() {
   // Progression des téléchargements média (yt-dlp).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    onMediaProgress((p: MediaProgress) =>
-      setMedia((prev) =>
-        prev.map((m) => (m.id === p.id ? { ...m, p } : m)),
-      ),
-    )
+    onMediaProgress((p: MediaProgress) => {
+      setMedia((prev) => prev.map((m) => (m.id === p.id ? { ...m, p } : m)));
+      if (p.status === "completed") chime();
+    })
       .then((fn) => (unlisten = fn))
       .catch(() => {});
     return () => {
@@ -250,6 +342,7 @@ export function App() {
               downloads={downloads}
               selected={category}
               onSelect={setCategory}
+              customs={customs}
             />
             <div className="dl-main">
               <Toolbar
@@ -264,7 +357,7 @@ export function App() {
               <AddDownload onAdded={refresh} />
               <DownloadTable
                 downloads={downloads.filter((d) =>
-                  matchesCategory(category, d.display_name, d.status),
+                  matchesCategory(category, d.display_name, d.status, customs),
                 )}
                 speeds={speeds}
                 onChanged={refresh}
@@ -283,7 +376,7 @@ export function App() {
           />
         )}
         {tab === "browser" && <BrowserPanel />}
-        {tab === "settings" && <SettingsPanel />}
+        {tab === "settings" && <SettingsPanel onSaved={loadSettings} />}
       </main>
 
       {clipUrl && (

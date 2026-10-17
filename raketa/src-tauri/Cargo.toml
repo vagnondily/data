@@ -29,6 +29,7 @@ directories = "5"
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 tiny_http = "0.12"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [features]
 # Permet d'activer les devtools dans les builds de production si besoin.

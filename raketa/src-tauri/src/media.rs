@@ -28,6 +28,10 @@ pub const EVENT_MEDIA: &str = "raketa://media-progress";
 /// URL de la release officielle de yt-dlp (binaire Windows autonome).
 const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
 
+/// Build statique de ffmpeg (Windows 64 bits, GPL) — fusion HD + MP3.
+const FFMPEG_URL: &str =
+    "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip";
+
 /// Registre des annulations : identifiant de média → signal d'annulation.
 fn cancels() -> &'static Mutex<HashMap<String, Arc<Notify>>> {
     static CANCELS: OnceLock<Mutex<HashMap<String, Arc<Notify>>>> = OnceLock::new();
@@ -78,9 +82,27 @@ async fn ensure_yt_dlp() -> Result<PathBuf, String> {
     Ok(path)
 }
 
-/// Indique si ffmpeg est accessible (nécessaire pour fusionner vidéo+audio
-/// haute définition ou convertir en MP3).
+/// Chemin de ffmpeg embarqué (téléchargé via « Installer ffmpeg »), s'il existe.
+fn ffmpeg_bin() -> PathBuf {
+    let name = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    bin_dir().join(name)
+}
+
+/// Emplacement à passer à yt-dlp (`--ffmpeg-location`) si ffmpeg est embarqué.
+fn ffmpeg_location() -> Option<PathBuf> {
+    if ffmpeg_bin().is_file() {
+        Some(bin_dir())
+    } else {
+        None
+    }
+}
+
+/// Indique si ffmpeg est accessible (embarqué ou dans le PATH système).
+/// Nécessaire pour fusionner vidéo+audio HD ou convertir en MP3.
 async fn ffmpeg_available() -> bool {
+    if ffmpeg_location().is_some() {
+        return true;
+    }
     Command::new("ffmpeg")
         .arg("-version")
         .stdout(Stdio::null())
@@ -89,6 +111,86 @@ async fn ffmpeg_available() -> bool {
         .await
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+/// État des outils externes, pour l'interface.
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolsStatus {
+    pub yt_dlp: bool,
+    pub ffmpeg: bool,
+}
+
+/// Renvoie la présence de yt-dlp (embarqué) et de ffmpeg (embarqué ou PATH).
+pub async fn tools_status() -> ToolsStatus {
+    ToolsStatus {
+        yt_dlp: yt_dlp_path().is_file(),
+        ffmpeg: ffmpeg_available().await,
+    }
+}
+
+/// Télécharge et installe ffmpeg (build statique) dans le dossier bin.
+/// Extrait `ffmpeg.exe` et `ffprobe.exe` depuis l'archive zip officielle.
+pub async fn install_ffmpeg() -> Result<(), String> {
+    if ffmpeg_location().is_some() {
+        return Ok(());
+    }
+    let dir = bin_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("création du dossier bin : {e}"))?;
+
+    let bytes = reqwest::Client::new()
+        .get(FFMPEG_URL)
+        .header("User-Agent", "RAKETA")
+        .send()
+        .await
+        .map_err(|e| format!("téléchargement de ffmpeg : {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("téléchargement de ffmpeg : {e}"))?
+        .bytes()
+        .await
+        .map_err(|e| format!("lecture de ffmpeg : {e}"))?;
+
+    // Extraction en tâche bloquante (zip est synchrone).
+    let dir2 = dir.clone();
+    tokio::task::spawn_blocking(move || extract_ffmpeg(&bytes, &dir2))
+        .await
+        .map_err(|e| format!("extraction interrompue : {e}"))??;
+
+    if ffmpeg_bin().is_file() {
+        Ok(())
+    } else {
+        Err("ffmpeg.exe introuvable après extraction".into())
+    }
+}
+
+/// Extrait les exécutables ffmpeg/ffprobe de l'archive zip vers `dir`.
+fn extract_ffmpeg(data: &[u8], dir: &std::path::Path) -> Result<(), String> {
+    use std::io::{Cursor, Read, Write};
+    let mut zip = zip::ZipArchive::new(Cursor::new(data))
+        .map_err(|e| format!("archive ffmpeg illisible : {e}"))?;
+    let wanted = ["ffmpeg.exe", "ffprobe.exe", "ffmpeg", "ffprobe"];
+    for i in 0..zip.len() {
+        let mut entry = zip
+            .by_index(i)
+            .map_err(|e| format!("entrée zip illisible : {e}"))?;
+        let name = entry.name().to_string();
+        let base = name.rsplit('/').next().unwrap_or(&name);
+        if wanted.contains(&base) {
+            let mut buf = Vec::new();
+            entry
+                .read_to_end(&mut buf)
+                .map_err(|e| format!("lecture entrée : {e}"))?;
+            let out = dir.join(base);
+            let mut f = std::fs::File::create(&out)
+                .map_err(|e| format!("création {base} : {e}"))?;
+            f.write_all(&buf).map_err(|e| format!("écriture {base} : {e}"))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(&out, std::fs::Permissions::from_mode(0o755));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Un format téléchargeable proposé à l'utilisateur.
@@ -291,6 +393,11 @@ pub async fn download(
         "-o".into(),
         "%(title).200B.%(ext)s".into(),
     ];
+    // Si ffmpeg est embarqué, on indique son emplacement à yt-dlp.
+    if let Some(loc) = ffmpeg_location() {
+        args.push("--ffmpeg-location".into());
+        args.push(loc.display().to_string());
+    }
     args.extend(format_args(&quality, ffmpeg));
     args.push(url);
 
