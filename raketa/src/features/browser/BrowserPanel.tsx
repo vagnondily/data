@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { openBrowser, openExternalUrl } from "../../lib/api";
 
-// Accès rapides courants (sites légitimes de contenus volumineux).
+// Accès rapides vers des sites légitimes (démo du grabber et contenus libres).
 const QUICK_LINKS = [
+  { label: "YouTube", url: "https://www.youtube.com" },
   { label: "Archive.org", url: "https://archive.org" },
   { label: "Linux ISOs", url: "https://distrowatch.com" },
-  { label: "SuperPSX", url: "https://www.superpsx.com" },
 ];
 
 // Panneau Navigateur : ouvre un navigateur intégré qui capture les
@@ -77,14 +77,19 @@ export function BrowserPanel() {
       {error && <p className="error-text" role="alert">{error}</p>}
 
       <p className="browser-note">
-        🧲 Les téléchargements lancés dans cette fenêtre sont <strong>captés par
-        RAKETA</strong> (moteur rapide multi-segments). Une barre de navigation
-        (retour / avance / recharger / adresse) apparaît en haut de la fenêtre.
+        Sur une vidéo (YouTube, etc.), le bouton <strong>« Télécharger cette
+        vidéo »</strong> apparaît sur le lecteur, avec le choix <strong>vidéo ou
+        audio (MP3)</strong>. Le bouton <strong>« Récupérer »</strong> (en haut)
+        détecte aussi les fichiers de la page. Tout est <strong>capté par
+        RAKETA</strong> (moteur rapide multi-segments).
         <br />
-        ⚠️ Si un site affiche une <strong>« Vérification de sécurité » qui tourne
-        sans finir</strong>, c'est le webview intégré qui ne lui plaît pas :
-        clique sur <strong>« Navigateur système »</strong> pour l'ouvrir dans
-        Chrome/Edge, ou désactive <em>Bloquer les popups</em> dans les Paramètres.
+        La barre du haut s'auto-masque pour laisser le site en pleine hauteur :
+        amenez la souris tout en haut, ou cliquez la languette
+        <strong> « ▾ RAKETA »</strong>, pour la retrouver.
+        <br />
+        ⚠️ Si une <strong>« Vérification de sécurité » tourne sans finir</strong>,
+        cliquez <strong>« Navigateur système »</strong> pour ouvrir le site dans
+        Chrome/Edge.
         <br />
         <span className="hint">
           RAKETA est un téléchargeur généraliste : ne téléchargez que des contenus

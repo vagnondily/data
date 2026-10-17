@@ -708,11 +708,21 @@ pub async fn open_browser(
         return Err("seuls http/https sont autorisés".into());
     }
 
-    let label = format!("browser-{}", Uuid::new_v4().simple());
+    // Fenêtre UNIQUE : si le navigateur est déjà ouvert, on y navigue (session
+    // et cookies conservés) au lieu d'empiler des fenêtres — plus pro et plus
+    // clair pour l'utilisateur.
+    if let Some(existing) = app.get_webview_window("raketa-browser") {
+        existing.navigate(parsed).map_err(|e| e.to_string())?;
+        let _ = existing.show();
+        let _ = existing.unminimize();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
     let app_for_dl = app.clone();
     let app_for_nav = app.clone();
 
-    let mut builder = WebviewWindowBuilder::new(&app, label, WebviewUrl::External(parsed))
+    let mut builder = WebviewWindowBuilder::new(&app, "raketa-browser", WebviewUrl::External(parsed))
         .title("RAKETA — Navigateur")
         .inner_size(1120.0, 800.0)
         .on_navigation(move |u| {
