@@ -71,12 +71,17 @@ pub fn start(app: AppHandle) {
                     .get("title")
                     .and_then(|x| x.as_str())
                     .map(|s| s.to_string());
+                // `quality` (optionnel) : "auto" (vidéo) | "audio" (MP3) | hauteur.
+                let quality = v
+                    .get("quality")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
                 match v.get("url").and_then(|x| x.as_str()) {
                     Some(u) if u.starts_with("http://") || u.starts_with("https://") => {
                         let app2 = app.clone();
                         let url = u.to_string();
                         tauri::async_runtime::spawn(async move {
-                            crate::commands::route_grab(app2, kind, url, title).await;
+                            crate::commands::route_grab(app2, kind, url, title, quality).await;
                         });
                         let _ = req.respond(cors(&origin, 200, "ok"));
                     }

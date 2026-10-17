@@ -51,7 +51,7 @@ function healthNote(t: TorrentProgress): { tone: "err" | "muted"; text: string }
     case "no_connection":
       return {
         tone: "muted",
-        text: "Des pairs existent, mais aucune connexion ne s'établit. Autorisez RAKETA dans le pare-feu Windows (réseaux privé et public).",
+        text: "Des pairs ont été repérés mais aucune connexion ne s'établit. Essayez d'autoriser RAKETA dans le pare-feu. Si rien ne change, c'est souvent le réseau de l'opérateur (NAT/CGNAT) qui bloque l'entrant — le téléchargement peut quand même avancer si des seeders sont joignables.",
       };
     case "checking":
       return { tone: "muted", text: "Recherche de sources (trackers & DHT)…" };
@@ -70,10 +70,18 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
   // Autorisation pare-feu (connexions entrantes des pairs) : "idle" | "busy" | "done".
   const [fw, setFw] = useState<"idle" | "busy" | "done">("idle");
 
-  async function authorizeFirewall() {
+  async function authorizeFirewall(id: number) {
     setFw("busy");
     try {
       await firewallAuthorize();
+      // Re-annonce le torrent (pause puis reprise) pour tenter de reconnecter
+      // les pairs maintenant que le pare-feu autorise l'entrant.
+      try {
+        await pauseTorrent(id);
+        await resumeTorrent(id);
+      } catch {
+        /* non bloquant */
+      }
       setFw("done");
       onChanged();
     } catch {
@@ -199,14 +207,14 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
                   <button
                     className="btn tiny primary torrent-fw-btn"
                     style={{ marginTop: 6, alignSelf: "flex-start" }}
-                    onClick={authorizeFirewall}
+                    onClick={() => authorizeFirewall(t.id)}
                     disabled={fw === "busy"}
                   >
                     <Icon name="shield" size={14} />{" "}
                     {fw === "busy"
                       ? "Autorisation…"
                       : fw === "done"
-                        ? "Autorisé — relancez le torrent"
+                        ? "Autorisé ✓ (reconnexion…)"
                         : "Autoriser RAKETA dans le pare-feu"}
                   </button>
                 )}

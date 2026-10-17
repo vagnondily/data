@@ -25,16 +25,60 @@
     }, 2600);
   }
 
-  function send() {
+  function send(quality) {
     try {
       chrome.runtime.sendMessage(
-        { type: "raketa-grab", url: location.href, kind: "media" },
+        { type: "raketa-grab", url: location.href, kind: "media", quality: quality || "auto" },
         () => void chrome.runtime.lastError,
       );
       toast("Envoyé à RAKETA");
     } catch (e) {
       /* extension non disponible */
     }
+  }
+
+  // Petit menu Vidéo / Audio ancré sous le bouton flottant.
+  function showMenu(anchor) {
+    const old = document.getElementById("__raketa_fmenu");
+    if (old) {
+      old.remove();
+      return;
+    }
+    const r = anchor.getBoundingClientRect();
+    const m = document.createElement("div");
+    m.id = "__raketa_fmenu";
+    m.style.cssText =
+      "position:fixed;z-index:2147483647;top:" +
+      (r.bottom + 6) +
+      "px;left:" +
+      r.left +
+      "px;background:#14161a;border:1px solid #272b33;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:210px;font:600 13px Segoe UI,Arial,sans-serif;";
+    const opt = (label, quality) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.style.cssText =
+        "text-align:left;background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:7px;padding:9px 10px;cursor:pointer;font:600 13px Segoe UI,Arial,sans-serif;";
+      b.onclick = () => {
+        m.remove();
+        send(quality);
+      };
+      return b;
+    };
+    m.appendChild(opt("🎬 Vidéo (meilleure qualité)", "auto"));
+    m.appendChild(opt("🎵 Audio seul (MP3)", "audio"));
+    document.documentElement.appendChild(m);
+    setTimeout(() => {
+      document.addEventListener("mousedown", function h(e) {
+        if (!m.contains(e.target) && e.target !== anchor) {
+          try {
+            m.remove();
+          } catch (_) {
+            /* déjà retiré */
+          }
+          document.removeEventListener("mousedown", h);
+        }
+      });
+    }, 0);
   }
 
   // Le plus grand lecteur visible (vidéo native ou iframe de lecteur connu).
@@ -88,7 +132,10 @@
       x.textContent = "✕";
       x.title = "Masquer";
       x.style.cssText = "opacity:.85;font-weight:700;padding:0 2px;";
-      dl.onclick = send;
+      dl.onclick = (e) => {
+        e.stopPropagation();
+        showMenu(btn);
+      };
       x.onclick = (e) => {
         e.stopPropagation();
         dismissed = true;
@@ -125,19 +172,28 @@
     chrome.runtime.onMessage.addListener((msg) => {
       if (!msg || msg.type !== "collect-files") return;
       const seen = {};
-      let n = 0;
+      const urls = [];
       document.querySelectorAll("a[href]").forEach((a) => {
         const h = a.href || "";
         if (/^https?:/i.test(h) && FILE_RE.test(h) && !seen[h]) {
           seen[h] = 1;
-          n++;
-          chrome.runtime.sendMessage(
-            { type: "raketa-grab", url: h, kind: "auto" },
-            () => void chrome.runtime.lastError,
-          );
+          urls.push(h);
         }
       });
-      toast(n > 0 ? "Envoi de " + n + " fichier(s) à RAKETA" : "Aucun fichier détecté sur la page");
+      if (urls.length === 0) {
+        toast("Aucun fichier détecté sur la page");
+        return;
+      }
+      // Confirmation au-delà de quelques fichiers : évite d'envoyer en masse
+      // des liens publicitaires sur les pages qui en débordent.
+      if (urls.length > 5 && !confirm("Récupérer " + urls.length + " fichiers avec RAKETA ?")) return;
+      urls.forEach((h) =>
+        chrome.runtime.sendMessage(
+          { type: "raketa-grab", url: h, kind: "auto" },
+          () => void chrome.runtime.lastError,
+        ),
+      );
+      toast("Envoi de " + urls.length + " fichier(s) à RAKETA");
     });
   } catch (e) {
     /* hors extension */

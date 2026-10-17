@@ -180,7 +180,13 @@ pub struct GrabbedEvent {
 /// vers le téléchargeur média (yt-dlp), les magnets/.torrent vers le moteur
 /// torrent, le reste vers le moteur HTTP. Généraliste : fonctionne sur
 /// n'importe quelle page (aucun site n'est ciblé en particulier).
-pub(crate) async fn route_grab(app: AppHandle, kind: String, url: String, title: Option<String>) {
+pub(crate) async fn route_grab(
+    app: AppHandle,
+    kind: String,
+    url: String,
+    title: Option<String>,
+    quality: Option<String>,
+) {
     use tauri::Emitter;
 
     // Ramène la fenêtre principale au premier plan pour montrer le transfert.
@@ -194,7 +200,7 @@ pub(crate) async fn route_grab(app: AppHandle, kind: String, url: String, title:
         "media" => match crate::media::download(
             app.clone(),
             url.clone(),
-            "auto".to_string(),
+            quality.filter(|q| !q.is_empty()).unwrap_or_else(|| "auto".to_string()),
             String::new(),
         )
         .await
@@ -578,8 +584,27 @@ const NAV_JS: &str = r#"(function(){
 
   // Envoie le choix à RAKETA via une navigation sentinelle (interceptée et
   // annulée côté Rust : la page courante n'est jamais quittée).
-  function sendGrab(kind,url,title){
-    location.href='https://grab.raketa.invalid/?kind='+encodeURIComponent(kind)+'&url='+encodeURIComponent(url)+'&title='+encodeURIComponent(title||document.title||'');
+  function sendGrab(kind,url,title,quality){
+    location.href='https://grab.raketa.invalid/?kind='+encodeURIComponent(kind)+'&url='+encodeURIComponent(url)+'&title='+encodeURIComponent(title||document.title||'')+(quality?'&quality='+encodeURIComponent(quality):'');
+  }
+  // Petit menu Vidéo / Audio ancré sous le bouton flottant.
+  function showFloatMenu(anchor){
+    var old=document.getElementById('__raketa_fmenu'); if(old){old.remove();return;}
+    var r=anchor.getBoundingClientRect();
+    var m=document.createElement('div');
+    m.id='__raketa_fmenu';
+    m.style.cssText='position:fixed;z-index:2147483647;top:'+(r.bottom+6)+'px;left:'+r.left+'px;background:#14161a;border:1px solid #272b33;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:210px;font-family:Segoe UI,Arial,sans-serif;';
+    function opt(label,quality){
+      var b=document.createElement('button');
+      b.textContent=label;
+      b.style.cssText='text-align:left;background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:7px;padding:9px 10px;cursor:pointer;font-size:13px;font-weight:600;';
+      b.onclick=function(){toast('Envoyé à RAKETA');m.remove();sendGrab('media',location.href,document.title,quality);};
+      return b;
+    }
+    m.appendChild(opt('🎬 Vidéo (meilleure qualité)','auto'));
+    m.appendChild(opt('🎵 Audio seul (MP3)','audio'));
+    (document.documentElement||document.body).appendChild(m);
+    setTimeout(function(){document.addEventListener('mousedown',function h(e){if(!m.contains(e.target)&&e.target!==anchor){try{m.remove();}catch(_){}document.removeEventListener('mousedown',h);}});},0);
   }
   // Envoi groupé (« Tout télécharger ») : une seule navigation sentinelle avec
   // un tableau d'URL (côté Rust, chacune est routée vers le bon moteur).
@@ -644,7 +669,7 @@ const NAV_JS: &str = r#"(function(){
       btn.style.cssText='position:fixed;z-index:2147483647;display:flex;align-items:center;gap:10px;background:rgba(31,111,235,.97);color:#fff;font-family:Segoe UI,Arial,sans-serif;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.5);cursor:pointer;';
       var dl=document.createElement('span');dl.textContent='⬇ Télécharger cette vidéo';
       var x=document.createElement('span');x.textContent='✕';x.title='Masquer';x.style.cssText='opacity:.85;font-weight:700;padding:0 2px;';
-      dl.onclick=function(){toast('Envoyé à RAKETA');sendGrab('media',location.href,document.title);};
+      dl.onclick=function(e){e.stopPropagation();showFloatMenu(btn);};
       x.onclick=function(e){e.stopPropagation();floatDismissed=true;btn.remove();};
       btn.appendChild(dl);btn.appendChild(x);
       (document.documentElement||document.body).appendChild(btn);
@@ -693,11 +718,18 @@ pub async fn open_browser(
                 let mut target = String::new();
                 let mut urls_json: Option<String> = None;
                 let mut title: Option<String> = None;
+                let mut quality: Option<String> = None;
                 for (k, v) in u.query_pairs() {
                     match k.as_ref() {
                         "kind" => kind = v.into_owned(),
                         "url" => target = v.into_owned(),
                         "urls" => urls_json = Some(v.into_owned()),
+                        "quality" => {
+                            let q = v.into_owned();
+                            if !q.is_empty() {
+                                quality = Some(q);
+                            }
+                        }
                         "title" => {
                             let t = v.into_owned();
                             if !t.is_empty() {
@@ -716,8 +748,9 @@ pub async fn open_browser(
                             }
                             let app2 = app_for_nav.clone();
                             let kind2 = kind.clone();
+                            let q2 = quality.clone();
                             tauri::async_runtime::spawn(async move {
-                                route_grab(app2, kind2, one, None).await;
+                                route_grab(app2, kind2, one, None, q2).await;
                             });
                         }
                     }
@@ -726,7 +759,7 @@ pub async fn open_browser(
                 if !target.is_empty() {
                     let app2 = app_for_nav.clone();
                     tauri::async_runtime::spawn(async move {
-                        route_grab(app2, kind, target, title).await;
+                        route_grab(app2, kind, target, title, quality).await;
                     });
                 }
                 return false; // annule la navigation sentinelle

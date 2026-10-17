@@ -13,11 +13,12 @@ const RAKETA = "http://127.0.0.1:47623";
 // --- Envoi d'un lien à RAKETA -------------------------------------------------
 
 // kind : "auto" (lien direct), "media" (vidéo → yt-dlp) ou "torrent".
-async function sendToRaketa(url, kind) {
+// quality : "auto" (vidéo) | "audio" (MP3) — seulement pour les médias.
+async function sendToRaketa(url, kind, quality) {
   const resp = await fetch(RAKETA + "/add", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, kind: kind || "auto" }),
+    body: JSON.stringify({ url, kind: kind || "auto", quality: quality || "auto" }),
   });
   if (!resp.ok) throw new Error("HTTP " + resp.status);
 }
@@ -44,10 +45,10 @@ function notify(title, message) {
   }
 }
 
-async function capture(url, kind) {
+async function capture(url, kind, quality) {
   if (!/^https?:\/\//i.test(url)) return false;
   try {
-    await sendToRaketa(url, kind);
+    await sendToRaketa(url, kind, quality);
     return true;
   } catch {
     notify("RAKETA", "RAKETA n'est pas lancé. Démarre l'application puis réessaie.");
@@ -85,7 +86,7 @@ chrome.runtime.onInstalled.addListener(() => {
 // l'URL de la page, qu'on transmet au téléchargeur média de RAKETA.
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg && msg.type === "raketa-grab" && msg.url) {
-    capture(msg.url, msg.kind || "media");
+    capture(msg.url, msg.kind || "media", msg.quality || "auto");
   }
 });
 
@@ -110,12 +111,27 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // --- Capture automatique des téléchargements ---------------------------------
 
+// Garde anti-rafale : certaines pages (publicités agressives) déclenchent des
+// dizaines de téléchargements d'un coup. On évite d'inonder RAKETA.
+let recentCaptures = [];
+function burstOk() {
+  const now = Date.now();
+  recentCaptures = recentCaptures.filter((t) => now - t < 6000);
+  if (recentCaptures.length >= 8) return false;
+  recentCaptures.push(now);
+  return true;
+}
+
 chrome.downloads.onCreated.addListener(async (item) => {
   const url = item.finalUrl || item.url || "";
   if (!/^https?:\/\//i.test(url)) return;
 
   const { autoCapture } = await chrome.storage.local.get({ autoCapture: true });
   if (!autoCapture) return;
+
+  // Trop de téléchargements en quelques secondes → on laisse le navigateur
+  // gérer (probable rafale publicitaire), pour ne pas remplir RAKETA de déchets.
+  if (!burstOk()) return;
 
   // On ne « vole » le téléchargement que si RAKETA est joignable.
   if (!(await raketaRunning())) return;

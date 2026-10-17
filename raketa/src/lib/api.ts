@@ -338,7 +338,10 @@ export interface MediaProgress {
   speed_bps: number;
   /** Pourcentage fourni par yt-dlp (0–100) ; fiable même sans taille totale. */
   percent: number | null;
-  status: "downloading" | "completed" | "error" | "cancelled";
+  /** "processing" = post-traitement (fusion vidéo+audio, conversion MP3). */
+  status: "downloading" | "processing" | "completed" | "error" | "cancelled";
+  /** Titre réel du média (affiché à la place d'un nom générique). */
+  title: string | null;
   detail: string | null;
 }
 

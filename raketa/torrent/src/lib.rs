@@ -13,6 +13,7 @@ use librqbit::{AddTorrent, AddTorrentOptions, ManagedTorrent, Session, SessionOp
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
@@ -64,10 +65,13 @@ pub struct TorrentProgress {
 }
 
 /// Torrent suivi : la poignée librqbit + l'instant d'ajout (base de temps du
-/// vérificateur de santé : « 0 pair depuis N secondes » ⇒ source absente).
+/// vérificateur de santé), et le maximum de pairs jamais découverts (rend le
+/// diagnostic STABLE : une fois des pairs vus, on ne repasse plus à « aucune
+/// source » quand le compteur retombe à 0 → plus de clignotement du bouton).
 struct Tracked {
     handle: Arc<ManagedTorrent>,
     added_at: Instant,
+    seen_max: Arc<AtomicU32>,
 }
 
 /// Gestionnaire de torrents : encapsule une session librqbit.
@@ -156,6 +160,7 @@ impl TorrentManager {
             Tracked {
                 handle,
                 added_at: Instant::now(),
+                seen_max: Arc::new(AtomicU32::new(0)),
             },
         );
         Ok(id)
@@ -187,26 +192,26 @@ impl TorrentManager {
 
     /// Progression d'un torrent, avec débit lissé calculé entre deux appels.
     pub async fn progress(&self, id: usize) -> Option<TorrentProgress> {
-        let (handle, added_at) = {
+        let (handle, added_at, seen_max) = {
             let g = self.handles.lock().await;
             let t = g.get(&id)?;
-            (t.handle.clone(), t.added_at)
+            (t.handle.clone(), t.added_at, t.seen_max.clone())
         };
-        Some(self.snapshot(&handle, added_at).await)
+        Some(self.snapshot(&handle, added_at, &seen_max).await)
     }
 
     /// Progression de tous les torrents gérés.
     pub async fn list(&self) -> Vec<TorrentProgress> {
-        let tracked: Vec<(Arc<ManagedTorrent>, Instant)> = self
+        let tracked: Vec<(Arc<ManagedTorrent>, Instant, Arc<AtomicU32>)> = self
             .handles
             .lock()
             .await
             .values()
-            .map(|t| (t.handle.clone(), t.added_at))
+            .map(|t| (t.handle.clone(), t.added_at, t.seen_max.clone()))
             .collect();
         let mut out = Vec::with_capacity(tracked.len());
-        for (h, added_at) in tracked {
-            out.push(self.snapshot(&h, added_at).await);
+        for (h, added_at, seen_max) in tracked {
+            out.push(self.snapshot(&h, added_at, &seen_max).await);
         }
         out
     }
@@ -220,7 +225,12 @@ impl TorrentManager {
         Ok(())
     }
 
-    async fn snapshot(&self, handle: &Arc<ManagedTorrent>, added_at: Instant) -> TorrentProgress {
+    async fn snapshot(
+        &self,
+        handle: &Arc<ManagedTorrent>,
+        added_at: Instant,
+        seen_max: &AtomicU32,
+    ) -> TorrentProgress {
         let id = handle.id();
         let stats = handle.stats();
 
@@ -255,6 +265,12 @@ impl TorrentManager {
         // Vérificateur de santé des sources. On laisse une période de grâce au
         // démarrage (résolution des métadonnées d'un magnet, annonce aux
         // trackers/DHT) avant de conclure à l'absence de source.
+        // Maximum de pairs jamais découverts (sticky) : évite de requalifier en
+        // « aucune source » un torrent qui a déjà vu des pairs mais dont le
+        // compteur retombe à 0 d'un tick à l'autre (cause du clignotement).
+        let prev_max = seen_max.fetch_max(peers_seen, Ordering::Relaxed);
+        let max_seen = prev_max.max(peers_seen);
+
         let paused = handle.is_paused();
         let elapsed = added_at.elapsed().as_secs();
         let health = if paused {
@@ -269,11 +285,12 @@ impl TorrentManager {
         } else if elapsed < 30 {
             // Toujours en train de chercher : pas d'alarme prématurée.
             "checking"
-        } else if peers_seen == 0 {
-            // Aucun pair découvert via trackers/DHT ⇒ probablement mort.
+        } else if max_seen == 0 {
+            // Aucun pair jamais découvert via trackers/DHT ⇒ probablement mort.
             "no_source"
         } else {
-            // Des pairs existent mais aucune connexion ⇒ souvent le pare-feu.
+            // Des pairs ont été vus mais aucune connexion ⇒ souvent le pare-feu
+            // (ou un NAT/CGNAT côté opérateur qui bloque l'entrant).
             "no_connection"
         }
         .to_string();

@@ -299,8 +299,12 @@ pub struct MediaProgress {
     /// co.) yt-dlp ne connaît pas la taille totale en octets mais sait le
     /// nombre de fragments → c'est ce pourcentage qui fait avancer la barre.
     pub percent: Option<f64>,
-    /// `downloading` | `completed` | `error` | `cancelled`.
+    /// `downloading` | `processing` (fusion/conversion) | `completed` | `error`
+    /// | `cancelled`.
     pub status: String,
+    /// Titre réel du média (connu dès l'extraction), pour l'afficher au lieu
+    /// d'un nom générique — utile surtout pour les « récupérations » (grab).
+    pub title: Option<String>,
     /// Chemin final du fichier (à la fin) ou message d'erreur.
     pub detail: Option<String>,
 }
@@ -462,6 +466,9 @@ pub async fn download(
         "--no-warnings".into(),
         "--no-simulate".into(),
         "--restrict-filenames".into(),
+        // Titre réel imprimé juste avant le téléchargement (pour l'affichage).
+        "--print".into(),
+        "before_dl:RKTITLE|%(title)s".into(),
         "--print".into(),
         "after_move:RKFILE|%(filepath)s".into(),
         "--progress-template".into(),
@@ -525,6 +532,7 @@ pub async fn download(
             speed_bps: 0.0,
             percent: None,
             status: "downloading".into(),
+            title: None,
             detail: None,
         };
 
@@ -535,7 +543,8 @@ pub async fn download(
                     let _ = child.start_kill();
                     emit(&app, MediaProgress {
                         id: id_task.clone(), downloaded: last.downloaded, total: last.total,
-                        speed_bps: 0.0, percent: last.percent, status: "cancelled".into(), detail: None,
+                        speed_bps: 0.0, percent: last.percent, status: "cancelled".into(),
+                        title: last.title.clone(), detail: None,
                     });
                     cleanup(&id_task).await;
                     return;
@@ -544,12 +553,32 @@ pub async fn download(
                     match line {
                         Ok(Some(l)) => {
                             if let Some(rest) = l.strip_prefix("RKPROG|") {
-                                if let Some(p) = parse_progress(&id_task, rest) {
+                                if let Some(mut p) = parse_progress(&id_task, rest) {
+                                    p.title = last.title.clone(); // conserve le titre connu
                                     last = p.clone();
                                     emit(&app, p);
                                 }
+                            } else if let Some(t) = l.strip_prefix("RKTITLE|") {
+                                let t = t.trim();
+                                if !t.is_empty() && t != "NA" {
+                                    last.title = Some(t.to_string());
+                                    emit(&app, last.clone());
+                                }
                             } else if let Some(fp) = l.strip_prefix("RKFILE|") {
                                 filepath = Some(fp.trim().to_string());
+                            } else if l.contains("[Merger]")
+                                || l.contains("Merging formats")
+                                || l.contains("[ExtractAudio]")
+                                || l.contains("[VideoConvertor]")
+                                || l.starts_with("[Fixup")
+                            {
+                                // Post-traitement (fusion vidéo+audio, conversion
+                                // MP3…) : plus de progression d'octets → on signale
+                                // « Finalisation » pour ne pas rester figé à 100 %.
+                                if last.status == "downloading" {
+                                    last.status = "processing".into();
+                                    emit(&app, last.clone());
+                                }
                             }
                         }
                         Ok(None) => break, // fin de flux
@@ -598,6 +627,7 @@ pub async fn download(
                 speed_bps: 0.0,
                 percent: Some(100.0),
                 status: "completed".into(),
+                title: last.title.clone().or_else(|| Some(name.clone())),
                 detail: filepath,
             });
             use tauri_plugin_notification::NotificationExt;
@@ -621,6 +651,7 @@ pub async fn download(
                 speed_bps: 0.0,
                 percent: last.percent,
                 status: "error".into(),
+                title: last.title.clone(),
                 detail: Some(msg),
             });
         }
@@ -723,6 +754,7 @@ fn parse_progress(id: &str, rest: &str) -> Option<MediaProgress> {
         speed_bps,
         percent,
         status: "downloading".into(),
+        title: None,
         detail: None,
     })
 }

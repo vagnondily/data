@@ -48,7 +48,9 @@ function mediaLabel(status: string): string {
       ? "Erreur"
       : status === "cancelled"
         ? "Annulé"
-        : "Téléchargement";
+        : status === "processing"
+          ? "Finalisation"
+          : "Téléchargement";
 }
 
 // Panneau « Médias » : analyse une URL (YouTube, Vimeo, Dailymotion et ~1000
@@ -112,7 +114,7 @@ export function MediaPanel({ items, onStarted }: Props) {
         id,
         title: info.title,
         thumbnail: info.thumbnail,
-        p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", detail: null },
+        p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", title: null, detail: null },
       });
       setInfo(null);
       setUrl("");
@@ -215,6 +217,7 @@ export function MediaPanel({ items, onStarted }: Props) {
             // ex. flux fragmentés) ; repli sur le calcul octets si absent.
             const pct = m.p.percent ?? percent(m.p.downloaded, m.p.total);
             const done = m.p.status === "completed";
+            const processing = m.p.status === "processing";
             return (
               <div key={m.id} className={`media-row ${m.p.status}`}>
                 {m.thumbnail ? (
@@ -229,8 +232,8 @@ export function MediaPanel({ items, onStarted }: Props) {
                   </div>
                   <div className="progress-track">
                     <div
-                      className={`progress-fill ${done ? "completed" : m.p.status === "error" || m.p.status === "cancelled" ? "error" : ""}`}
-                      style={{ width: `${done ? 100 : pct ?? 0}%` }}
+                      className={`progress-fill ${done ? "completed" : processing ? "indeterminate" : m.p.status === "error" || m.p.status === "cancelled" ? "error" : ""}`}
+                      style={processing ? undefined : { width: `${done ? 100 : pct ?? 0}%` }}
                     />
                   </div>
                   <div className="media-row-stats">
@@ -240,6 +243,8 @@ export function MediaPanel({ items, onStarted }: Props) {
                       <span className="err">{m.p.detail ?? "Échec du téléchargement"}</span>
                     ) : m.p.status === "cancelled" ? (
                       <span className="err">Annulé</span>
+                    ) : processing ? (
+                      <span>Finalisation (fusion vidéo + audio)…</span>
                     ) : (
                       <span>
                         {m.p.total

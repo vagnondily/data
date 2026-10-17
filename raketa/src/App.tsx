@@ -321,7 +321,17 @@ export function App() {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     onMediaProgress((p: MediaProgress) => {
-      setMedia((prev) => prev.map((m) => (m.id === p.id ? { ...m, p } : m)));
+      setMedia((prev) => {
+        // Upsert : si l'élément n'existe pas encore (grab dont l'événement
+        // d'ajout est arrivé après), on le crée pour ne perdre aucune
+        // progression. Le vrai titre (fourni par yt-dlp) remplace « Média ».
+        if (prev.some((m) => m.id === p.id)) {
+          return prev.map((m) =>
+            m.id === p.id ? { ...m, p, title: p.title || m.title } : m,
+          );
+        }
+        return [{ id: p.id, title: p.title || "Média", thumbnail: null, p }, ...prev];
+      });
       if (p.status === "completed") chime();
     })
       .then((fn) => (unlisten = fn))
@@ -339,19 +349,21 @@ export function App() {
     onGrabbed((e) => {
       if (e.kind === "media" && e.id) {
         const id = e.id;
-        setMedia((prev) =>
-          prev.some((m) => m.id === id)
-            ? prev
-            : [
-                {
-                  id,
-                  title: e.title || "Média",
-                  thumbnail: null,
-                  p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", detail: null },
-                },
-                ...prev,
-              ],
-        );
+        setMedia((prev) => {
+          const found = prev.find((m) => m.id === id);
+          if (found) {
+            return e.title ? prev.map((m) => (m.id === id ? { ...m, title: e.title! } : m)) : prev;
+          }
+          return [
+            {
+              id,
+              title: e.title || "Média",
+              thumbnail: null,
+              p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", title: null, detail: null },
+            },
+            ...prev,
+          ];
+        });
         setTab("media");
       } else if (e.kind === "torrent") {
         refreshTorrents();
