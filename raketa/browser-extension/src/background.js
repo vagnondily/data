@@ -78,8 +78,9 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Récupérer les fichiers de la page (RAKETA)",
     contexts: ["page", "frame"],
   });
-  // Capture automatique activée par défaut.
-  chrome.storage.local.get({ autoCapture: true }, () => {});
+  // Capture automatique DÉSACTIVÉE par défaut (évite d'aspirer tout l'historique
+  // / les rafales de pubs). L'utilisateur l'active dans la popup s'il le veut.
+  chrome.storage.local.get({ autoCapture: false }, () => {});
 });
 
 // Bouton flottant « Télécharger cette vidéo » (content script) : il nous envoie
@@ -126,7 +127,7 @@ chrome.downloads.onCreated.addListener(async (item) => {
   const url = item.finalUrl || item.url || "";
   if (!/^https?:\/\//i.test(url)) return;
 
-  const { autoCapture } = await chrome.storage.local.get({ autoCapture: true });
+  const { autoCapture } = await chrome.storage.local.get({ autoCapture: false });
   if (!autoCapture) return;
 
   // Trop de téléchargements en quelques secondes → on laisse le navigateur

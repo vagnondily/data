@@ -466,6 +466,15 @@ pub async fn download(
         "--no-warnings".into(),
         "--no-simulate".into(),
         "--restrict-filenames".into(),
+        // Téléchargement SEGMENTÉ : plusieurs fragments en parallèle (vidéos HD
+        // DASH/HLS) → nettement plus rapide sur les gros volumes. Plus des
+        // reprises robustes sur réseau instable.
+        "--concurrent-fragments".into(),
+        "5".into(),
+        "--retries".into(),
+        "10".into(),
+        "--fragment-retries".into(),
+        "10".into(),
         // Titre réel imprimé juste avant le téléchargement (pour l'affichage).
         "--print".into(),
         "before_dl:RKTITLE|%(title)s".into(),

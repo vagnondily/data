@@ -21,8 +21,10 @@ const autoEl = document.getElementById("auto");
   }
 })();
 
-// Bascule de la capture automatique (persistée).
-chrome.storage.local.get({ autoCapture: true }, (cfg) => {
+// Bascule de la capture automatique (persistée). Désactivée par défaut : elle
+// n'est utile que pour « voler » tous les téléchargements façon IDM, et peut
+// être trop agressive sur les sites à publicités.
+chrome.storage.local.get({ autoCapture: false }, (cfg) => {
   autoEl.checked = cfg.autoCapture;
 });
 autoEl.addEventListener("change", () => {

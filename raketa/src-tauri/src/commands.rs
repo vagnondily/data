@@ -511,6 +511,7 @@ const NAV_JS: &str = r#"(function(){
     var back=btn('◀',function(){history.back();});
     var fwd=btn('▶',function(){history.forward();});
     var rel=btn('↻',function(){location.reload();});
+    var home=btn('⌂',function(){location.href='https://www.google.com/';});
     var addr=document.createElement('input');
     addr.value=location.href;
     addr.spellcheck=false;
@@ -523,15 +524,22 @@ const NAV_JS: &str = r#"(function(){
       var u=addr.value.trim(); if(!u) return;
       if(/^https?:\/\//i.test(u)) location.href=u;
       else if(/^[^\s]+\.[^\s]{2,}($|[\/?#])/.test(u)) location.href='https://'+u;
-      else location.href='https://www.youtube.com/results?search_query='+encodeURIComponent(u);
+      else location.href='https://www.google.com/search?q='+encodeURIComponent(u);
     });
     var grab=document.createElement('button');
     grab.textContent='⬇ Récupérer';
     grab.title='Détecter les vidéos et les fichiers téléchargeables de cette page';
     grab.style.cssText='background:#1f6feb;color:#fff;border:1px solid #1f6feb;border-radius:6px;height:28px;padding:0 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;';
     grab.onclick=function(){showGrab();};
-    bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(addr);bar.appendChild(grab);
+    bar.appendChild(back);bar.appendChild(fwd);bar.appendChild(rel);bar.appendChild(home);bar.appendChild(addr);bar.appendChild(grab);
     (document.documentElement||document.body).appendChild(bar);
+    // Petite languette toujours visible en haut : indique où retrouver la barre
+    // (elle s'auto-masque). Un clic / survol la fait glisser.
+    var nub=document.createElement('div');
+    nub.id='__raketa_nub';nub.textContent='▾ RAKETA';nub.title='Barre RAKETA (adresse, recherche, téléchargement)';
+    nub.style.cssText='position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483646;background:rgba(31,111,235,.92);color:#fff;font:600 10px Segoe UI,Arial,sans-serif;letter-spacing:.5px;padding:2px 12px 3px;border-radius:0 0 8px 8px;cursor:pointer;opacity:.6;';
+    nub.onmouseenter=function(){showBar();};nub.onclick=function(){showBar();};
+    (document.documentElement||document.body).appendChild(nub);
     // Barre auto-masquée : elle n'empiète plus sur le site (plus de décalage du
     // contenu, plus d'en-tête du site caché). Elle glisse vers le bas quand la
     // souris touche le haut de la fenêtre, ou quand on clique dans l'adresse.
