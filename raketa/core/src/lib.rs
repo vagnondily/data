@@ -50,4 +50,4 @@ pub use model::{
 };
 pub use ratelimit::RateLimiter;
 pub use redact::redact_url;
-pub use storage::{DownloadRecord, EventRecord, Store};
+pub use storage::{DownloadRecord, EventRecord, HistoryRecord, Store};

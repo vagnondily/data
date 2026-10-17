@@ -682,3 +682,159 @@ pub async fn media_tools_status() -> Result<crate::media::ToolsStatus, String> {
 pub async fn install_ffmpeg() -> Result<(), String> {
     crate::media::install_ffmpeg().await
 }
+
+// ---------------------------------------------------------------------------
+// Historique des téléchargements (persistant)
+// ---------------------------------------------------------------------------
+
+/// Entrée d'historique exposée au front.
+#[derive(Debug, Serialize)]
+pub struct HistoryDto {
+    pub id: String,
+    /// URL réelle (sert au re-téléchargement — non affichée telle quelle).
+    pub url: String,
+    /// URL expurgée des secrets (pour l'affichage).
+    pub url_display: String,
+    pub display_name: String,
+    pub destination: String,
+    pub total_bytes: Option<u64>,
+    pub sha256: Option<String>,
+    pub source: String,
+    pub completed_at: i64,
+    /// Le fichier existe-t-il encore sur le disque ?
+    pub file_exists: bool,
+}
+
+impl From<raketa_core::HistoryRecord> for HistoryDto {
+    fn from(h: raketa_core::HistoryRecord) -> Self {
+        let file_exists = std::path::Path::new(&h.destination).is_file();
+        let url_display = raketa_core::redact_url(&h.url);
+        Self {
+            id: h.id,
+            url: h.url,
+            url_display,
+            display_name: h.display_name,
+            destination: h.destination,
+            total_bytes: h.total_bytes,
+            sha256: h.sha256,
+            source: h.source,
+            completed_at: h.completed_at,
+            file_exists,
+        }
+    }
+}
+
+/// Liste l'historique des téléchargements (plus récents d'abord).
+#[tauri::command]
+pub async fn list_history(state: State<'_, AppState>) -> Result<Vec<HistoryDto>, String> {
+    let store = state.store.lock().await;
+    let recs = store.list_history(1000).map_err(|e| e.to_string())?;
+    Ok(recs.into_iter().map(HistoryDto::from).collect())
+}
+
+/// Supprime une entrée d'historique (le fichier n'est pas touché).
+#[tauri::command]
+pub async fn delete_history_entry(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    let store = state.store.lock().await;
+    store.delete_history(&id).map_err(|e| e.to_string())
+}
+
+/// Vide tout l'historique.
+#[tauri::command]
+pub async fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
+    let store = state.store.lock().await;
+    store.clear_history().map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Ergonomie de la fenêtre (épingler, mode réduit « à côté de l'écran »)
+// ---------------------------------------------------------------------------
+
+/// Épingle/désépingle la fenêtre au-dessus des autres (toujours visible).
+#[tauri::command]
+pub async fn set_always_on_top(app: AppHandle, on: bool) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("main") {
+        w.set_always_on_top(on).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Mode réduit : fenêtre étroite ancrée à droite de l'écran et épinglée, idéale
+/// pour la garder à côté du navigateur et coller des liens.
+#[tauri::command]
+pub async fn dock_right(app: AppHandle) -> Result<(), String> {
+    use tauri::{LogicalPosition, LogicalSize};
+    if let Some(w) = app.get_webview_window("main") {
+        let width = 460.0;
+        let (mw, mh, mx, my) = match w.current_monitor().map_err(|e| e.to_string())? {
+            Some(m) => {
+                let sf = m.scale_factor();
+                let s = m.size();
+                let p = m.position();
+                (
+                    s.width as f64 / sf,
+                    s.height as f64 / sf,
+                    p.x as f64 / sf,
+                    p.y as f64 / sf,
+                )
+            }
+            None => (1280.0, 800.0, 0.0, 0.0),
+        };
+        let height = (mh - 80.0).max(480.0);
+        w.set_always_on_top(true).map_err(|e| e.to_string())?;
+        w.set_size(LogicalSize::new(width, height))
+            .map_err(|e| e.to_string())?;
+        w.set_position(LogicalPosition::new(mx + mw - width - 12.0, my + 16.0))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Restaure la fenêtre à sa taille normale, centrée et non épinglée.
+#[tauri::command]
+pub async fn restore_window(app: AppHandle) -> Result<(), String> {
+    use tauri::LogicalSize;
+    if let Some(w) = app.get_webview_window("main") {
+        w.set_always_on_top(false).map_err(|e| e.to_string())?;
+        w.set_size(LogicalSize::new(1240.0, 800.0))
+            .map_err(|e| e.to_string())?;
+        let _ = w.center();
+    }
+    Ok(())
+}
+
+/// Re-télécharge un élément existant (liste ou terminé) à partir de son id :
+/// réutilise l'URL réelle stockée (non expurgée) et le dossier d'origine.
+#[tauri::command]
+pub async fn redownload(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<String, String> {
+    let record = {
+        let store = state.store.lock().await;
+        store.get(&id).map_err(|e| e.to_string())?
+    };
+    let Some(record) = record else {
+        return Err("téléchargement introuvable".into());
+    };
+    // Dossier de destination = parent du fichier final (si c'est un chemin de
+    // fichier), sinon la destination telle quelle (déjà un dossier).
+    let p = std::path::Path::new(&record.destination);
+    let dir = if p.extension().is_some() {
+        p.parent()
+            .map(|x| x.to_string_lossy().to_string())
+            .unwrap_or_default()
+    } else {
+        record.destination.clone()
+    };
+    let (task, display_name) =
+        prepare_task(&state, record.url, dir, Some(record.display_name), None).await?;
+    let new_id = task.id.clone();
+    {
+        let store = state.store.lock().await;
+        store.insert(&task, &display_name).map_err(|e| e.to_string())?;
+    }
+    state.submit(app, task).await;
+    Ok(new_id)
+}

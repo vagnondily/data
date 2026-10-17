@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, OnceLock};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::{Mutex, Notify};
@@ -399,6 +399,7 @@ pub async fn download(
         args.push(loc.display().to_string());
     }
     args.extend(format_args(&quality, ffmpeg));
+    let url_for_hist = url.clone();
     args.push(url);
 
     let mut child = Command::new(&bin)
@@ -411,6 +412,7 @@ pub async fn download(
 
     let stdout = child.stdout.take().ok_or("sortie yt-dlp indisponible")?;
     let id_task = id.clone();
+    let app_hist = app.clone();
 
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
@@ -464,6 +466,21 @@ pub async fn download(
                 .and_then(|p| std::path::Path::new(p).file_name())
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "média".to_string());
+            // Historique persistant (re-téléchargement possible plus tard).
+            if let Some(fp) = filepath.clone() {
+                let state = app_hist.state::<crate::manager::AppState>();
+                let store = state.store.lock().await;
+                let _ = store.add_history(&raketa_core::HistoryRecord {
+                    id: id_task.clone(),
+                    url: url_for_hist.clone(),
+                    display_name: name.clone(),
+                    destination: fp,
+                    total_bytes: last.total,
+                    sha256: None,
+                    source: "media".to_string(),
+                    completed_at: crate::manager::now_secs(),
+                });
+            }
             emit(&app, MediaProgress {
                 id: id_task.clone(),
                 downloaded: last.total.unwrap_or(last.downloaded),

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// Version courante du schéma (incrémentée à chaque migration).
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// Enregistrement d'un téléchargement tel que persisté.
 #[derive(Debug, Clone)]
@@ -38,6 +38,21 @@ pub struct EventRecord {
     pub event_type: String,
     pub timestamp: i64,
     pub message: Option<String>,
+}
+
+/// Entrée d'historique persistant (table `history`) : conserve les informations
+/// de base d'un fichier téléchargé pour pouvoir le re-télécharger plus tard.
+#[derive(Debug, Clone)]
+pub struct HistoryRecord {
+    pub id: String,
+    pub url: String,
+    pub display_name: String,
+    pub destination: String,
+    pub total_bytes: Option<u64>,
+    pub sha256: Option<String>,
+    /// Origine : `http`, `media` (yt-dlp) ou `torrent`.
+    pub source: String,
+    pub completed_at: i64,
 }
 
 /// Couche d'accès au stockage.
@@ -137,6 +152,30 @@ impl Store {
                 CREATE INDEX idx_events_download ON events(download_id);
                 "#,
             )?;
+        }
+
+        if current < 2 {
+            // Historique persistant des fichiers téléchargés : survit à la
+            // suppression d'une entrée de la liste active (permet de
+            // re-télécharger un fichier effacé par mégarde).
+            self.conn.execute_batch(
+                r#"
+                CREATE TABLE IF NOT EXISTS history (
+                    id            TEXT PRIMARY KEY,
+                    url           TEXT NOT NULL,
+                    display_name  TEXT NOT NULL,
+                    destination   TEXT NOT NULL,
+                    total_bytes   INTEGER,
+                    sha256        TEXT,
+                    source        TEXT NOT NULL DEFAULT 'http',
+                    completed_at  INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_history_completed ON history(completed_at);
+                "#,
+            )?;
+        }
+
+        if current < SCHEMA_VERSION {
             self.conn
                 .pragma_update(None, "user_version", SCHEMA_VERSION)?;
         }
@@ -322,6 +361,64 @@ impl Store {
         Ok(out)
     }
 
+    /// Ajoute (ou remplace) une entrée d'historique. Idempotent par `id`.
+    pub fn add_history(&self, h: &HistoryRecord) -> Result<()> {
+        self.conn.execute(
+            r#"INSERT OR REPLACE INTO history
+               (id, url, display_name, destination, total_bytes, sha256, source, completed_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
+            params![
+                h.id,
+                h.url,
+                h.display_name,
+                h.destination,
+                h.total_bytes.map(|v| v as i64),
+                h.sha256,
+                h.source,
+                h.completed_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Liste l'historique (plus récent d'abord).
+    pub fn list_history(&self, limit: usize) -> Result<Vec<HistoryRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, url, display_name, destination, total_bytes, sha256, source, completed_at \
+             FROM history ORDER BY completed_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |r| {
+            Ok(HistoryRecord {
+                id: r.get(0)?,
+                url: r.get(1)?,
+                display_name: r.get(2)?,
+                destination: r.get(3)?,
+                total_bytes: r.get::<_, Option<i64>>(4)?.map(|v| v as u64),
+                sha256: r.get(5)?,
+                source: r.get(6)?,
+                completed_at: r.get(7)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// Supprime une entrée d'historique.
+    pub fn delete_history(&self, id: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM history WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    /// Vide tout l'historique.
+    pub fn clear_history(&self) -> Result<()> {
+        self.conn.execute("DELETE FROM history", [])?;
+        Ok(())
+    }
+
     fn log_event(&self, id: &str, event_type: &str, message: &str) -> Result<()> {
         self.conn.execute(
             "INSERT INTO events (download_id, event_type, timestamp, message) VALUES (?1, ?2, ?3, ?4)",
@@ -401,6 +498,34 @@ mod tests {
         let rec = store.get("a").unwrap().unwrap();
         assert_eq!(rec.status, DownloadStatus::Completed);
         assert_eq!(rec.sha256.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn historique_ajout_liste_suppression() {
+        let store = Store::open_in_memory().unwrap();
+        let h = |id: &str, name: &str| HistoryRecord {
+            id: id.to_string(),
+            url: "https://ex.com/f.zip".to_string(),
+            display_name: name.to_string(),
+            destination: format!("/tmp/{name}"),
+            total_bytes: Some(1024),
+            sha256: Some("abc".to_string()),
+            source: "http".to_string(),
+            completed_at: 100,
+        };
+        store.add_history(&h("a", "un.zip")).unwrap();
+        store.add_history(&h("b", "deux.zip")).unwrap();
+        // Idempotent : même id → remplace, pas de doublon.
+        store.add_history(&h("a", "un.zip")).unwrap();
+        assert_eq!(store.list_history(50).unwrap().len(), 2);
+
+        store.delete_history("a").unwrap();
+        let rest = store.list_history(50).unwrap();
+        assert_eq!(rest.len(), 1);
+        assert_eq!(rest[0].display_name, "deux.zip");
+
+        store.clear_history().unwrap();
+        assert_eq!(store.list_history(50).unwrap().len(), 0);
     }
 
     #[test]

@@ -4,6 +4,7 @@ import {
   checkUpdate,
   getSettings,
   listDownloads,
+  dockRight,
   listTorrents,
   onClipboardUrl,
   onMediaProgress,
@@ -13,7 +14,9 @@ import {
   parseCustomCategories,
   pauseDownload,
   removeDownload,
+  restoreWindow,
   resumeDownload,
+  setAlwaysOnTop,
   setRateLimitLive,
   type DownloadDto,
   type MediaProgress,
@@ -34,10 +37,11 @@ import { Icon } from "./components/Icon";
 import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
+import { HistoryPanel } from "./features/history/HistoryPanel";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import logoMark from "./assets/logo-mark.svg";
 
-type Tab = "http" | "torrents" | "media" | "browser" | "settings";
+type Tab = "http" | "torrents" | "media" | "history" | "browser" | "settings";
 
 // Heure locale au format « HH:MM ».
 function hhmm(d: Date): string {
@@ -70,6 +74,9 @@ export function App() {
   const [segments, setSegments] = useState<Record<string, SegmentInfo[]>>({});
   // Préférences (planificateur, son, catégories perso…) chargées globalement.
   const [settings, setSettings] = useState<Settings | null>(null);
+  // Ergonomie fenêtre : épinglée (au-dessus) et mode réduit (ancré à droite).
+  const [pinned, setPinned] = useState(false);
+  const [compact, setCompact] = useState(false);
   const downloadsRef = useRef<DownloadDto[]>([]);
   const settingsRef = useRef<Settings | null>(null);
   settingsRef.current = settings;
@@ -89,6 +96,35 @@ export function App() {
   const chime = useCallback(() => {
     if (settingsRef.current?.completion_sound) playCompletionSound();
   }, []);
+
+  // Épingler la fenêtre au-dessus des autres.
+  async function togglePin() {
+    const next = !pinned;
+    setPinned(next);
+    try {
+      await setAlwaysOnTop(next);
+    } catch {
+      /* hors Tauri */
+    }
+  }
+
+  // Mode réduit : fenêtre étroite ancrée à droite (pour coller des liens), ou
+  // retour à la taille normale.
+  async function toggleCompact() {
+    const next = !compact;
+    setCompact(next);
+    try {
+      if (next) {
+        await dockRight();
+        setPinned(true);
+      } else {
+        await restoreWindow();
+        setPinned(false);
+      }
+    } catch {
+      /* hors Tauri */
+    }
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -298,23 +334,46 @@ export function App() {
             <p>Smart Service Androy · Gestionnaire de téléchargement</p>
           </div>
         </div>
-        <nav className="tabs" aria-label="Sections">
-          <button className={`tab ${tab === "http" ? "active" : ""}`} onClick={() => setTab("http")}>
-            <Icon name="download" size={16} /> Téléchargements
-          </button>
-          <button className={`tab ${tab === "torrents" ? "active" : ""}`} onClick={() => setTab("torrents")}>
-            <Icon name="magnet" size={16} /> Torrents
-          </button>
-          <button className={`tab ${tab === "media" ? "active" : ""}`} onClick={() => setTab("media")}>
-            <Icon name="youtube" size={16} /> YouTube
-          </button>
-          <button className={`tab ${tab === "browser" ? "active" : ""}`} onClick={() => setTab("browser")}>
-            <Icon name="globe" size={16} /> Navigateur
-          </button>
-          <button className={`tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
-            <Icon name="settings" size={16} /> Paramètres
-          </button>
-        </nav>
+        <div className="header-right">
+          <nav className="tabs" aria-label="Sections">
+            <button className={`tab ${tab === "http" ? "active" : ""}`} onClick={() => setTab("http")}>
+              <Icon name="download" size={16} /> <span className="tab-label">Téléchargements</span>
+            </button>
+            <button className={`tab ${tab === "torrents" ? "active" : ""}`} onClick={() => setTab("torrents")}>
+              <Icon name="magnet" size={16} /> <span className="tab-label">Torrents</span>
+            </button>
+            <button className={`tab ${tab === "media" ? "active" : ""}`} onClick={() => setTab("media")}>
+              <Icon name="youtube" size={16} /> <span className="tab-label">Médias</span>
+            </button>
+            <button className={`tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>
+              <Icon name="clock" size={16} /> <span className="tab-label">Historique</span>
+            </button>
+            <button className={`tab ${tab === "browser" ? "active" : ""}`} onClick={() => setTab("browser")}>
+              <Icon name="globe" size={16} /> <span className="tab-label">Navigateur</span>
+            </button>
+            <button className={`tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
+              <Icon name="settings" size={16} /> <span className="tab-label">Paramètres</span>
+            </button>
+          </nav>
+          <div className="win-controls">
+            <button
+              className={`win-btn ${pinned ? "active" : ""}`}
+              onClick={togglePin}
+              title={pinned ? "Ne plus épingler" : "Épingler au-dessus des autres fenêtres"}
+              aria-pressed={pinned}
+            >
+              <Icon name="pin" size={16} />
+            </button>
+            <button
+              className={`win-btn ${compact ? "active" : ""}`}
+              onClick={toggleCompact}
+              title={compact ? "Revenir à la fenêtre normale" : "Mode réduit (ancré à droite de l'écran)"}
+              aria-pressed={compact}
+            >
+              <Icon name={compact ? "maximize" : "panel-right"} size={16} />
+            </button>
+          </div>
+        </div>
       </header>
 
       {update && (
@@ -374,6 +433,14 @@ export function App() {
           <MediaPanel
             items={media}
             onStarted={(item) => setMedia((prev) => [item, ...prev])}
+          />
+        )}
+        {tab === "history" && (
+          <HistoryPanel
+            onRedownloaded={() => {
+              refresh();
+              setTab("http");
+            }}
           />
         )}
         {tab === "browser" && <BrowserPanel />}

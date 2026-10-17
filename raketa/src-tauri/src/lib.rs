@@ -82,6 +82,13 @@ pub fn run() {
             commands::media_tools_status,
             commands::install_ffmpeg,
             commands::set_rate_limit_live,
+            commands::list_history,
+            commands::delete_history_entry,
+            commands::clear_history,
+            commands::set_always_on_top,
+            commands::dock_right,
+            commands::restore_window,
+            commands::redownload,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");

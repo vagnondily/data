@@ -3,6 +3,7 @@ import {
   cancelDownload,
   openFile,
   pauseDownload,
+  redownload,
   removeDownload,
   resumeDownload,
   revealInFolder,
@@ -142,6 +143,15 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                         <Icon name="stop" size={15} />
                       </button>
                     )}
+                    {!isActive && !isPaused && (
+                      <button
+                        className="icon-act"
+                        title="Re-télécharger"
+                        onClick={() => act(async () => { await redownload(d.id); })}
+                      >
+                        <Icon name="rotate" size={15} />
+                      </button>
+                    )}
                     <button className="icon-act danger" title="Supprimer" onClick={() => act(() => removeDownload(d.id, false))}>
                       <Icon name="trash" size={15} />
                     </button>
@@ -224,6 +234,11 @@ function ContextMenu({
       <button onClick={() => act(() => revealInFolder(d.destination))}>
         <Icon name="folder" size={16} /> Ouvrir le dossier
       </button>
+      {!isActive && !isPaused && (
+        <button onClick={() => act(async () => { await redownload(d.id); })}>
+          <Icon name="rotate" size={16} /> Re-télécharger
+        </button>
+      )}
       <div className="ctx-sep" />
       <button onClick={() => { onOpenDetail(d); }}>
         <Icon name="info" size={16} /> Propriétés

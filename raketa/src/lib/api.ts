@@ -104,6 +104,11 @@ export function removeDownload(id: string, deleteFile: boolean): Promise<void> {
   return invoke("remove_download", { id, deleteFile });
 }
 
+// Re-télécharge un élément existant à partir de son id (URL réelle stockée).
+export function redownload(id: string): Promise<string> {
+  return invoke<string>("redownload", { id });
+}
+
 export function openFile(path: string): Promise<void> {
   return invoke("open_file", { path });
 }
@@ -332,4 +337,49 @@ export function onMediaProgress(
   cb: (p: MediaProgress) => void,
 ): Promise<UnlistenFn> {
   return listen<MediaProgress>(EVENT_MEDIA, (event) => cb(event.payload));
+}
+
+// ---------------------------------------------------------------------------
+// Historique des téléchargements (persistant)
+// ---------------------------------------------------------------------------
+
+export interface HistoryItem {
+  id: string;
+  url: string; // URL réelle (re-téléchargement)
+  url_display: string; // URL expurgée (affichage)
+  display_name: string;
+  destination: string;
+  total_bytes: number | null;
+  sha256: string | null;
+  source: string; // "http" | "media" | "torrent"
+  completed_at: number;
+  file_exists: boolean;
+}
+
+export function listHistory(): Promise<HistoryItem[]> {
+  return invoke<HistoryItem[]>("list_history");
+}
+
+export function deleteHistoryEntry(id: string): Promise<void> {
+  return invoke("delete_history_entry", { id });
+}
+
+export function clearHistory(): Promise<void> {
+  return invoke("clear_history");
+}
+
+// ---------------------------------------------------------------------------
+// Ergonomie de la fenêtre
+// ---------------------------------------------------------------------------
+
+export function setAlwaysOnTop(on: boolean): Promise<void> {
+  return invoke("set_always_on_top", { on });
+}
+
+export function dockRight(): Promise<void> {
+  return invoke("dock_right");
+}
+
+export function restoreWindow(): Promise<void> {
+  return invoke("restore_window");
 }

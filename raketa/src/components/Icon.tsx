@@ -197,6 +197,19 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M8 21h8" />
     </>
   ),
+  pin: (
+    <>
+      <path d="M12 17v5" />
+      <path d="M9 3h6l-1 7 3 3v1H7v-1l3-3-1-7z" />
+    </>
+  ),
+  "panel-right": (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M15 4v16" />
+    </>
+  ),
+  maximize: <rect x="4" y="4" width="16" height="16" rx="2" />,
 };
 
 interface Props {

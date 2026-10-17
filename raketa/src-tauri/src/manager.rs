@@ -15,6 +15,14 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{Mutex, Notify};
 
+/// Horodatage epoch en secondes (pour l'historique).
+pub fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
 /// Canal d'événement de progression des téléchargements HTTP.
 pub const EVENT_PROGRESS: &str = "raketa://progress";
 /// Canal d'événement de progression des torrents.
@@ -205,6 +213,22 @@ fn spawn_download(
                 Ok(Outcome::Completed { path, bytes, sha256 }) => {
                     let _ =
                         store.mark_completed(&task.id, sha256.as_deref().unwrap_or(""), &path, bytes);
+                    // Journalise dans l'historique persistant (re-téléchargement
+                    // possible même après suppression de la liste ou du fichier).
+                    let hist_name = std::path::Path::new(&path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| task.id.clone());
+                    let _ = store.add_history(&raketa_core::HistoryRecord {
+                        id: task.id.clone(),
+                        url: task.url.clone(),
+                        display_name: hist_name,
+                        destination: path.clone(),
+                        total_bytes: Some(bytes),
+                        sha256: sha256.clone(),
+                        source: "http".to_string(),
+                        completed_at: now_secs(),
+                    });
                     let _ = app.emit(
                         EVENT_PROGRESS,
                         &Progress {
