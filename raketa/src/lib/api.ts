@@ -151,6 +151,10 @@ export interface TorrentProgress {
   finished: boolean;
   paused: boolean;
   state: string;
+  // Diagnostic de santé des sources (vérificateur automatique) :
+  // "checking" | "healthy" | "no_source" | "no_connection" | "complete"
+  // | "paused" | "error".
+  health: string;
   error: string | null;
 }
 

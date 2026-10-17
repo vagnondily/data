@@ -14,6 +14,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 
 /// Détail d'un fichier contenu dans un torrent (façon uTorrent).
@@ -52,14 +53,28 @@ pub struct TorrentProgress {
     pub paused: bool,
     /// État lisible (live, paused, initializing, error…).
     pub state: String,
+    /// Diagnostic de santé des sources, calculé automatiquement (vérificateur) :
+    /// `checking` (recherche en cours), `healthy` (sources trouvées),
+    /// `no_source` (aucun seeder — torrent probablement mort), `no_connection`
+    /// (des pairs existent mais aucune connexion — souvent le pare-feu),
+    /// `complete`, `paused`, `error`. Permet de dire clairement POURQUOI un
+    /// torrent reste à 0 %, au lieu de laisser l'utilisateur dans le flou.
+    pub health: String,
     pub error: Option<String>,
+}
+
+/// Torrent suivi : la poignée librqbit + l'instant d'ajout (base de temps du
+/// vérificateur de santé : « 0 pair depuis N secondes » ⇒ source absente).
+struct Tracked {
+    handle: Arc<ManagedTorrent>,
+    added_at: Instant,
 }
 
 /// Gestionnaire de torrents : encapsule une session librqbit.
 pub struct TorrentManager {
     session: Arc<Session>,
-    /// Poignées actives, par identifiant interne.
-    handles: Mutex<HashMap<usize, Arc<ManagedTorrent>>>,
+    /// Torrents actifs, par identifiant interne.
+    handles: Mutex<HashMap<usize, Tracked>>,
 }
 
 impl TorrentManager {
@@ -136,13 +151,19 @@ impl TorrentManager {
     async fn register(&self, handle: Option<Arc<ManagedTorrent>>) -> Result<usize> {
         let handle = handle.ok_or_else(|| anyhow::anyhow!("torrent ajouté sans poignée exploitable"))?;
         let id = handle.id();
-        self.handles.lock().await.insert(id, handle);
+        self.handles.lock().await.insert(
+            id,
+            Tracked {
+                handle,
+                added_at: Instant::now(),
+            },
+        );
         Ok(id)
     }
 
     /// Met un torrent en pause.
     pub async fn pause(&self, id: usize) -> Result<()> {
-        if let Some(h) = self.handles.lock().await.get(&id).cloned() {
+        if let Some(h) = self.handles.lock().await.get(&id).map(|t| t.handle.clone()) {
             self.session.pause(&h).await?;
         }
         Ok(())
@@ -150,7 +171,7 @@ impl TorrentManager {
 
     /// Reprend un torrent en pause.
     pub async fn resume(&self, id: usize) -> Result<()> {
-        if let Some(h) = self.handles.lock().await.get(&id).cloned() {
+        if let Some(h) = self.handles.lock().await.get(&id).map(|t| t.handle.clone()) {
             self.session.unpause(&h).await?;
         }
         Ok(())
@@ -158,39 +179,48 @@ impl TorrentManager {
 
     /// Supprime un torrent (et optionnellement ses fichiers).
     pub async fn remove(&self, id: usize, delete_files: bool) -> Result<()> {
-        if let Some(h) = self.handles.lock().await.remove(&id) {
-            self.session.delete(h.info_hash().into(), delete_files).await?;
+        if let Some(t) = self.handles.lock().await.remove(&id) {
+            self.session.delete(t.handle.info_hash().into(), delete_files).await?;
         }
         Ok(())
     }
 
     /// Progression d'un torrent, avec débit lissé calculé entre deux appels.
     pub async fn progress(&self, id: usize) -> Option<TorrentProgress> {
-        let handle = self.handles.lock().await.get(&id).cloned()?;
-        Some(self.snapshot(&handle).await)
+        let (handle, added_at) = {
+            let g = self.handles.lock().await;
+            let t = g.get(&id)?;
+            (t.handle.clone(), t.added_at)
+        };
+        Some(self.snapshot(&handle, added_at).await)
     }
 
     /// Progression de tous les torrents gérés.
     pub async fn list(&self) -> Vec<TorrentProgress> {
-        let handles: Vec<Arc<ManagedTorrent>> =
-            self.handles.lock().await.values().cloned().collect();
-        let mut out = Vec::with_capacity(handles.len());
-        for h in handles {
-            out.push(self.snapshot(&h).await);
+        let tracked: Vec<(Arc<ManagedTorrent>, Instant)> = self
+            .handles
+            .lock()
+            .await
+            .values()
+            .map(|t| (t.handle.clone(), t.added_at))
+            .collect();
+        let mut out = Vec::with_capacity(tracked.len());
+        for (h, added_at) in tracked {
+            out.push(self.snapshot(&h, added_at).await);
         }
         out
     }
 
     /// Attend la fin d'un torrent (utile pour un seeding/attente explicite).
     pub async fn wait_until_completed(&self, id: usize) -> Result<()> {
-        let handle = self.handles.lock().await.get(&id).cloned();
+        let handle = self.handles.lock().await.get(&id).map(|t| t.handle.clone());
         if let Some(h) = handle {
             h.wait_until_completed().await?;
         }
         Ok(())
     }
 
-    async fn snapshot(&self, handle: &Arc<ManagedTorrent>) -> TorrentProgress {
+    async fn snapshot(&self, handle: &Arc<ManagedTorrent>, added_at: Instant) -> TorrentProgress {
         let id = handle.id();
         let stats = handle.stats();
 
@@ -222,6 +252,32 @@ impl TorrentManager {
             })
             .unwrap_or_default();
 
+        // Vérificateur de santé des sources. On laisse une période de grâce au
+        // démarrage (résolution des métadonnées d'un magnet, annonce aux
+        // trackers/DHT) avant de conclure à l'absence de source.
+        let paused = handle.is_paused();
+        let elapsed = added_at.elapsed().as_secs();
+        let health = if paused {
+            "paused"
+        } else if stats.error.is_some() {
+            "error"
+        } else if stats.finished {
+            "complete"
+        } else if peers_live > 0 || speed_bps > 0.0 {
+            // Au moins un pair connecté ou des données qui arrivent : sain.
+            "healthy"
+        } else if elapsed < 30 {
+            // Toujours en train de chercher : pas d'alarme prématurée.
+            "checking"
+        } else if peers_seen == 0 {
+            // Aucun pair découvert via trackers/DHT ⇒ probablement mort.
+            "no_source"
+        } else {
+            // Des pairs existent mais aucune connexion ⇒ souvent le pare-feu.
+            "no_connection"
+        }
+        .to_string();
+
         TorrentProgress {
             id,
             info_hash: format!("{:?}", handle.info_hash()),
@@ -235,8 +291,9 @@ impl TorrentManager {
             peers_seen,
             files,
             finished: stats.finished,
-            paused: handle.is_paused(),
+            paused,
             state: format!("{:?}", stats.state),
+            health,
             error: stats.error,
         }
     }

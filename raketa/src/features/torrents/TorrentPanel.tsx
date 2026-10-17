@@ -21,17 +21,42 @@ function stateLabel(t: TorrentProgress): string {
   if (t.finished) return "Terminé";
   if (t.paused) return "En pause";
   if (t.error) return "Erreur";
+  if (t.peers_live > 0) return "Téléchargement";
+  if (t.health === "no_source") return "Aucune source";
+  if (t.health === "no_connection") return "Bloqué (pare-feu ?)";
   const s = t.state.toLowerCase();
   if (s.includes("initial")) return "Initialisation…";
-  if (s.includes("live")) return t.peers_live > 0 ? "Téléchargement" : "Recherche de pairs…";
-  return t.state;
+  return "Recherche de pairs…";
 }
 
 function pillClass(t: TorrentProgress): string {
   if (t.finished) return "pill-completed";
-  if (t.error) return "pill-error";
+  // « Aucune source » est un vrai blocage : on le signale en rouge.
+  if (t.error || t.health === "no_source") return "pill-error";
   if (t.paused) return "pill-paused";
   return "pill-downloading";
+}
+
+// Message clair du vérificateur de santé : explique POURQUOI un torrent ne
+// démarre pas (aucun seeder vs pare-feu), au lieu d'un éternel « 0 % ».
+function healthNote(t: TorrentProgress): { tone: "err" | "muted"; text: string } | null {
+  if (t.finished || t.paused || t.error) return null;
+  switch (t.health) {
+    case "no_source":
+      return {
+        tone: "err",
+        text: "Aucune source : ce torrent n'a aucun seeder actif (il est probablement « mort »). Essayez un autre lien, ou un torrent mieux partagé.",
+      };
+    case "no_connection":
+      return {
+        tone: "muted",
+        text: "Des pairs existent, mais aucune connexion ne s'établit. Autorisez RAKETA dans le pare-feu Windows (réseaux privé et public).",
+      };
+    case "checking":
+      return { tone: "muted", text: "Recherche de sources (trackers & DHT)…" };
+    default:
+      return null;
+  }
 }
 
 // Panneau torrents : ajout par magnet/URL ou fichier .torrent, liste détaillée
@@ -113,7 +138,7 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
           {torrents.map((t) => {
             const pct = percent(t.downloaded, t.total);
             const isOpen = !!expanded[t.id];
-            const searching = !t.finished && !t.paused && t.peers_live === 0;
+            const note = healthNote(t);
             return (
               <div key={t.id} className={`torrent-card ${t.finished ? "done" : ""} ${t.error ? "err" : ""}`}>
                 <div className="torrent-top">
@@ -151,10 +176,9 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
                 </div>
 
                 {t.error && <p className="error-text torrent-err">{t.error}</p>}
-                {searching && !t.error && (
-                  <p className="hint torrent-hint">
-                    Recherche de pairs… Si rien ne démarre après 1–2 min, autorisez
-                    <strong> RAKETA </strong> dans le pare-feu Windows (réseaux privé et public).
+                {!t.error && note && (
+                  <p className={note.tone === "err" ? "error-text torrent-err" : "hint torrent-hint"}>
+                    {note.text}
                   </p>
                 )}
 
