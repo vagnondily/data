@@ -39,10 +39,10 @@ import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
 import { HistoryPanel } from "./features/history/HistoryPanel";
-import { SettingsPanel } from "./features/settings/SettingsPanel";
+import { SettingsModal } from "./features/settings/SettingsModal";
 import logoMark from "./assets/logo-mark.svg";
 
-type Tab = "http" | "torrents" | "media" | "history" | "browser" | "settings";
+type Tab = "http" | "torrents" | "media" | "history" | "browser";
 
 // Heure locale au format « HH:MM ».
 function hhmm(d: Date): string {
@@ -80,6 +80,8 @@ export function App() {
   const [compact, setCompact] = useState(false);
   // Mode d'ajout (menu Téléchargement) : lien unique ou en masse.
   const [addMode, setAddMode] = useState<"single" | "batch">("single");
+  // Fenêtre de préférences flottante.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const downloadsRef = useRef<DownloadDto[]>([]);
   const settingsRef = useRef<Settings | null>(null);
   settingsRef.current = settings;
@@ -379,10 +381,10 @@ export function App() {
               <Icon name="globe" size={17} />
             </button>
             <button
-              className={`win-btn ${tab === "settings" ? "active" : ""}`}
-              onClick={() => setTab("settings")}
-              title="Paramètres"
-              aria-pressed={tab === "settings"}
+              className={`win-btn ${settingsOpen ? "active" : ""}`}
+              onClick={() => setSettingsOpen(true)}
+              title="Préférences"
+              aria-pressed={settingsOpen}
             >
               <Icon name="settings" size={17} />
             </button>
@@ -444,7 +446,7 @@ export function App() {
                 onPauseAll={pauseAll}
                 onClearCompleted={clearCompleted}
                 onClearAll={clearAll}
-                onSettings={() => setTab("settings")}
+                onSettings={() => setSettingsOpen(true)}
               />
               <AddDownload onAdded={refresh} mode={addMode} onModeChange={setAddMode} />
               <DownloadTable
@@ -476,8 +478,14 @@ export function App() {
           />
         )}
         {tab === "browser" && <BrowserPanel />}
-        {tab === "settings" && <SettingsPanel onSaved={loadSettings} />}
       </main>
+
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onSaved={loadSettings}
+        />
+      )}
 
       {clipUrl && (
         <div className="toast" role="status">

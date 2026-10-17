@@ -1884,3 +1884,103 @@ input[type="time"].input {
   .torrent-file { grid-template-columns: 1fr 60px 44px; }
   .torrent-file .tf-bar { display: none; }
 }
+
+/* ---- Fenêtre de préférences (modale) ---- */
+.settings-modal {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 760px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+.settings-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-modal-head h2 { margin: 0; font-size: 16px; }
+.settings-modal-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+.settings-nav {
+  width: 190px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg);
+  overflow-y: auto;
+}
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+.settings-nav-item:hover { background: var(--bg-elev-2); color: var(--text); }
+.settings-nav-item.active {
+  background: var(--accent-soft);
+  color: var(--blue);
+  border-left-color: var(--blue);
+}
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.settings-content .settings-h:first-child { margin-top: 0; }
+.settings-modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+.settings-foot-spacer { flex: 1; }
+
+.about-box { display: flex; flex-direction: column; gap: 14px; }
+.about-brand h3 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+.about-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 680px) {
+  .settings-modal-body { flex-direction: column; }
+  .settings-nav {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-nav-item { border-left: none; white-space: nowrap; }
+  .settings-nav-item.active { border-left: none; }
+  .settings-nav-item span { display: none; }
+}
