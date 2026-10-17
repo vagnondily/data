@@ -130,6 +130,12 @@ export function onProgress(cb: (p: Progress) => void): Promise<UnlistenFn> {
 // Torrents
 // ---------------------------------------------------------------------------
 
+export interface TorrentFile {
+  name: string;
+  len: number;
+  downloaded: number;
+}
+
 export interface TorrentProgress {
   id: number;
   info_hash: string;
@@ -138,6 +144,10 @@ export interface TorrentProgress {
   total: number;
   uploaded: number;
   speed_bps: number;
+  up_speed_bps: number;
+  peers_live: number;
+  peers_seen: number;
+  files: TorrentFile[];
   finished: boolean;
   paused: boolean;
   state: string;

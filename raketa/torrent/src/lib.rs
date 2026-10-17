@@ -14,8 +14,18 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
 use tokio::sync::Mutex;
+
+/// Détail d'un fichier contenu dans un torrent (façon uTorrent).
+#[derive(Debug, Clone, Serialize)]
+pub struct TorrentFile {
+    /// Chemin relatif dans le torrent.
+    pub name: String,
+    /// Taille totale du fichier.
+    pub len: u64,
+    /// Octets déjà téléchargés pour ce fichier.
+    pub downloaded: u64,
+}
 
 /// Instantané de progression d'un torrent, destiné à l'interface.
 #[derive(Debug, Clone, Serialize)]
@@ -28,8 +38,16 @@ pub struct TorrentProgress {
     pub downloaded: u64,
     pub total: u64,
     pub uploaded: u64,
-    /// Débit de téléchargement lissé en octets/seconde.
+    /// Débit de téléchargement en octets/seconde (fourni par le moteur).
     pub speed_bps: f64,
+    /// Débit d'envoi (seed) en octets/seconde.
+    pub up_speed_bps: f64,
+    /// Pairs connectés (actifs).
+    pub peers_live: u32,
+    /// Pairs découverts au total (via trackers/DHT).
+    pub peers_seen: u32,
+    /// Détail par fichier (nom, taille, progression).
+    pub files: Vec<TorrentFile>,
     pub finished: bool,
     pub paused: bool,
     /// État lisible (live, paused, initializing, error…).
@@ -42,8 +60,6 @@ pub struct TorrentManager {
     session: Arc<Session>,
     /// Poignées actives, par identifiant interne.
     handles: Mutex<HashMap<usize, Arc<ManagedTorrent>>>,
-    /// Points de mesure pour le calcul de débit (id → (instant, octets)).
-    marks: Mutex<HashMap<usize, (Instant, u64)>>,
 }
 
 impl TorrentManager {
@@ -71,7 +87,6 @@ impl TorrentManager {
         Self {
             session,
             handles: Mutex::new(HashMap::new()),
-            marks: Mutex::new(HashMap::new()),
         }
     }
 
@@ -146,7 +161,6 @@ impl TorrentManager {
         if let Some(h) = self.handles.lock().await.remove(&id) {
             self.session.delete(h.info_hash().into(), delete_files).await?;
         }
-        self.marks.lock().await.remove(&id);
         Ok(())
     }
 
@@ -180,24 +194,33 @@ impl TorrentManager {
         let id = handle.id();
         let stats = handle.stats();
 
-        // Débit lissé : delta d'octets depuis le dernier instantané.
-        let now = Instant::now();
-        let speed_bps = {
-            let mut marks = self.marks.lock().await;
-            let speed = match marks.get(&id) {
-                Some((last_t, last_b)) => {
-                    let dt = now.duration_since(*last_t).as_secs_f64();
-                    if dt > 0.0 {
-                        stats.progress_bytes.saturating_sub(*last_b) as f64 / dt
-                    } else {
-                        0.0
-                    }
-                }
-                None => 0.0,
-            };
-            marks.insert(id, (now, stats.progress_bytes));
-            speed
+        // Débits et pairs fournis directement par le moteur (fiables).
+        let (speed_bps, up_speed_bps, peers_live, peers_seen) = match &stats.live {
+            Some(l) => (
+                l.download_speed.as_bytes() as f64,
+                l.upload_speed.as_bytes() as f64,
+                l.snapshot.peer_stats.live,
+                l.snapshot.peer_stats.seen,
+            ),
+            None => (0.0, 0.0, 0, 0),
         };
+
+        // Détail par fichier (nom, taille, progression) — façon uTorrent.
+        // `with_metadata` échoue tant qu'un magnet n'a pas résolu ses métadonnées
+        // (on renvoie alors une liste vide, sans planter).
+        let files: Vec<TorrentFile> = handle
+            .with_metadata(|m| {
+                m.file_infos
+                    .iter()
+                    .enumerate()
+                    .map(|(i, fi)| TorrentFile {
+                        name: fi.relative_filename.to_string_lossy().to_string(),
+                        len: fi.len,
+                        downloaded: stats.file_progress.get(i).copied().unwrap_or(0),
+                    })
+                    .collect::<Vec<TorrentFile>>()
+            })
+            .unwrap_or_default();
 
         TorrentProgress {
             id,
@@ -207,6 +230,10 @@ impl TorrentManager {
             total: stats.total_bytes,
             uploaded: stats.uploaded_bytes,
             speed_bps,
+            up_speed_bps,
+            peers_live,
+            peers_seen,
+            files,
             finished: stats.finished,
             paused: handle.is_paused(),
             state: format!("{:?}", stats.state),

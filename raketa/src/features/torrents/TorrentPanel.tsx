@@ -8,18 +8,39 @@ import {
   resumeTorrent,
   type TorrentProgress,
 } from "../../lib/api";
-import { formatBytes, formatSpeed, percent } from "../../lib/format";
+import { Icon } from "../../components/Icon";
+import { formatBytes, formatEta, formatSpeed, percent } from "../../lib/format";
 
 interface Props {
   torrents: TorrentProgress[];
   onChanged: () => void;
 }
 
-// Panneau torrents : ajout par magnet/URL ou fichier .torrent, liste et actions.
+// État lisible pour l'utilisateur, en clair.
+function stateLabel(t: TorrentProgress): string {
+  if (t.finished) return "Terminé";
+  if (t.paused) return "En pause";
+  if (t.error) return "Erreur";
+  const s = t.state.toLowerCase();
+  if (s.includes("initial")) return "Initialisation…";
+  if (s.includes("live")) return t.peers_live > 0 ? "Téléchargement" : "Recherche de pairs…";
+  return t.state;
+}
+
+function pillClass(t: TorrentProgress): string {
+  if (t.finished) return "pill-completed";
+  if (t.error) return "pill-error";
+  if (t.paused) return "pill-paused";
+  return "pill-downloading";
+}
+
+// Panneau torrents : ajout par magnet/URL ou fichier .torrent, liste détaillée
+// (pairs, débits, fichiers) façon uTorrent, et actions.
 export function TorrentPanel({ torrents, onChanged }: Props) {
   const [magnet, setMagnet] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
   async function submitMagnet() {
     const url = magnet.trim();
@@ -57,77 +78,146 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
   }
 
   return (
-    <section className="add-panel" aria-label="Torrents">
-      <div className="add-row">
-        <input
-          type="text"
-          className="input url-input"
-          placeholder="Collez un lien magnet:?xt=… ou une URL .torrent"
-          value={magnet}
-          onChange={(e) => setMagnet(e.target.value)}
-          aria-label="Lien magnet ou URL torrent"
-        />
-        <button className="btn ghost" onClick={pickFile} disabled={busy}>
-          Fichier .torrent
-        </button>
-        <button className="btn primary" onClick={submitMagnet} disabled={busy}>
-          Ajouter
-        </button>
+    <section className="torrent-panel" aria-label="Torrents">
+      <div className="add-panel">
+        <div className="add-row">
+          <input
+            type="text"
+            className="input url-input"
+            placeholder="Collez un lien magnet:?xt=… ou une URL .torrent"
+            value={magnet}
+            onChange={(e) => setMagnet(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submitMagnet()}
+            aria-label="Lien magnet ou URL torrent"
+          />
+          <button className="btn ghost" onClick={pickFile} disabled={busy}>
+            <Icon name="folder" size={16} /> Fichier .torrent
+          </button>
+          <button className="btn primary" onClick={submitMagnet} disabled={busy}>
+            <Icon name="plus" size={16} /> Ajouter
+          </button>
+        </div>
+        {error && <p className="error-text" role="alert">{error}</p>}
       </div>
 
-      {error && <p className="error-text" role="alert">{error}</p>}
-
-      {torrents.length > 0 && (
-        <div className="dl-list" style={{ marginTop: 14 }}>
+      {torrents.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon"><Icon name="magnet" size={38} /></div>
+          <p className="empty-title">Aucun torrent</p>
+          <p className="empty-hint">
+            Ajoutez un lien magnet ou un fichier .torrent pour démarrer.
+          </p>
+        </div>
+      ) : (
+        <div className="torrent-list">
           {torrents.map((t) => {
             const pct = percent(t.downloaded, t.total);
+            const isOpen = !!expanded[t.id];
+            const searching = !t.finished && !t.paused && t.peers_live === 0;
             return (
-              <div key={t.id} className={`dl-item ${t.finished ? "status-completed" : ""}`}>
-                <div className="dl-main">
-                  <div className="dl-head">
-                    <span className="dl-name" title={t.name}>
-                      🧲 {t.name}
+              <div key={t.id} className={`torrent-card ${t.finished ? "done" : ""} ${t.error ? "err" : ""}`}>
+                <div className="torrent-top">
+                  <span className="torrent-icon"><Icon name="magnet" size={18} /></span>
+                  <span className="torrent-name" title={t.name}>{t.name}</span>
+                  <span className={`${pillClass(t)} torrent-pill`}>{stateLabel(t)}</span>
+                </div>
+
+                <div className="progress-track">
+                  <div
+                    className={`progress-fill ${pct === null ? "indeterminate" : ""} ${t.finished ? "completed" : ""}`}
+                    style={pct !== null ? { width: `${pct}%` } : undefined}
+                  />
+                </div>
+
+                <div className="torrent-stats">
+                  <span className="t-primary">
+                    {formatBytes(t.downloaded)}{t.total ? ` / ${formatBytes(t.total)}` : ""}
+                    {pct !== null ? ` · ${pct}%` : ""}
+                  </span>
+                  {!t.finished && (
+                    <span title="Débit de téléchargement">
+                      <Icon name="download" size={13} /> {formatSpeed(t.speed_bps)}
                     </span>
-                    <span className={`dl-status ${t.finished ? "pill-completed" : "pill-downloading"}`}>
-                      {t.finished ? "Terminé" : t.paused ? "En pause" : t.state}
-                    </span>
-                  </div>
-                  <div className="progress-track" role="progressbar" aria-valuenow={pct ?? 0}>
-                    <div
-                      className={`progress-fill ${pct === null ? "indeterminate" : ""}`}
-                      style={pct !== null ? { width: `${pct}%` } : undefined}
-                    />
-                  </div>
-                  <div className="dl-meta">
-                    <span>
-                      {formatBytes(t.downloaded)}
-                      {t.total ? ` / ${formatBytes(t.total)}` : ""}
-                      {pct !== null ? ` · ${pct}%` : ""}
-                    </span>
-                    {!t.finished && !t.paused && <span>⬇ {formatSpeed(t.speed_bps)}</span>}
-                    <span>⬆ {formatBytes(t.uploaded)}</span>
-                    {t.error && <span className="error-text">{t.error}</span>}
+                  )}
+                  <span title="Débit d'envoi (seed)">
+                    <Icon name="rotate" size={13} /> {formatSpeed(t.up_speed_bps)}
+                  </span>
+                  <span title="Pairs connectés / découverts">
+                    Pairs : {t.peers_live} / {t.peers_seen}
+                  </span>
+                  {!t.finished && t.peers_live > 0 && (
+                    <span>Restant : {formatEta(t.downloaded, t.total, t.speed_bps)}</span>
+                  )}
+                </div>
+
+                {t.error && <p className="error-text torrent-err">{t.error}</p>}
+                {searching && !t.error && (
+                  <p className="hint torrent-hint">
+                    Recherche de pairs… Si rien ne démarre après 1–2 min, autorisez
+                    <strong> RAKETA </strong> dans le pare-feu Windows (réseaux privé et public).
+                  </p>
+                )}
+
+                <div className="torrent-actions">
+                  {t.files.length > 0 && (
+                    <button
+                      className="btn tiny ghost"
+                      onClick={() => setExpanded((p) => ({ ...p, [t.id]: !isOpen }))}
+                    >
+                      <Icon name="chevron-down" size={14} className={isOpen ? "caret-up" : ""} />
+                      {isOpen ? "Masquer" : "Fichiers"} ({t.files.length})
+                    </button>
+                  )}
+                  <div className="torrent-actions-right">
+                    {!t.finished &&
+                      (t.paused ? (
+                        <button className="btn tiny primary" onClick={() => resumeTorrent(t.id).then(onChanged)}>
+                          <Icon name="play" size={14} /> Reprendre
+                        </button>
+                      ) : (
+                        <button className="btn tiny" onClick={() => pauseTorrent(t.id).then(onChanged)}>
+                          <Icon name="pause" size={14} /> Pause
+                        </button>
+                      ))}
+                    <button
+                      className="btn tiny"
+                      onClick={() => removeTorrent(t.id, false).then(onChanged)}
+                      title="Retirer de la liste (conserve les fichiers)"
+                    >
+                      Retirer
+                    </button>
+                    <button
+                      className="btn tiny danger"
+                      onClick={() => removeTorrent(t.id, true).then(onChanged)}
+                      title="Supprimer le torrent et ses fichiers du disque"
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
                   </div>
                 </div>
-                <div className="dl-actions">
-                  {!t.finished &&
-                    (t.paused ? (
-                      <button className="btn tiny primary" onClick={() => resumeTorrent(t.id).then(onChanged)}>
-                        Reprendre
-                      </button>
-                    ) : (
-                      <button className="btn tiny" onClick={() => pauseTorrent(t.id).then(onChanged)}>
-                        Pause
-                      </button>
-                    ))}
-                  <button
-                    className="btn tiny danger"
-                    onClick={() => removeTorrent(t.id, false).then(onChanged)}
-                    title="Retirer de la liste (garde les fichiers)"
-                  >
-                    Retirer
-                  </button>
-                </div>
+
+                {isOpen && t.files.length > 0 && (
+                  <div className="torrent-files">
+                    {t.files.map((f, i) => {
+                      const fp = percent(f.downloaded, f.len);
+                      return (
+                        <div className="torrent-file" key={i}>
+                          <span className="tf-name" title={f.name}>{f.name}</span>
+                          <span className="tf-bar">
+                            <span className="mini-track">
+                              <span
+                                className="mini-fill"
+                                style={{ width: `${fp ?? 0}%` }}
+                              />
+                            </span>
+                          </span>
+                          <span className="tf-size">{formatBytes(f.len)}</span>
+                          <span className="tf-pct">{fp ?? 0}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
