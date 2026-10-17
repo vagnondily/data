@@ -234,6 +234,9 @@ function ContextMenu({
       <button onClick={() => act(() => revealInFolder(d.destination))}>
         <Icon name="folder" size={16} /> Ouvrir le dossier
       </button>
+      <button onClick={() => act(async () => { try { await navigator.clipboard.writeText(d.url); } catch { /* presse-papiers indisponible */ } })}>
+        <Icon name="clipboard" size={16} /> Copier le lien
+      </button>
       {!isActive && !isPaused && (
         <button onClick={() => act(async () => { await redownload(d.id); })}>
           <Icon name="rotate" size={16} /> Re-télécharger

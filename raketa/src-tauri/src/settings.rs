@@ -52,7 +52,10 @@ impl Settings {
             speed_limit_kbps: 0,
             default_dir,
             auto_categorize: false,
-            block_popups: true,
+            // Mode « compatibilité agressif » (détourne les popups, réactive le
+            // clic droit) : OFF par défaut car il casse certains sites (connexions
+            // en popup, applications web). L'utilisateur l'active au besoin.
+            block_popups: false,
             clipboard_watch: false,
             completion_sound: true,
             scheduler_enabled: false,

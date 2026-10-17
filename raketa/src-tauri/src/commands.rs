@@ -478,11 +478,11 @@ pub async fn set_settings(
 const NAV_JS: &str = r#"(function(){
   if (window.__raketaNav) return; window.__raketaNav = true;
 
-  // --- 1) Navigateur à fenêtre unique : window.open navigue dans la fenêtre
-  //        courante. Un lien de téléchargement (Content-Disposition) déclenche
-  //        alors le hook on_download et RAKETA capte le fichier, au lieu d'une
-  //        popup bloquée par WebView2. Comportement général de navigateur.
-  try {
+  // --- 1) (OPTIONNEL — mode compatibilité agressif, désactivé par défaut)
+  //        window.open est détourné vers la fenêtre courante pour capter les
+  //        téléchargements ouverts en popup. Désactivé par défaut car cela
+  //        casse les connexions/paiements en popup (OAuth, etc.).
+  if (window.__rkAgg) { try {
     var _open = window.open;
     window.open = function(u, n, f){
       try {
@@ -490,16 +490,16 @@ const NAV_JS: &str = r#"(function(){
       } catch (e) { try { return _open.call(window, u, n, f); } catch (e2) {} }
       return window;
     };
-  } catch (e) {}
+  } catch (e) {} }
 
-  // --- 2) Réactive le clic droit / la sélection que certaines pages désactivent
-  //        (copie de lien, menu contextuel). On neutralise leurs gestionnaires
-  //        en phase de capture sans casser les menus légitimes des pages.
-  try {
-    ['contextmenu','selectstart','copy','dragstart'].forEach(function(evt){
+  // --- 2) (OPTIONNEL — même mode) Réactive le clic droit et la sélection sur
+  //        les sites qui les bloquent. Limité à contextmenu/selectstart pour ne
+  //        pas casser les applications web qui gèrent copier/glisser.
+  if (window.__rkAgg) { try {
+    ['contextmenu','selectstart'].forEach(function(evt){
       window.addEventListener(evt, function(e){ e.stopImmediatePropagation(); }, true);
     });
-  } catch (e) {}
+  } catch (e) {} }
 
   // --- 3) Barre de navigation (retour / avance / recharger / adresse).
   function build(){
@@ -695,18 +695,21 @@ const NAV_JS: &str = r#"(function(){
 })();"#;
 
 /// Ouvre une fenêtre navigateur intégrée sur `url`. Les téléchargements lancés
-/// depuis cette fenêtre sont **captés par RAKETA** (envoyés au moteur rapide) ;
-/// les popups sont bloqués si l'option est active.
+/// depuis cette fenêtre sont **captés par RAKETA** (envoyés au moteur rapide).
+/// Le mode « compatibilité agressif » (détour des popups + réactivation du clic
+/// droit) n'est activé que si l'option `block_popups` est cochée.
 #[tauri::command]
 pub async fn open_browser(
     app: AppHandle,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     url: String,
 ) -> Result<(), String> {
     let parsed: url::Url = url.parse().map_err(|_| "URL invalide".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("seuls http/https sont autorisés".into());
     }
+    // Mode agressif (popups/clic droit) : seulement si l'utilisateur l'a activé.
+    let aggressive = state.settings.lock().await.block_popups;
 
     // Fenêtre UNIQUE : si le navigateur est déjà ouvert, on y navigue (session
     // et cookies conservés) au lieu d'empiler des fenêtres — plus pro et plus
@@ -806,9 +809,10 @@ pub async fn open_browser(
             true
         });
 
-    // Barre de navigation + fenêtre unique (window.open → navigation) + clic
-    // droit réactivé. Les téléchargements sont captés par le moteur RAKETA.
-    builder = builder.initialization_script(NAV_JS);
+    // Barre de navigation + grabber. Le drapeau __rkAgg active (ou non) le mode
+    // compatibilité agressif (popups/clic droit) selon le réglage utilisateur.
+    let script = format!("window.__rkAgg={};\n{}", aggressive, NAV_JS);
+    builder = builder.initialization_script(script);
 
     builder.build().map_err(|e| e.to_string())?;
     Ok(())

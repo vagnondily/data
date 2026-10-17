@@ -263,10 +263,14 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                   </label>
                 </div>
                 <div className="setting-row">
-                  <label>Bloquer les fenêtres publicitaires</label>
+                  <label>Mode anti-popups agressif</label>
                   <label className="switch">
                     <input type="checkbox" checked={s.block_popups} onChange={(e) => update("block_popups", e.target.checked)} />
-                    <span className="hint">Dans le navigateur intégré.</span>
+                    <span className="hint">
+                      Navigateur intégré : détourne les popups et réactive le clic droit.
+                      Désactivé par défaut — peut gêner certains sites (connexions en
+                      popup, applications web). À n'activer que si besoin.
+                    </span>
                   </label>
                 </div>
                 <div className="setting-row">
