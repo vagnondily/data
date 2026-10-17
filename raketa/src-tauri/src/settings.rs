@@ -38,6 +38,10 @@ pub struct Settings {
     pub night_end: String,
     /// Catégories personnalisées (JSON opaque géré par l'interface).
     pub custom_categories: String,
+    /// Réduire dans la zone de notification au lieu de fermer.
+    pub minimize_to_tray: bool,
+    /// Démarrer RAKETA automatiquement avec Windows.
+    pub autostart: bool,
 }
 
 impl Settings {
@@ -59,6 +63,8 @@ impl Settings {
             night_start: "00:00".into(),
             night_end: "07:00".into(),
             custom_categories: "[]".into(),
+            minimize_to_tray: true,
+            autostart: false,
         }
     }
 
@@ -122,6 +128,12 @@ impl Settings {
                     s.custom_categories = v.clone();
                 }
             }
+            if let Some(v) = map.get("minimize_to_tray") {
+                s.minimize_to_tray = v == "true";
+            }
+            if let Some(v) = map.get("autostart") {
+                s.autostart = v == "true";
+            }
         }
         s
     }
@@ -145,6 +157,8 @@ impl Settings {
         put("night_start", self.night_start.clone())?;
         put("night_end", self.night_end.clone())?;
         put("custom_categories", self.custom_categories.clone())?;
+        put("minimize_to_tray", self.minimize_to_tray.to_string())?;
+        put("autostart", self.autostart.to_string())?;
         Ok(())
     }
 

@@ -213,6 +213,8 @@ export interface Settings {
   night_end: string;
   // JSON opaque : [{ name, exts: string[] }]
   custom_categories: string;
+  minimize_to_tray: boolean;
+  autostart: boolean;
 }
 
 // Catégorie personnalisée définie par l'utilisateur.

@@ -15,6 +15,10 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{Mutex, Notify};
 
+/// Réduire la fenêtre dans la zone de notification à la fermeture (au lieu de
+/// quitter). Lu par le gestionnaire d'événement de fenêtre (synchrone).
+pub static TRAY_ON_CLOSE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
 /// Horodatage epoch en secondes (pour l'historique).
 pub fn now_secs() -> i64 {
     std::time::SystemTime::now()

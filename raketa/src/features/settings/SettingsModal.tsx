@@ -228,6 +228,20 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                     <span className="hint">Dans le navigateur intégré.</span>
                   </label>
                 </div>
+                <div className="setting-row">
+                  <label>Réduire dans la zone de notification</label>
+                  <label className="switch">
+                    <input type="checkbox" checked={s.minimize_to_tray} onChange={(e) => update("minimize_to_tray", e.target.checked)} />
+                    <span className="hint">Fermer la fenêtre garde RAKETA actif près de l'horloge.</span>
+                  </label>
+                </div>
+                <div className="setting-row">
+                  <label>Démarrer avec Windows</label>
+                  <label className="switch">
+                    <input type="checkbox" checked={s.autostart} onChange={(e) => update("autostart", e.target.checked)} />
+                    <span className="hint">Lancer RAKETA automatiquement à l'ouverture de session.</span>
+                  </label>
+                </div>
               </>
             )}
 

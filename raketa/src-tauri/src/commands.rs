@@ -370,12 +370,28 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String
 
 /// Enregistre les préférences, les persiste et les applique au moteur à chaud.
 #[tauri::command]
-pub async fn set_settings(state: State<'_, AppState>, settings: Settings) -> Result<(), String> {
+pub async fn set_settings(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> Result<(), String> {
     {
         let store = state.store.lock().await;
         settings.save(&store)?;
     }
     settings.apply_to_engine(&state.engine);
+
+    // Applique à chaud la réduction en zone de notification et le démarrage auto.
+    crate::manager::TRAY_ON_CLOSE.store(
+        settings.minimize_to_tray,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        let al = app.autolaunch();
+        let _ = if settings.autostart { al.enable() } else { al.disable() };
+    }
+
     *state.settings.lock().await = settings;
     Ok(())
 }
