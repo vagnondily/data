@@ -886,3 +886,30 @@ pub async fn redownload(
     state.submit(app, task).await;
     Ok(new_id)
 }
+
+// ---------------------------------------------------------------------------
+// Journal (diagnostic / signalement de problème)
+// ---------------------------------------------------------------------------
+
+/// Renvoie les dernières entrées du journal (plus récentes en dernier).
+#[tauri::command]
+pub async fn read_log() -> Result<Vec<crate::logx::LogEntry>, String> {
+    Ok(crate::logx::tail(400))
+}
+
+/// Ouvre le fichier de journal dans l'explorateur / éditeur par défaut.
+#[tauri::command]
+pub async fn open_log(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let path = crate::logx::log_path();
+    app.opener()
+        .reveal_item_in_dir(&path)
+        .map_err(|e| e.to_string())
+}
+
+/// Vide le journal.
+#[tauri::command]
+pub async fn clear_log() -> Result<(), String> {
+    crate::logx::clear();
+    Ok(())
+}

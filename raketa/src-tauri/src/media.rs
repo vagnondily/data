@@ -564,6 +564,10 @@ pub async fn download(
                 .body(name)
                 .show();
         } else {
+            crate::logx::error(
+                "média",
+                "yt-dlp a échoué (lien privé, région, ou ffmpeg requis)",
+            );
             emit(&app, MediaProgress {
                 id: id_task.clone(),
                 downloaded: last.downloaded,

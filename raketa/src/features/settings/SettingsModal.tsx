@@ -2,16 +2,20 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   checkUpdate,
+  clearLog,
   getAppVersion,
   getSettings,
   installFfmpeg,
   mediaToolsStatus,
   onFfmpegProgress,
   openExternalUrl,
+  openLog,
   parseCustomCategories,
+  readLog,
   RELEASE_URL,
   setSettings,
   type FfmpegProgress,
+  type LogEntry,
   type Settings,
   type ToolsStatus,
   type UpdateInfo,
@@ -30,6 +34,7 @@ type Section =
   | "scheduler"
   | "categories"
   | "tools"
+  | "journal"
   | "updates"
   | "about";
 
@@ -39,6 +44,7 @@ const SECTIONS: { key: Section; label: string; icon: string }[] = [
   { key: "scheduler", label: "Planificateur", icon: "clock" },
   { key: "categories", label: "Catégories", icon: "tag" },
   { key: "tools", label: "Outils", icon: "cpu" },
+  { key: "journal", label: "Journal", icon: "file-text" },
   { key: "updates", label: "Mises à jour", icon: "rotate" },
   { key: "about", label: "À propos", icon: "info" },
 ];
@@ -64,6 +70,17 @@ export function SettingsModal({ onClose, onSaved }: Props) {
   const [tools, setTools] = useState<ToolsStatus | null>(null);
   const [ffmpegBusy, setFfmpegBusy] = useState(false);
   const [ffmpegProg, setFfmpegProg] = useState<FfmpegProgress | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
+
+  const refreshLog = () => {
+    readLog()
+      .then((l) => setLog(l.slice().reverse()))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (section === "journal") refreshLog();
+  }, [section]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -359,6 +376,53 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                   <label>yt-dlp</label>
                   <span className={`badge ${tools?.yt_dlp ? "ok" : "warn"}`}>{tools?.yt_dlp ? "Installé" : "À l'usage"}</span>
                   <span className="hint">Installé automatiquement au premier téléchargement de média.</span>
+                </div>
+              </>
+            )}
+
+            {section === "journal" && (
+              <>
+                <div className="journal-head">
+                  <span className="hint">
+                    Événements et erreurs récents, utiles pour diagnostiquer un problème.
+                  </span>
+                  <div className="journal-actions">
+                    <button className="btn ghost tiny" onClick={refreshLog}>
+                      <Icon name="rotate" size={14} /> Actualiser
+                    </button>
+                    <button className="btn ghost tiny" onClick={() => openLog()}>
+                      <Icon name="external" size={14} /> Ouvrir le fichier
+                    </button>
+                    <button
+                      className="btn ghost tiny"
+                      onClick={() => {
+                        const text = log
+                          .slice()
+                          .reverse()
+                          .map((e) => `${new Date(e.ts * 1000).toLocaleString()}\t${e.level}\t${e.message}`)
+                          .join("\n");
+                        navigator.clipboard.writeText(text).catch(() => {});
+                      }}
+                    >
+                      <Icon name="clipboard" size={14} /> Copier
+                    </button>
+                    <button className="btn ghost tiny danger" onClick={() => clearLog().then(refreshLog)}>
+                      <Icon name="trash" size={14} /> Effacer
+                    </button>
+                  </div>
+                </div>
+                <div className="journal-list">
+                  {log.length === 0 ? (
+                    <p className="empty-hint">Aucune entrée pour le moment.</p>
+                  ) : (
+                    log.map((e, i) => (
+                      <div className={`journal-row lvl-${e.level.toLowerCase()}`} key={i}>
+                        <span className="journal-ts">{new Date(e.ts * 1000).toLocaleString()}</span>
+                        <span className="journal-lvl">{e.level}</span>
+                        <span className="journal-msg" title={e.message}>{e.message}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </>
             )}

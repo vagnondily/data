@@ -278,6 +278,8 @@ fn spawn_download(
                         code
                     };
                     let _ = store.mark_error(&task.id, "engine", &message);
+                    let what = task.filename.clone().unwrap_or_else(|| task.id.clone());
+                    crate::logx::error("téléchargement", &format!("{what} — {message}"));
                     let _ = app.emit(
                         EVENT_PROGRESS,
                         &Progress {

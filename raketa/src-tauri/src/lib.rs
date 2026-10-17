@@ -2,6 +2,7 @@
 
 mod bridge;
 mod commands;
+mod logx;
 mod manager;
 mod media;
 mod settings;
@@ -54,6 +55,10 @@ pub fn run() {
             state.spawn_clipboard_watcher(app.handle().clone());
             // Pont navigateur (extension Chrome/Edge/Firefox).
             bridge::start(app.handle().clone());
+            logx::log(
+                "INFO",
+                &format!("RAKETA démarré (build {})", option_env!("RAKETA_BUILD").unwrap_or("dev")),
+            );
 
             // Applique les préférences système (réduction en zone de
             // notification, démarrage automatique). Lecture non bloquante :
@@ -160,6 +165,9 @@ pub fn run() {
             commands::dock_right,
             commands::restore_window,
             commands::redownload,
+            commands::read_log,
+            commands::open_log,
+            commands::clear_log,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");

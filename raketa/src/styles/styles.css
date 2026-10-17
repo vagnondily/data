@@ -1984,3 +1984,44 @@ input[type="time"].input {
   .settings-nav-item.active { border-left: none; }
   .settings-nav-item span { display: none; }
 }
+
+/* ---- Journal (diagnostic) ---- */
+.journal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.journal-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  max-height: 46vh;
+  overflow-y: auto;
+  font-size: 12px;
+}
+.journal-row {
+  display: grid;
+  grid-template-columns: 148px 60px 1fr;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.journal-row:last-child { border-bottom: none; }
+.journal-ts { color: var(--text-muted); white-space: nowrap; }
+.journal-lvl { font-weight: 700; font-size: 10px; letter-spacing: 0.04em; }
+.journal-row.lvl-error .journal-lvl { color: var(--red); }
+.journal-row.lvl-warn .journal-lvl { color: var(--orange); }
+.journal-row.lvl-info .journal-lvl { color: var(--text-muted); }
+.journal-msg {
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.journal-row.lvl-error .journal-msg { color: #ff9a9a; }

@@ -403,6 +403,28 @@ export function clearHistory(): Promise<void> {
 // Ergonomie de la fenêtre
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Journal (diagnostic)
+// ---------------------------------------------------------------------------
+
+export interface LogEntry {
+  ts: number;
+  level: string;
+  message: string;
+}
+
+export function readLog(): Promise<LogEntry[]> {
+  return invoke<LogEntry[]>("read_log");
+}
+
+export function openLog(): Promise<void> {
+  return invoke("open_log");
+}
+
+export function clearLog(): Promise<void> {
+  return invoke("clear_log");
+}
+
 export function setAlwaysOnTop(on: boolean): Promise<void> {
   return invoke("set_always_on_top", { on });
 }
