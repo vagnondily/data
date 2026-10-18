@@ -159,9 +159,12 @@ impl Engine {
             }
         }
 
-        // Chemin partiel stable (déterministe pour une tâche donnée) ; le nom
-        // final est résolu seulement à la finalisation pour éviter l'écrasement.
-        let part_path = dir.join(format!("{}{}", chosen, self.config.part_suffix));
+        // Chemin partiel indexé par l'IDENTIFIANT de tâche (et non le nom de
+        // fichier) : deux téléchargements de même nom ne se marchent plus dessus,
+        // et la reprise retrouve toujours son .part même si le nom résolu diffère
+        // (Content-Disposition / redirection). Le nom final est résolu à la
+        // finalisation pour éviter tout écrasement.
+        let part_path = dir.join(format!("{}{}", task.id, self.config.part_suffix));
 
         let mut attempt: u32 = 0;
         loop {
@@ -205,10 +208,12 @@ impl Engine {
             Err(_) => 0,
         };
 
-        // On ne tente la reprise que si le serveur supporte les plages ET
-        // qu'on dispose d'un validateur pour garantir que la ressource n'a pas changé.
-        let can_resume = existing > 0 && info.accept_ranges;
+        // On ne tente la reprise que si le serveur supporte les plages ET qu'on
+        // dispose d'un validateur (ETag/Last-Modified) — sinon on ne peut pas
+        // garantir que la ressource n'a pas changé, donc on repart de zéro
+        // (contrat documenté en tête de module, évite une corruption silencieuse).
         let validator = info.etag.clone().or_else(|| info.last_modified.clone());
+        let can_resume = existing > 0 && info.accept_ranges && validator.is_some();
 
         let mut req = metadata::apply_auth(self.client.get(&info.final_url), task.auth.as_ref());
         if can_resume {

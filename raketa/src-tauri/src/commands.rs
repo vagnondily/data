@@ -1046,10 +1046,14 @@ pub async fn remove_download(
             } else {
                 dest.parent().map(|p| p.to_path_buf()).unwrap_or_default()
             };
+            // Les fichiers partiels sont désormais nommés d'après l'identifiant de
+            // la tâche (« {id}.rkt-part », « {id}.rkt-part.{n} », « .plan »,
+            // « .assembled »), pas d'après le nom d'affichage : on filtre donc sur
+            // l'id pour tous les retrouver (mono-flux comme multi-segments).
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for e in entries.flatten() {
                     let name = e.file_name().to_string_lossy().to_string();
-                    if name.starts_with(&r.display_name) && name.contains(".rkt-part") {
+                    if name.starts_with(&r.id) && name.contains(".rkt-part") {
                         let _ = std::fs::remove_file(e.path());
                     }
                 }

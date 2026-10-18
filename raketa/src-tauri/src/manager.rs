@@ -266,6 +266,13 @@ fn spawn_download(
                     let _ =
                         store.update_progress(&task.id, DownloadStatus::Paused, downloaded, None);
                 }
+                // Annulation volontaire (cancel/remove) : c'est un état « annulé »,
+                // pas une erreur. Ne pas écraser le statut par `mark_error`, sinon
+                // la tâche repasse « échec » juste après que l'utilisateur l'a
+                // annulée (section 5.1, course entre la commande et la tâche de fond).
+                Err(raketa_core::EngineError::Cancelled) => {
+                    let _ = store.update_progress(&task.id, DownloadStatus::Cancelled, 0, None);
+                }
                 Err(e) => {
                     let code = format!("{e}");
                     // Les liens debrid/seedbox expirent ou sont à usage unique.

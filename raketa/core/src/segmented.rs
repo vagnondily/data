@@ -78,8 +78,27 @@ pub async fn run(
     control: Control,
     progress: ProgressFn,
 ) -> Result<Outcome> {
-    let ranges = plan_segments(total, connections, config.min_segment_size);
-    let part_path = |i: usize| dir.join(format!("{chosen}{}.{i}", config.part_suffix));
+    // Parts indexées par IDENTIFIANT de tâche (pas par nom de fichier) : pas de
+    // collision entre téléchargements de même nom, reprise fiable.
+    let part_path = |i: usize| dir.join(format!("{}{}.{i}", task.id, config.part_suffix));
+    let plan_marker = dir.join(format!("{}{}.plan", task.id, config.part_suffix));
+
+    // Reprise SÛRE : on fige le découpage initial (nombre de segments) dans un
+    // marqueur. On ne reprend les parts existantes que si (a) un validateur
+    // garantit que la ressource n'a pas changé ET (b) le découpage enregistré
+    // correspond toujours (même taille). Sinon on repart proprement — ce qui
+    // évite de réassembler des parts issues d'un autre découpage (ex. l'utilisateur
+    // change le nombre de connexions entre deux reprises) ou d'une ressource modifiée.
+    let saved = read_plan(&plan_marker).await;
+    let resume_ok = validator.is_some() && matches!(&saved, Some((_, t)) if *t == total);
+    let seg_count = if resume_ok {
+        saved.as_ref().unwrap().0
+    } else {
+        wipe_parts(&dir, &task.id, &config.part_suffix).await;
+        connections
+    };
+    let ranges = plan_segments(total, seg_count, config.min_segment_size);
+    write_plan(&plan_marker, ranges.len(), total).await;
 
     // Un compteur d'octets par segment (inclut ce qui est déjà sur disque).
     let seg_counters: Vec<Arc<AtomicU64>> = (0..ranges.len())
@@ -306,7 +325,7 @@ async fn concat_and_finalize(
     total: u64,
     progress: &ProgressFn,
 ) -> Result<Outcome> {
-    let assembled = dir.join(format!("{chosen}{}.assembled", config.part_suffix));
+    let assembled = dir.join(format!("{}{}.assembled", task.id, config.part_suffix));
     let mut out = OpenOptions::new()
         .create(true)
         .write(true)
@@ -319,7 +338,7 @@ async fn concat_and_finalize(
     let mut written: u64 = 0;
 
     for i in 0..n {
-        let part = dir.join(format!("{chosen}{}.{i}", config.part_suffix));
+        let part = dir.join(format!("{}{}.{i}", task.id, config.part_suffix));
         let mut f = fs::File::open(&part).await?;
         loop {
             let read = f.read(&mut buf).await?;
@@ -364,12 +383,13 @@ async fn concat_and_finalize(
         }
     }
 
-    // Finalisation atomique + nettoyage des parts.
+    // Finalisation atomique + nettoyage des parts et du marqueur de découpage.
     let final_path = filename::unique_destination(dir, chosen);
     fs::rename(&assembled, &final_path).await?;
     for i in 0..n {
-        let _ = fs::remove_file(dir.join(format!("{chosen}{}.{i}", config.part_suffix))).await;
+        let _ = fs::remove_file(dir.join(format!("{}{}.{i}", task.id, config.part_suffix))).await;
     }
+    let _ = fs::remove_file(dir.join(format!("{}{}.plan", task.id, config.part_suffix))).await;
 
     progress(Progress {
         download_id: task.id.clone(),
@@ -447,6 +467,35 @@ async fn report(
 
         if control.is_cancelled() {
             break;
+        }
+    }
+}
+
+/// Lit le marqueur de découpage `(nombre_de_segments, taille_totale)`.
+async fn read_plan(path: &std::path::Path) -> Option<(usize, u64)> {
+    let s = fs::read_to_string(path).await.ok()?;
+    let mut lines = s.lines();
+    let count: usize = lines.next()?.trim().parse().ok()?;
+    let total: u64 = lines.next()?.trim().parse().ok()?;
+    Some((count, total))
+}
+
+/// Écrit le marqueur de découpage (best-effort).
+async fn write_plan(path: &std::path::Path, count: usize, total: u64) {
+    let _ = fs::write(path, format!("{count}\n{total}\n")).await;
+}
+
+/// Supprime toutes les parts de cette tâche (`.i`, `.assembled`, `.plan`) — pour
+/// repartir proprement quand la reprise n'est pas sûre.
+async fn wipe_parts(dir: &std::path::Path, id: &str, suffix: &str) {
+    let prefix = format!("{id}{suffix}");
+    if let Ok(mut rd) = fs::read_dir(dir).await {
+        while let Ok(Some(entry)) = rd.next_entry().await {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with(&prefix) {
+                    let _ = fs::remove_file(entry.path()).await;
+                }
+            }
         }
     }
 }
