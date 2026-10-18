@@ -37,7 +37,19 @@
     }
   }
 
-  // Petit menu Vidéo / Audio ancré sous le bouton flottant.
+  // Titre « propre » de la page pour l'en-tête du menu (façon vrai grabber).
+  function pageTitle() {
+    let t = (document.title || "").replace(
+      /\s*[-–|]\s*(YouTube|Vimeo|Dailymotion|SoundCloud).*$/i,
+      "",
+    );
+    t = t.replace(/^\(\d+\)\s*/, "").trim(); // retire le « (3) » des notifications
+    return t.length > 70 ? t.slice(0, 67) + "…" : t;
+  }
+
+  // Menu de qualités (style IDM) ancré sous le bouton flottant : en-tête de
+  // marque, titre détecté, puis une ligne par qualité. RAKETA mappe chaque
+  // qualité vers le bon format yt-dlp.
   function showMenu(anchor) {
     const old = document.getElementById("__raketa_fmenu");
     if (old) {
@@ -49,24 +61,66 @@
     m.id = "__raketa_fmenu";
     m.style.cssText =
       "position:fixed;z-index:2147483647;top:" +
-      (r.bottom + 6) +
+      (r.bottom + 8) +
       "px;left:" +
       r.left +
-      "px;background:#14161a;border:1px solid #272b33;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:210px;font:600 13px Segoe UI,Arial,sans-serif;";
-    const opt = (label, quality) => {
+      "px;min-width:286px;max-width:340px;background:#0f1216;border:1px solid #2a2f37;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.62);overflow:hidden;font-family:Segoe UI,Arial,sans-serif;";
+
+    const head = document.createElement("div");
+    head.style.cssText =
+      "display:flex;align-items:center;gap:8px;padding:11px 13px;background:linear-gradient(90deg,#1f6feb,#1559c7);color:#fff;";
+    head.innerHTML =
+      '<span style="font-size:15px">🚀</span><span style="font-weight:700;font-size:13px;letter-spacing:.2px">Télécharger avec RAKETA</span>';
+    m.appendChild(head);
+
+    const title = pageTitle();
+    if (title) {
+      const sub = document.createElement("div");
+      sub.textContent = title;
+      sub.style.cssText =
+        "padding:8px 13px;color:#aeb6c2;font-size:12px;border-bottom:1px solid #20242b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      m.appendChild(sub);
+    }
+
+    const list = document.createElement("div");
+    list.style.cssText = "padding:6px;display:flex;flex-direction:column;gap:1px;";
+    const row = (icon, label, hint, quality) => {
       const b = document.createElement("button");
-      b.textContent = label;
       b.style.cssText =
-        "text-align:left;background:#1c1f25;color:#e8eaed;border:1px solid #272b33;border-radius:7px;padding:9px 10px;cursor:pointer;font:600 13px Segoe UI,Arial,sans-serif;";
+        "display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;color:#e8eaed;border:0;border-radius:8px;padding:9px 10px;cursor:pointer;font:600 13px Segoe UI,Arial,sans-serif;";
+      b.onmouseenter = () => (b.style.background = "#1b2430");
+      b.onmouseleave = () => (b.style.background = "transparent");
+      b.innerHTML =
+        '<span style="font-size:15px;width:18px;text-align:center">' +
+        icon +
+        '</span><span style="flex:1">' +
+        label +
+        "</span>" +
+        (hint
+          ? '<span style="color:#7d8694;font-weight:600;font-size:11px">' + hint + "</span>"
+          : "");
       b.onclick = () => {
         m.remove();
         send(quality);
       };
       return b;
     };
-    m.appendChild(opt("🎬 Vidéo (meilleure qualité)", "auto"));
-    m.appendChild(opt("🎵 Audio seul (MP3)", "audio"));
+    list.appendChild(row("🎬", "Meilleure qualité", "auto", "auto"));
+    list.appendChild(row("🎬", "4K Ultra HD", "2160p", "2160"));
+    list.appendChild(row("🎬", "2K", "1440p", "1440"));
+    list.appendChild(row("🎬", "Full HD", "1080p", "1080"));
+    list.appendChild(row("🎬", "HD", "720p", "720"));
+    list.appendChild(row("🎬", "Standard", "480p", "480"));
+    list.appendChild(row("🎵", "Audio seul", "MP3", "audio"));
+    m.appendChild(list);
+
     document.documentElement.appendChild(m);
+    // Reste dans l'écran horizontalement.
+    const mr = m.getBoundingClientRect();
+    if (mr.right > innerWidth - 8) {
+      m.style.left = Math.max(8, innerWidth - mr.width - 8) + "px";
+    }
+
     setTimeout(() => {
       document.addEventListener("mousedown", function h(e) {
         if (!m.contains(e.target) && e.target !== anchor) {
@@ -125,13 +179,21 @@
       btn = document.createElement("div");
       btn.id = "__raketa_float";
       btn.style.cssText =
-        "position:fixed;z-index:2147483647;display:flex;align-items:center;gap:10px;background:rgba(31,111,235,.97);color:#fff;font:600 13px Segoe UI,Arial,sans-serif;padding:8px 12px;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.5);cursor:pointer;";
+        "position:fixed;z-index:2147483647;display:flex;align-items:center;gap:9px;background:linear-gradient(90deg,#1f6feb,#1559c7);color:#fff;font:700 13px Segoe UI,Arial,sans-serif;padding:9px 13px;border-radius:11px;box-shadow:0 8px 22px rgba(15,90,220,.5);cursor:pointer;border:1px solid rgba(255,255,255,.14);transition:transform .12s ease,box-shadow .12s ease;";
+      btn.onmouseenter = () => {
+        btn.style.transform = "translateX(-50%) translateY(-1px)";
+        btn.style.boxShadow = "0 12px 28px rgba(15,90,220,.6)";
+      };
+      btn.onmouseleave = () => {
+        btn.style.transform = "translateX(-50%)";
+        btn.style.boxShadow = "0 8px 22px rgba(15,90,220,.5)";
+      };
       const dl = document.createElement("span");
-      dl.textContent = "⬇ Télécharger cette vidéo";
+      dl.innerHTML = '🚀&nbsp; Télécharger cette vidéo <span style="opacity:.8">▾</span>';
       const x = document.createElement("span");
       x.textContent = "✕";
       x.title = "Masquer";
-      x.style.cssText = "opacity:.85;font-weight:700;padding:0 2px;";
+      x.style.cssText = "opacity:.8;font-weight:700;padding:0 2px;margin-left:2px;";
       dl.onclick = (e) => {
         e.stopPropagation();
         showMenu(btn);
