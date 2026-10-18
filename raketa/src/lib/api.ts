@@ -310,6 +310,11 @@ export function installExtension(): Promise<string> {
   return invoke<string>("install_extension");
 }
 
+// Ouvre Chrome ou Edge directement sur sa page des extensions.
+export function openBrowserExtensions(browser: "chrome" | "edge"): Promise<void> {
+  return invoke("open_browser_extensions", { browser });
+}
+
 export function onUpdateProgress(
   cb: (p: UpdateProgress) => void,
 ): Promise<UnlistenFn> {

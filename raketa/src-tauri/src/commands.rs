@@ -1192,6 +1192,43 @@ fn extract_zip_tree(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Ouvre le navigateur demandé DIRECTEMENT sur sa page des extensions
+/// (`chrome://extensions` / `edge://extensions`). Évite à l'utilisateur de
+/// taper l'adresse interne lui-même — c'est l'étape la plus déroutante de
+/// l'installation d'une extension non empaquetée. Chrome/Edge interdisent
+/// d'aller plus loin par programme (activer le mode dev / charger le dossier
+/// se font à la main, par sécurité).
+#[tauri::command]
+pub async fn open_browser_extensions(browser: String) -> Result<(), String> {
+    let (candidates, url, nice): (Vec<std::path::PathBuf>, &str, &str) =
+        if browser == "edge" {
+            (browser_paths(&["ProgramFiles(x86)", "ProgramFiles"], "Microsoft/Edge/Application/msedge.exe"), "edge://extensions/", "Microsoft Edge")
+        } else {
+            (browser_paths(&["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"], "Google/Chrome/Application/chrome.exe"), "chrome://extensions/", "Google Chrome")
+        };
+    let exe = candidates
+        .into_iter()
+        .find(|p| p.is_file())
+        .ok_or_else(|| format!("{nice} est introuvable sur ce PC"))?;
+    std::process::Command::new(exe)
+        .arg(url)
+        .spawn()
+        .map_err(|e| format!("lancement de {nice} : {e}"))?;
+    Ok(())
+}
+
+/// Chemins candidats d'un navigateur, dérivés de variables d'environnement
+/// Windows (`%ProgramFiles%`, etc.). Sur un autre OS, la liste reste vide.
+fn browser_paths(env_keys: &[&str], rel: &str) -> Vec<std::path::PathBuf> {
+    let mut v = Vec::new();
+    for key in env_keys {
+        if let Ok(base) = std::env::var(key) {
+            v.push(std::path::Path::new(&base).join(rel));
+        }
+    }
+    v
+}
+
 /// Ouvre un fichier (ou dossier) avec l'application par défaut du système.
 #[tauri::command]
 pub async fn open_file(app: AppHandle, path: String) -> Result<(), String> {

@@ -2138,3 +2138,5 @@ input[type="time"].input {
   word-break: break-all;
   color: var(--text);
 }
+
+.ext-browser-btns { display: flex; gap: 8px; flex-wrap: wrap; }

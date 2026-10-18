@@ -13,6 +13,7 @@ import {
   mediaToolsStatus,
   onFfmpegProgress,
   onUpdateProgress,
+  openBrowserExtensions,
   openExternalUrl,
   openLog,
   parseCustomCategories,
@@ -484,25 +485,31 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                     <div className="hint ext-steps">
                       <strong>Dossier prêt (ouvert dans l'explorateur) :</strong>
                       <code className="ext-path">{extPath}</code>
+                      <div className="ext-browser-btns">
+                        <button
+                          className="btn tiny primary"
+                          onClick={() => openBrowserExtensions("chrome").catch(() => {})}
+                        >
+                          <Icon name="globe" size={13} /> Ouvrir Chrome
+                        </button>
+                        <button
+                          className="btn tiny primary"
+                          onClick={() => openBrowserExtensions("edge").catch(() => {})}
+                        >
+                          <Icon name="globe" size={13} /> Ouvrir Edge
+                        </button>
+                      </div>
                       <ol>
                         <li>
-                          Ouvrez <code>chrome://extensions</code> (ou{" "}
-                          <code>edge://extensions</code>).
+                          Cliquez « Ouvrir Chrome » (ou Edge) ci-dessus — la page des extensions
+                          s'ouvre directement.
                         </li>
-                        <li>Activez le « Mode développeur » (en haut à droite).</li>
+                        <li>Activez le « Mode développeur » (interrupteur en haut à droite).</li>
                         <li>
                           Cliquez « Charger l'extension non empaquetée » et choisissez le dossier
-                          ci-dessus.
+                          ci-dessus (déjà ouvert dans l'explorateur).
                         </li>
                       </ol>
-                      <button
-                        className="btn tiny ghost"
-                        onClick={() => {
-                          navigator.clipboard?.writeText("chrome://extensions").catch(() => {});
-                        }}
-                      >
-                        Copier « chrome://extensions »
-                      </button>
                     </div>
                   ) : extState === "error" ? (
                     <span className="hint" style={{ color: "var(--danger, #e5484d)" }}>
