@@ -3,19 +3,22 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   checkUpdate,
   clearLog,
+  downloadUpdate,
   firewallAuthorize,
   firewallStatus,
   getAppVersion,
   getSettings,
+  installExtension,
   installFfmpeg,
   mediaToolsStatus,
   onFfmpegProgress,
-  installExtension,
+  onUpdateProgress,
   openExternalUrl,
   openLog,
   parseCustomCategories,
   readLog,
   RELEASE_URL,
+  runInstaller,
   setSettings,
   type FfmpegProgress,
   type FirewallStatus,
@@ -72,6 +75,37 @@ export function SettingsModal({ onClose, onSaved }: Props) {
   const [version, setVersion] = useState<string>("");
   const [upd, setUpd] = useState<UpdateInfo | null | "checking" | "uptodate" | "error">(null);
   const [updMsg, setUpdMsg] = useState<string | null>(null);
+  // Téléchargement de la mise à jour DANS l'app (comme la bannière principale).
+  const [updDl, setUpdDl] = useState<"idle" | "downloading" | "ready" | "failed">("idle");
+  const [updPct, setUpdPct] = useState(0);
+  const [updPath, setUpdPath] = useState<string>("");
+
+  async function startUpdateInApp(info: UpdateInfo) {
+    setUpdDl("downloading");
+    setUpdPct(0);
+    setUpdMsg(null);
+    let un: (() => void) | undefined;
+    try {
+      un = await onUpdateProgress((p) => {
+        if (p.total) setUpdPct(Math.min(100, Math.round((p.downloaded / p.total) * 100)));
+      });
+      const path = await downloadUpdate(info.url, info.sha256);
+      setUpdPath(path);
+      setUpdPct(100);
+      setUpdDl("ready");
+    } catch (e) {
+      const msg = String(e);
+      setUpdDl("failed");
+      // Échec d'intégrité : surtout ne pas rediriger vers le même installeur.
+      if (/empreinte|intégrit/i.test(msg)) {
+        setUpdMsg("Installeur refusé : il ne correspond pas à l'empreinte de sécurité. N'installez pas ce fichier.");
+      } else {
+        setUpdMsg(msg.replace(/^Error:\s*/, ""));
+      }
+    } finally {
+      if (un) un();
+    }
+  }
   const [tools, setTools] = useState<ToolsStatus | null>(null);
   const [ffmpegBusy, setFfmpegBusy] = useState(false);
   const [ffmpegProg, setFfmpegProg] = useState<FfmpegProgress | null>(null);
@@ -559,11 +593,31 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                 <div className="setting-row">
                   <label>Télécharger</label>
                   {upd && typeof upd === "object" ? (
-                    <button className="btn primary" onClick={() => openExternalUrl(upd.url)}>Télécharger la mise à jour</button>
+                    updDl === "downloading" ? (
+                      <span className="update-dl">
+                        <span className="update-dl-bar">
+                          <span className="update-dl-fill" style={{ width: `${updPct}%` }} />
+                        </span>
+                        {updPct}%
+                      </span>
+                    ) : updDl === "ready" ? (
+                      <button className="btn primary" onClick={() => runInstaller(updPath)}>
+                        <Icon name="check" size={14} /> Installer et redémarrer
+                      </button>
+                    ) : (
+                      <button className="btn primary" onClick={() => startUpdateInApp(upd)}>
+                        <Icon name="download" size={14} /> Télécharger dans RAKETA
+                      </button>
+                    )
                   ) : (
                     <button className="btn ghost" onClick={() => openExternalUrl(RELEASE_URL)}>Ouvrir la page des versions</button>
                   )}
                 </div>
+                {updDl === "failed" && updMsg && (
+                  <p className="hint" style={{ marginTop: -4, color: "var(--danger, #e5484d)" }}>
+                    {updMsg}
+                  </p>
+                )}
               </>
             )}
 
