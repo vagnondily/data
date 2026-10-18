@@ -430,6 +430,12 @@ async fn report(
 
     let mut last = Instant::now();
     let mut last_bytes = sum(&seg_counters);
+    // Octets vus par segment au tour précédent : sert à calculer le débit PAR
+    // segment (et pas seulement le débit agrégé).
+    let mut last_seg_bytes: Vec<u64> = seg_counters
+        .iter()
+        .map(|c| c.load(Ordering::SeqCst))
+        .collect();
 
     loop {
         tokio::time::sleep(interval).await;
@@ -447,15 +453,22 @@ async fn report(
         last = now;
         last_bytes = cur;
 
-        let segments: Vec<SegmentInfo> = ranges
-            .iter()
-            .enumerate()
-            .map(|(i, &(start, end))| SegmentInfo {
+        let mut segments: Vec<SegmentInfo> = Vec::with_capacity(ranges.len());
+        for (i, &(start, end)) in ranges.iter().enumerate() {
+            let dl = seg_counters[i].load(Ordering::SeqCst);
+            let seg_speed = if dt > 0.0 {
+                dl.saturating_sub(last_seg_bytes[i]) as f64 / dt
+            } else {
+                0.0
+            };
+            last_seg_bytes[i] = dl;
+            segments.push(SegmentInfo {
                 index: i,
-                downloaded: seg_counters[i].load(Ordering::SeqCst),
+                downloaded: dl,
                 total: end - start + 1,
-            })
-            .collect();
+                speed_bps: seg_speed,
+            });
+        }
 
         let status = if control.is_paused() {
             DownloadStatus::Paused

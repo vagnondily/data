@@ -79,6 +79,26 @@ impl Engine {
             .user_agent(concat!("RAKETA/", env!("CARGO_PKG_VERSION")))
             // Limite le nombre de redirections suivies (section 12).
             .redirect(reqwest::redirect::Policy::limited(10))
+            // --- Performance sur liens à FORTE LATENCE (satellite/Starlink, 4G) ---
+            // Sans réglage, reqwest négocie HTTP/2 avec la plupart des CDN et
+            // MULTIPLEXE toutes nos requêtes de plage sur UNE SEULE connexion TCP
+            // dont la fenêtre de contrôle de flux par défaut (~64 Kio) plafonne le
+            // débit à « fenêtre / latence ». Sur un lien à ~120 ms de ping, cela
+            // donne ~100-500 Ko/s quel que soit le nombre de segments — c'est le
+            // symptôme exact rapporté (127 Ko/s sur du Starlink). On corrige :
+            //  • fenêtre HTTP/2 auto-dimensionnée par estimation du BDP (le point
+            //    le plus important : laisse une connexion remplir un gros tuyau) ;
+            //  • Nagle désactivé (latence) + keep-alive TCP/HTTP2 pour ne pas
+            //    reconstruire les connexions des segments ;
+            //  • pool de connexions gardé chaud.
+            .tcp_nodelay(true)
+            .tcp_keepalive(Duration::from_secs(60))
+            .pool_idle_timeout(Duration::from_secs(90))
+            .pool_max_idle_per_host(16)
+            .http2_adaptive_window(true)
+            .http2_keep_alive_interval(Duration::from_secs(30))
+            .http2_keep_alive_timeout(Duration::from_secs(20))
+            .connect_timeout(Duration::from_secs(30))
             .build()?;
         let connections = Arc::new(std::sync::atomic::AtomicUsize::new(config.connections));
         Ok(Self {

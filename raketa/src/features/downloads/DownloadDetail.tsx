@@ -110,17 +110,30 @@ export function DownloadDetail({ d, speed, segments, onClose }: Props) {
           <>
             <h3 className="detail-sub">
               Connexions — {segments.length} segment(s) en parallèle
+              {active && (
+                <span className="seg-total-speed">
+                  {" · "}
+                  {formatSpeed(segments.reduce((sum, s) => sum + (s.speed_bps ?? 0), 0))}
+                </span>
+              )}
             </h3>
             <div className="seg-list">
               {segments.map((s) => {
                 const p =
                   s.total > 0 ? Math.min(100, Math.round((s.downloaded / s.total) * 100)) : 0;
+                const done = s.total > 0 && s.downloaded >= s.total;
                 return (
                   <div className="seg-row" key={s.index}>
                     <span className="seg-num">#{s.index + 1}</span>
                     <div className="seg-track">
-                      <div className="seg-fill" style={{ width: `${p}%` }} />
+                      <div
+                        className={`seg-fill ${done ? "done" : ""}`}
+                        style={{ width: `${p}%` }}
+                      />
                     </div>
+                    <span className="seg-speed" title="Débit de ce segment">
+                      {done ? "✓" : active ? formatSpeed(s.speed_bps ?? 0) : "—"}
+                    </span>
                     <span className="seg-bytes">
                       {formatBytes(s.downloaded)} / {formatBytes(s.total)}
                     </span>

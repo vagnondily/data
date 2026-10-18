@@ -89,6 +89,10 @@ pub struct SegmentInfo {
     pub index: usize,
     pub downloaded: u64,
     pub total: u64,
+    /// Débit instantané de CE segment (octets/seconde), lissé sur l'intervalle
+    /// de rapport. Permet d'afficher la vitesse par connexion (façon IDM).
+    #[serde(default)]
+    pub speed_bps: f64,
 }
 
 /// Instantané de progression publié vers l'interface.

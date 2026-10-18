@@ -58,6 +58,8 @@ export interface SegmentInfo {
   index: number;
   downloaded: number;
   total: number;
+  // Débit instantané de ce segment (octets/seconde).
+  speed_bps: number;
 }
 
 // Instantané de progression publié par le moteur (événement `raketa://progress`).
