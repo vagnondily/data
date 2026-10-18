@@ -7,6 +7,8 @@ use crate::manager::AppState;
 use crate::settings::Settings;
 use raketa_core::model::{DownloadStatus, DownloadTask, RemoteInfo};
 use serde::Serialize;
+// Navigateur intégré (fenêtre webview supplémentaire) : bureau uniquement.
+#[cfg(desktop)]
 use tauri::webview::{DownloadEvent, WebviewWindowBuilder};
 use tauri::{AppHandle, Manager, State, WebviewUrl};
 use uuid::Uuid;
@@ -192,6 +194,7 @@ pub(crate) async fn route_grab(
     // Ramène la fenêtre principale au premier plan pour montrer le transfert.
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
+        #[cfg(desktop)]
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
@@ -459,6 +462,8 @@ pub async fn set_settings(
         settings.minimize_to_tray,
         std::sync::atomic::Ordering::SeqCst,
     );
+    // Démarrage automatique : notion propre au bureau (absent sur Android).
+    #[cfg(desktop)]
     {
         use tauri_plugin_autostart::ManagerExt;
         let al = app.autolaunch();
@@ -738,6 +743,17 @@ pub async fn open_browser(
     state: State<'_, AppState>,
     url: String,
 ) -> Result<(), String> {
+    // Le navigateur intégré ouvre une fenêtre webview supplémentaire : non
+    // disponible sur Android (une seule vue). On y proposera un onglet système
+    // (Custom Tabs) en phase ultérieure.
+    #[cfg(not(desktop))]
+    {
+        let _ = (&app, &state, &url);
+        return Err("Le navigateur intégré n'est pas disponible sur Android.".into());
+    }
+
+    #[cfg(desktop)]
+    {
     let parsed: url::Url = url.parse().map_err(|_| "URL invalide".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("seuls http/https sont autorisés".into());
@@ -844,6 +860,7 @@ pub async fn open_browser(
 
     builder.build().map_err(|e| e.to_string())?;
     Ok(())
+    } // fin #[cfg(desktop)]
 }
 
 /// Ouvre une URL dans le navigateur système (Chrome/Edge…), utile pour les
@@ -1450,9 +1467,13 @@ pub async fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
 /// Épingle/désépingle la fenêtre au-dessus des autres (toujours visible).
 #[tauri::command]
 pub async fn set_always_on_top(app: AppHandle, on: bool) -> Result<(), String> {
+    // Gestion de fenêtre : propre au bureau (Android n'a qu'une vue plein écran).
+    #[cfg(desktop)]
     if let Some(w) = app.get_webview_window("main") {
         w.set_always_on_top(on).map_err(|e| e.to_string())?;
     }
+    #[cfg(not(desktop))]
+    let _ = (&app, on);
     Ok(())
 }
 
@@ -1460,6 +1481,10 @@ pub async fn set_always_on_top(app: AppHandle, on: bool) -> Result<(), String> {
 /// pour la garder à côté du navigateur et coller des liens.
 #[tauri::command]
 pub async fn dock_right(app: AppHandle) -> Result<(), String> {
+    #[cfg(not(desktop))]
+    let _ = &app;
+    #[cfg(desktop)]
+    {
     use tauri::{LogicalPosition, LogicalSize};
     if let Some(w) = app.get_webview_window("main") {
         let width = 460.0;
@@ -1484,18 +1509,24 @@ pub async fn dock_right(app: AppHandle) -> Result<(), String> {
         w.set_position(LogicalPosition::new(mx + mw - width - 12.0, my + 16.0))
             .map_err(|e| e.to_string())?;
     }
+    } // fin #[cfg(desktop)]
     Ok(())
 }
 
 /// Restaure la fenêtre à sa taille normale, centrée et non épinglée.
 #[tauri::command]
 pub async fn restore_window(app: AppHandle) -> Result<(), String> {
-    use tauri::LogicalSize;
-    if let Some(w) = app.get_webview_window("main") {
-        w.set_always_on_top(false).map_err(|e| e.to_string())?;
-        w.set_size(LogicalSize::new(1240.0, 800.0))
-            .map_err(|e| e.to_string())?;
-        let _ = w.center();
+    #[cfg(not(desktop))]
+    let _ = &app;
+    #[cfg(desktop)]
+    {
+        use tauri::LogicalSize;
+        if let Some(w) = app.get_webview_window("main") {
+            w.set_always_on_top(false).map_err(|e| e.to_string())?;
+            w.set_size(LogicalSize::new(1240.0, 800.0))
+                .map_err(|e| e.to_string())?;
+            let _ = w.center();
+        }
     }
     Ok(())
 }
