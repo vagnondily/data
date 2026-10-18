@@ -1,6 +1,22 @@
 // Pont typé entre l'interface React et les commandes Tauri (moteur RAKETA).
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { ask } from "@tauri-apps/plugin-dialog";
+
+// Confirmation native AVANT toute suppression (Windows et Android). Renvoie
+// true si l'utilisateur confirme. En cas d'indisponibilité du dialogue, on
+// retombe sur window.confirm pour ne jamais supprimer sans accord.
+export async function confirmDelete(message: string): Promise<boolean> {
+  try {
+    return await ask(message, { title: "RAKETA — Confirmer", kind: "warning" });
+  } catch {
+    try {
+      return window.confirm(message);
+    } catch {
+      return false;
+    }
+  }
+}
 
 export type DownloadStatus =
   | "queued"

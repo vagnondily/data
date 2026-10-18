@@ -3,6 +3,7 @@ import {
   addDownload,
   addTorrent,
   checkUpdate,
+  confirmDelete,
   downloadUpdate,
   getSettings,
   listDownloads,
@@ -492,9 +493,14 @@ export function App() {
     Promise.all(downloads.filter(pred).map((d) => fn(d.id).catch(() => {}))).then(refresh);
   const resumeAll = () => bulk((d) => d.status === "paused", (id) => resumeDownload(id));
   const pauseAll = () => bulk((d) => d.status === "downloading", (id) => pauseDownload(id));
-  const clearCompleted = () =>
+  const clearCompleted = async () => {
+    if (!(await confirmDelete("Retirer tous les téléchargements terminés de la liste ? (les fichiers sont conservés)"))) return;
     bulk((d) => d.status === "completed", (id) => removeDownload(id, false));
-  const clearAll = () => bulk(() => true, (id) => removeDownload(id, false));
+  };
+  const clearAll = async () => {
+    if (!(await confirmDelete("Retirer TOUS les téléchargements de la liste ? (les fichiers sont conservés)"))) return;
+    bulk(() => true, (id) => removeDownload(id, false));
+  };
 
   const counts = {
     active: downloads.filter((d) => d.status === "downloading").length,

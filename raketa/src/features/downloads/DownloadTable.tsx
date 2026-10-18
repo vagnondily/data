@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   cancelDownload,
+  confirmDelete,
   openFile,
   pauseDownload,
   redownload,
@@ -168,7 +169,7 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                         <Icon name="rotate" size={15} />
                       </button>
                     )}
-                    <button className="icon-act danger" title="Supprimer" onClick={() => act(() => removeDownload(d.id, false))}>
+                    <button className="icon-act danger" title="Retirer de la liste" onClick={() => act(async () => { if (await confirmDelete(`Retirer « ${d.display_name} » de la liste ? (le fichier est conservé)`)) await removeDownload(d.id, false); })}>
                       <Icon name="trash" size={15} />
                     </button>
                     <button className="icon-act" title="Détails" onClick={() => onOpenDetail(d)}>
@@ -270,10 +271,10 @@ function ContextMenu({
         <Icon name="info" size={16} /> Propriétés
       </button>
       <div className="ctx-sep" />
-      <button onClick={() => act(() => removeDownload(d.id, false))}>
+      <button onClick={() => act(async () => { if (await confirmDelete(`Retirer « ${d.display_name} » de la liste ? (le fichier est conservé)`)) await removeDownload(d.id, false); })}>
         <Icon name="x" size={16} /> Retirer de la liste
       </button>
-      <button className="danger" onClick={() => act(() => removeDownload(d.id, true))}>
+      <button className="danger" onClick={() => act(async () => { if (await confirmDelete(`Supprimer « ${d.display_name} » ET son fichier du disque ?\n\nCette action est irréversible.`)) await removeDownload(d.id, true); })}>
         <Icon name="trash" size={16} /> Supprimer + fichier
       </button>
     </div>

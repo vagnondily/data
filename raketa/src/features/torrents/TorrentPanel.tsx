@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   addTorrent,
   addTorrentFile,
+  confirmDelete,
   firewallAuthorize,
   openFile,
   pauseTorrent,
@@ -262,14 +263,14 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
                       ))}
                     <button
                       className="btn tiny"
-                      onClick={() => removeTorrent(t.id, false).then(onChanged)}
+                      onClick={async () => { if (await confirmDelete(`Retirer « ${t.name} » de la liste ? (les fichiers sont conservés)`)) removeTorrent(t.id, false).then(onChanged); }}
                       title="Retirer de la liste (conserve les fichiers)"
                     >
                       Retirer
                     </button>
                     <button
                       className="btn tiny danger"
-                      onClick={() => removeTorrent(t.id, true).then(onChanged)}
+                      onClick={async () => { if (await confirmDelete(`Supprimer « ${t.name} » ET ses fichiers du disque ?\n\nCette action est irréversible.`)) removeTorrent(t.id, true).then(onChanged); }}
                       title="Supprimer le torrent et ses fichiers du disque"
                     >
                       <Icon name="trash" size={14} />

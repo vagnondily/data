@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   checkUpdate,
   clearLog,
+  confirmDelete,
   downloadUpdate,
   firewallAuthorize,
   firewallStatus,
@@ -556,7 +557,7 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                     >
                       <Icon name="clipboard" size={14} /> Copier
                     </button>
-                    <button className="btn ghost tiny danger" onClick={() => clearLog().then(refreshLog)}>
+                    <button className="btn ghost tiny danger" onClick={async () => { if (await confirmDelete("Effacer le journal des erreurs ?")) clearLog().then(refreshLog); }}>
                       <Icon name="trash" size={14} /> Effacer
                     </button>
                   </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   addDownload,
   clearHistory,
+  confirmDelete,
   deleteHistoryEntry,
   listHistory,
   mediaDownload,
@@ -61,11 +62,13 @@ export function HistoryPanel({ onRedownloaded }: Props) {
   }
 
   async function remove(h: HistoryItem) {
+    if (!(await confirmDelete(`Retirer « ${h.display_name} » de l'historique ?`))) return;
     await deleteHistoryEntry(h.id).catch(() => {});
     refresh();
   }
 
   async function wipe() {
+    if (!(await confirmDelete("Vider TOUT l'historique des téléchargements ?\n\nCette action est irréversible."))) return;
     await clearHistory().catch(() => {});
     refresh();
   }
