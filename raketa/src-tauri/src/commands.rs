@@ -550,6 +550,16 @@ const NAV_JS: &str = r#"(function(){
       addr.addEventListener('focus',showBar);
       addr.addEventListener('blur',function(){ setTimeout(hideBar,150); });
     }catch(e){}
+    // Tient l'adresse à jour lors des navigations internes (applications web /
+    // SPA qui changent d'URL sans recharger la page via l'API history).
+    try{
+      var sync=function(){ try{ if(document.activeElement!==addr) addr.value=location.href; }catch(e){} };
+      var _ps=history.pushState, _rs=history.replaceState;
+      history.pushState=function(){ var r=_ps.apply(this,arguments); setTimeout(sync,0); return r; };
+      history.replaceState=function(){ var r=_rs.apply(this,arguments); setTimeout(sync,0); return r; };
+      window.addEventListener('popstate',sync);
+      window.addEventListener('hashchange',sync);
+    }catch(e){}
     // Aperçu au chargement, puis masquage pour laisser le site pleine hauteur.
     showBar(); setTimeout(hideBar,2200);
   }
@@ -791,18 +801,12 @@ pub async fn open_browser(
             if let DownloadEvent::Requested { url, .. } = &event {
                 let link = url.to_string();
                 let app = app_for_dl.clone();
-                // RAKETA prend la main : on route vers le moteur rapide.
+                // RAKETA prend la main : on route comme une « récupération » pour
+                // un retour clair — la fenêtre principale revient au premier plan
+                // et le transfert s'affiche aussitôt (l'utilisateur voit que le
+                // téléchargement a bien été capté, au lieu d'un lancement muet).
                 tauri::async_runtime::spawn(async move {
-                    let state = app.state::<AppState>();
-                    if let Ok((task, name)) =
-                        prepare_task(state.inner(), link, String::new(), None, None).await
-                    {
-                        {
-                            let store = state.store.lock().await;
-                            let _ = store.insert(&task, &name);
-                        }
-                        state.submit(app.clone(), task).await;
-                    }
+                    route_grab(app, "auto".into(), link, None, None).await;
                 });
                 return false; // annule le téléchargement natif du webview
             }
