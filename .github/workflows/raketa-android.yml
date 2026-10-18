@@ -1,0 +1,84 @@
+name: Build RAKETA (Android)
+
+# Compile l'application mobile RAKETA (Tauri 2 Android) et publie l'APK.
+# Branche dédiée : l'app Windows (raketa-windows.yml) n'est pas affectée.
+
+on:
+  push:
+    branches: [claude/raketa-android]
+    paths:
+      - "raketa/**"
+      - ".github/workflows/raketa-android.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: raketa-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: raketa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java (17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Rust (stable) + cibles Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: raketa/src-tauri
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Installer le NDK
+        shell: bash
+        run: |
+          sdkmanager "ndk;26.3.11579264" "platforms;android-34" "build-tools;34.0.0"
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> "$GITHUB_ENV"
+
+      - name: Installer les dépendances front
+        run: npm install
+
+      - name: Installer la CLI Tauri
+        run: npm install -D @tauri-apps/cli@^2
+
+      - name: Initialiser le projet Android (gen/android)
+        env:
+          RAKETA_BUILD: ${{ github.run_number }}
+        run: npx tauri android init --ci
+
+      - name: Compiler l'APK (debug)
+        env:
+          RAKETA_BUILD: ${{ github.run_number }}
+        run: npx tauri android build --debug --apk
+
+      - name: Publier l'APK en artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAKETA-Android
+          path: raketa/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

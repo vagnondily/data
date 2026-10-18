@@ -1,5 +1,7 @@
 //! Point d'entrée de la bibliothèque applicative RAKETA (Tauri 2).
 
+// Pont navigateur (serveur HTTP local) : propre au bureau (serveur tiny_http).
+#[cfg(desktop)]
 mod bridge;
 mod commands;
 mod firewall;
@@ -37,15 +39,22 @@ pub fn run() {
     ))
     .expect("initialisation de l'état applicatif");
 
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_autostart::init(
+        .plugin(tauri_plugin_clipboard_manager::init());
+    // Démarrage automatique : notion propre au bureau.
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
-        ))
+        ));
+    }
+
+    builder
         .manage(state)
         .setup(|app| {
             // Boucles de fond : ordonnanceur de file, progression des torrents,
@@ -64,15 +73,19 @@ pub fn run() {
                     .resume_interrupted(resume_handle.clone())
                     .await;
             });
-            // Pont navigateur (extension Chrome/Edge/Firefox).
+            // Pont navigateur (extension Chrome/Edge/Firefox) : bureau uniquement.
+            #[cfg(desktop)]
             bridge::start(app.handle().clone());
             logx::log(
                 "INFO",
                 &format!("RAKETA démarré (build {})", option_env!("RAKETA_BUILD").unwrap_or("dev")),
             );
 
-            // Applique les préférences système (réduction en zone de
-            // notification, démarrage automatique). Lecture non bloquante :
+            // Zone de notification, démarrage auto et réduction à la fermeture :
+            // notions propres au bureau, absentes sur Android.
+            #[cfg(desktop)]
+            {
+            // Applique les préférences système. Lecture non bloquante :
             // au démarrage, personne d'autre ne détient le verrou.
             let (tray_on_close, autostart) = match app.state::<AppState>().settings.try_lock() {
                 Ok(s) => (s.minimize_to_tray, s.autostart),
@@ -137,6 +150,7 @@ pub fn run() {
                     }
                 });
             }
+            } // fin du bloc #[cfg(desktop)]
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

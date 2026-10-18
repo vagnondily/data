@@ -21,7 +21,6 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
-tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "process", "io-util", "time"] }
@@ -30,8 +29,13 @@ directories = "5"
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 futures-util = "0.3"
-tiny_http = "0.12"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+# Dépendances propres au bureau (Windows/macOS/Linux) : démarrage auto et le
+# petit serveur HTTP local du pont navigateur n'ont pas de sens sur Android.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+tauri-plugin-autostart = "2"
+tiny_http = "0.12"
 
 [features]
 # Permet d'activer les devtools dans les builds de production si besoin.
