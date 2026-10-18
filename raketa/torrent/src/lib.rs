@@ -332,12 +332,15 @@ impl TorrentManager {
         }
         .to_string();
 
-        let name = handle.name().unwrap_or_else(|| "torrent".to_string());
-        let content_path = handle
-            .output_folder()
-            .join(&name)
-            .to_string_lossy()
-            .to_string();
+        // `name` sert à l'affichage (repli « torrent » tant que les métadonnées
+        // d'un magnet ne sont pas résolues). `content_path` reste VIDE dans ce cas :
+        // sans le vrai nom, le chemin serait faux (dossier/« torrent » inexistant),
+        // et l'UI masque les boutons Ouvrir/Dossier quand il est vide.
+        let real_name = handle.name();
+        let name = real_name.clone().unwrap_or_else(|| "torrent".to_string());
+        let content_path = real_name
+            .map(|n| handle.output_folder().join(n).to_string_lossy().to_string())
+            .unwrap_or_default();
 
         TorrentProgress {
             id,

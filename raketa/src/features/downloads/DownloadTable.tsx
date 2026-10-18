@@ -87,6 +87,8 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
             const spd = speeds[d.id] ?? 0;
             const isActive = d.status === "downloading" || d.status === "probing";
             const isPaused = d.status === "paused";
+            // En file d'attente (créneaux pleins) : on peut l'annuler/arrêter.
+            const isQueued = d.status === "queued";
             // Échec/annulation : « Réessayer » reprend la MÊME tâche (même id,
             // donc le fichier partiel .rkt-part est repris s'il est valide) au
             // lieu d'en créer une nouvelle qui repartirait de zéro.
@@ -143,7 +145,7 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                         <Icon name="play" size={15} />
                       </button>
                     )}
-                    {(isActive || isPaused) && (
+                    {(isActive || isPaused || isQueued) && (
                       <button className="icon-act" title="Arrêter" onClick={() => act(() => cancelDownload(d.id))}>
                         <Icon name="stop" size={15} />
                       </button>
@@ -215,6 +217,7 @@ function ContextMenu({
   const d = menu.d;
   const isActive = d.status === "downloading" || d.status === "probing";
   const isPaused = d.status === "paused";
+  const isQueued = d.status === "queued";
   const isDone = d.status === "completed";
   const canRetry = d.status === "error" || d.status === "cancelled";
 
@@ -236,7 +239,7 @@ function ContextMenu({
           <Icon name="play" size={16} /> Reprendre
         </button>
       )}
-      {(isActive || isPaused) && (
+      {(isActive || isPaused || isQueued) && (
         <button onClick={() => act(() => cancelDownload(d.id))}>
           <Icon name="stop" size={16} /> Arrêter
         </button>

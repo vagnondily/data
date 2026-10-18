@@ -232,7 +232,7 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
                     </button>
                   )}
                   <div className="torrent-actions-right">
-                    {t.finished && (
+                    {t.finished && t.content_path && (
                       <button
                         className="btn tiny primary"
                         onClick={() => openFile(t.content_path).catch(() => {})}

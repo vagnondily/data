@@ -211,6 +211,21 @@ impl AppState {
                     let Some(task) = queue.lock().await.pop_front() else {
                         break;
                     };
+                    // La tâche a pu être annulée ou retirée pendant son attente en
+                    // file (elle n'avait pas encore de jeton de contrôle). On ne la
+                    // démarre pas dans ce cas — sinon un téléchargement annulé
+                    // repartirait quand même quand un créneau se libère.
+                    let skip = {
+                        let store = store.lock().await;
+                        match store.get(&task.id) {
+                            Ok(Some(r)) => r.status == DownloadStatus::Cancelled,
+                            Ok(None) => true, // supprimée de la liste
+                            Err(_) => false,
+                        }
+                    };
+                    if skip {
+                        continue;
+                    }
                     active.fetch_add(1, Ordering::SeqCst);
                     spawn_download(
                         engine.clone(),
