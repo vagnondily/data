@@ -6,7 +6,10 @@ description = "Moteur BitTorrent de RAKETA (magnets + .torrent) basé sur librqb
 license = "MIT"
 
 [dependencies]
-librqbit = "9"
+# rust-tls (rustls + ring) au lieu de default-tls (OpenSSL) : OpenSSL ne se
+# cross-compile pas facilement pour Android, et rustls fonctionne aussi bien
+# sur bureau. Aligné avec reqwest (rustls) côté src-tauri.
+librqbit = { version = "9", default-features = false, features = ["rust-tls", "http-api-client"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
