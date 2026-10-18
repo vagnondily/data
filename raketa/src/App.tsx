@@ -46,6 +46,7 @@ import { TorrentPanel } from "./features/torrents/TorrentPanel";
 import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
 import { HistoryPanel } from "./features/history/HistoryPanel";
+import { GlobalOverview } from "./features/overview/GlobalOverview";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import logoMark from "./assets/logo-mark.svg";
 
@@ -644,6 +645,8 @@ export function App() {
           </div>
         </div>
       )}
+
+      <GlobalOverview downloads={downloads} speeds={speeds} torrents={torrents} media={media} />
 
       <main className="app-main">
         {tab === "http" && (
