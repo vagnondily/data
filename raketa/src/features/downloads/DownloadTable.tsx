@@ -85,8 +85,13 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
           {downloads.map((d) => {
             const pct = percent(d.downloaded_bytes, d.total_bytes);
             const spd = speeds[d.id] ?? 0;
-            const isActive = d.status === "downloading";
+            const isActive = d.status === "downloading" || d.status === "probing";
             const isPaused = d.status === "paused";
+            // Échec/annulation : « Réessayer » reprend la MÊME tâche (même id,
+            // donc le fichier partiel .rkt-part est repris s'il est valide) au
+            // lieu d'en créer une nouvelle qui repartirait de zéro.
+            const canRetry = d.status === "error" || d.status === "cancelled";
+            const isDone = d.status === "completed";
             return (
               <tr
                 key={d.id}
@@ -143,7 +148,16 @@ export function DownloadTable({ downloads, speeds, onChanged, onOpenDetail }: Pr
                         <Icon name="stop" size={15} />
                       </button>
                     )}
-                    {!isActive && !isPaused && (
+                    {canRetry && (
+                      <button
+                        className="icon-act"
+                        title="Réessayer"
+                        onClick={() => act(() => resumeDownload(d.id))}
+                      >
+                        <Icon name="rotate" size={15} />
+                      </button>
+                    )}
+                    {isDone && (
                       <button
                         className="icon-act"
                         title="Re-télécharger"
@@ -199,9 +213,10 @@ function ContextMenu({
   act: (fn: () => Promise<void>) => Promise<void>;
 }) {
   const d = menu.d;
-  const isActive = d.status === "downloading";
+  const isActive = d.status === "downloading" || d.status === "probing";
   const isPaused = d.status === "paused";
   const isDone = d.status === "completed";
+  const canRetry = d.status === "error" || d.status === "cancelled";
 
   // Clamp pour rester dans la fenêtre.
   const style: React.CSSProperties = {
@@ -237,7 +252,12 @@ function ContextMenu({
       <button onClick={() => act(async () => { try { await navigator.clipboard.writeText(d.url); } catch { /* presse-papiers indisponible */ } })}>
         <Icon name="clipboard" size={16} /> Copier le lien
       </button>
-      {!isActive && !isPaused && (
+      {canRetry && (
+        <button onClick={() => act(() => resumeDownload(d.id))}>
+          <Icon name="rotate" size={16} /> Réessayer
+        </button>
+      )}
+      {isDone && (
         <button onClick={() => act(async () => { await redownload(d.id); })}>
           <Icon name="rotate" size={16} /> Re-télécharger
         </button>
