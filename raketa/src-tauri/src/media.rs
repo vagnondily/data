@@ -53,6 +53,15 @@ fn cancels() -> &'static Mutex<HashMap<String, Arc<Notify>>> {
     CANCELS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// Limite le nombre de téléchargements média (yt-dlp) simultanés : au-delà, les
+/// suivants attendent un créneau au lieu de lancer autant de processus que de
+/// vidéos demandées — ce qui saturerait le processeur, le réseau et le disque
+/// (chaque yt-dlp ouvre déjà plusieurs fragments en parallèle).
+fn media_sem() -> &'static tokio::sync::Semaphore {
+    static SEM: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
+    SEM.get_or_init(|| tokio::sync::Semaphore::new(3))
+}
+
 /// Dossier des binaires embarqués (yt-dlp, etc.), côté données utilisateur.
 fn bin_dir() -> PathBuf {
     ProjectDirs::from("com", "SmartServiceAndroy", "RAKETA")
@@ -499,39 +508,95 @@ pub async fn download(
     let url_for_hist = url.clone();
     args.push(url);
 
-    let mut child = command(&bin)
-        .args(&args)
-        .stdout(Stdio::piped())
-        // stderr capturé dans une tâche dédiée (pas de blocage du tube) pour
-        // remonter l'erreur RÉELLE de yt-dlp au lieu d'un message générique.
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("lancement de yt-dlp : {e}"))?;
-
-    let stdout = child.stdout.take().ok_or("sortie yt-dlp indisponible")?;
-    let stderr = child.stderr.take();
     let id_task = id.clone();
     let app_hist = app.clone();
 
-    // Tampon des dernières lignes de stderr (borné à 60 lignes), partagé avec
-    // la tâche. Vec<String> : pas de risque de couper un caractère UTF-8.
-    let errbuf = Arc::new(Mutex::new(Vec::<String>::new()));
-    if let Some(se) = stderr {
-        let errbuf2 = errbuf.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(se).lines();
-            while let Ok(Some(l)) = lines.next_line().await {
-                let mut b = errbuf2.lock().await;
-                b.push(l);
-                if b.len() > 60 {
-                    let drop = b.len() - 60;
-                    b.drain(0..drop);
-                }
-            }
-        });
-    }
+    // Statut initial « en file » : l'élément apparaît immédiatement dans l'UI,
+    // même si aucun créneau média n'est encore libre (cap de concurrence).
+    emit(
+        &app,
+        MediaProgress {
+            id: id_task.clone(),
+            downloaded: 0,
+            total: None,
+            speed_bps: 0.0,
+            percent: None,
+            status: "queued".into(),
+            title: None,
+            detail: None,
+        },
+    );
 
     tokio::spawn(async move {
+        // Attente d'un créneau (au plus N téléchargements média simultanés).
+        // Reste annulable pendant l'attente : annuler une vidéo en file ne doit
+        // pas attendre qu'un créneau se libère.
+        let _permit = tokio::select! {
+            p = media_sem().acquire() => match p {
+                Ok(p) => p,
+                Err(_) => { cleanup(&id_task).await; return; }
+            },
+            _ = cancel.notified() => {
+                emit(&app, MediaProgress {
+                    id: id_task.clone(), downloaded: 0, total: None, speed_bps: 0.0,
+                    percent: None, status: "cancelled".into(), title: None, detail: None,
+                });
+                cleanup(&id_task).await;
+                return;
+            }
+        };
+
+        // Lancement de yt-dlp (stderr capturé à part pour remonter l'erreur
+        // réelle au lieu d'un message générique).
+        let mut child = match command(&bin)
+            .args(&args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                emit(&app, MediaProgress {
+                    id: id_task.clone(), downloaded: 0, total: None, speed_bps: 0.0,
+                    percent: None, status: "error".into(), title: None,
+                    detail: Some(format!("lancement de yt-dlp : {e}")),
+                });
+                cleanup(&id_task).await;
+                return;
+            }
+        };
+        let stdout = match child.stdout.take() {
+            Some(s) => s,
+            None => {
+                emit(&app, MediaProgress {
+                    id: id_task.clone(), downloaded: 0, total: None, speed_bps: 0.0,
+                    percent: None, status: "error".into(), title: None,
+                    detail: Some("sortie yt-dlp indisponible".into()),
+                });
+                cleanup(&id_task).await;
+                return;
+            }
+        };
+        let stderr = child.stderr.take();
+
+        // Tampon des dernières lignes de stderr (borné à 60 lignes).
+        // Vec<String> : pas de risque de couper un caractère UTF-8.
+        let errbuf = Arc::new(Mutex::new(Vec::<String>::new()));
+        if let Some(se) = stderr {
+            let errbuf2 = errbuf.clone();
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(se).lines();
+                while let Ok(Some(l)) = lines.next_line().await {
+                    let mut b = errbuf2.lock().await;
+                    b.push(l);
+                    if b.len() > 60 {
+                        let drop = b.len() - 60;
+                        b.drain(0..drop);
+                    }
+                }
+            });
+        }
+
         let mut reader = BufReader::new(stdout).lines();
         let mut filepath: Option<String> = None;
         let mut last = MediaProgress {

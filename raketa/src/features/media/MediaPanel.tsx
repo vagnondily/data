@@ -20,11 +20,17 @@ export interface MediaItem {
   title: string;
   thumbnail: string | null;
   p: MediaProgress;
+  // Source du téléchargement : mémorisée pour pouvoir le relancer (« Réessayer »).
+  // Absente pour les médias récupérés depuis le navigateur (on ne connaît pas
+  // l'URL d'origine côté interface) : pas de bouton réessayer dans ce cas.
+  url?: string;
+  quality?: string;
 }
 
 interface Props {
   items: MediaItem[];
   onStarted: (item: MediaItem) => void;
+  onDismiss: (id: string) => void;
 }
 
 function fmtDuration(s: number | null): string {
@@ -50,12 +56,14 @@ function mediaLabel(status: string): string {
         ? "Annulé"
         : status === "processing"
           ? "Finalisation"
-          : "Téléchargement";
+          : status === "queued"
+            ? "En file"
+            : "Téléchargement";
 }
 
 // Panneau « Médias » : analyse une URL (YouTube, Vimeo, Dailymotion et ~1000
 // autres sources) puis télécharge la qualité choisie via yt-dlp.
-export function MediaPanel({ items, onStarted }: Props) {
+export function MediaPanel({ items, onStarted, onDismiss }: Props) {
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<MediaInfo | null>(null);
   const [quality, setQuality] = useState("auto");
@@ -109,11 +117,14 @@ export function MediaPanel({ items, onStarted }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const id = await mediaDownload(url.trim(), quality, "");
+      const u = url.trim();
+      const id = await mediaDownload(u, quality, "");
       onStarted({
         id,
         title: info.title,
         thumbnail: info.thumbnail,
+        url: u,
+        quality,
         p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", title: null, detail: null },
       });
       setInfo(null);
@@ -122,6 +133,26 @@ export function MediaPanel({ items, onStarted }: Props) {
       setError(String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Relance un média en échec/annulé avec la même source (nouvel identifiant) :
+  // l'ancienne ligne est retirée pour éviter un doublon.
+  async function retry(m: MediaItem) {
+    if (!m.url) return;
+    try {
+      const id = await mediaDownload(m.url, m.quality ?? "auto", "");
+      onStarted({
+        id,
+        title: m.title,
+        thumbnail: m.thumbnail,
+        url: m.url,
+        quality: m.quality,
+        p: { id, downloaded: 0, total: null, speed_bps: 0, percent: null, status: "downloading", title: null, detail: null },
+      });
+      onDismiss(m.id);
+    } catch (e) {
+      setError(String(e));
     }
   }
 
@@ -267,11 +298,27 @@ export function MediaPanel({ items, onStarted }: Props) {
                         <Icon name="folder" size={14} />
                       </button>
                     </>
-                  ) : m.p.status === "downloading" ? (
+                  ) : m.p.status === "downloading" || m.p.status === "queued" || processing ? (
                     <button className="btn tiny danger" onClick={() => mediaCancel(m.id)}>
                       <Icon name="stop" size={14} /> Annuler
                     </button>
+                  ) : (m.p.status === "error" || m.p.status === "cancelled") ? (
+                    <>
+                      {m.url && (
+                        <button className="btn tiny primary" onClick={() => retry(m)} title="Relancer le téléchargement">
+                          <Icon name="rotate" size={14} /> Réessayer
+                        </button>
+                      )}
+                      <button className="btn tiny ghost" onClick={() => onDismiss(m.id)} title="Retirer de la liste">
+                        <Icon name="x" size={14} />
+                      </button>
+                    </>
                   ) : null}
+                  {done && (
+                    <button className="btn tiny ghost" onClick={() => onDismiss(m.id)} title="Retirer de la liste">
+                      <Icon name="x" size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             );

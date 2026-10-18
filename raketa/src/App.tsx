@@ -645,6 +645,7 @@ export function App() {
           <MediaPanel
             items={media}
             onStarted={(item) => setMedia((prev) => [item, ...prev])}
+            onDismiss={(id) => setMedia((prev) => prev.filter((m) => m.id !== id))}
           />
         )}
         {tab === "history" && (
