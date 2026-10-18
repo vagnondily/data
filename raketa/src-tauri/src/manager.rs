@@ -332,11 +332,17 @@ fn spawn_download(
                 }
                 Err(e) => {
                     let code = format!("{e}");
-                    // Les liens debrid/seedbox expirent ou sont à usage unique.
-                    let message = if code.contains("404")
+                    // Message clair et actionnable selon le code.
+                    let message = if code.contains("401") {
+                        // Les identifiants ne sont pas conservés après un redémarrage
+                        // (jamais stockés en clair) : une reprise automatique d'un
+                        // lien protégé échoue donc en 401. On le dit explicitement.
+                        format!("{code} — authentification requise : relancez le téléchargement avec vos identifiants (non conservés au redémarrage)")
+                    } else if code.contains("404")
                         || code.contains("403")
                         || code.contains("410")
                     {
+                        // Les liens debrid/seedbox expirent ou sont à usage unique.
                         format!("{code} — lien probablement expiré ou à usage unique (fréquent avec debrid/seedbox) : régénère le lien")
                     } else {
                         code
