@@ -185,6 +185,8 @@ pub fn run() {
             commands::clear_log,
             commands::firewall_status,
             commands::firewall_authorize,
+            commands::detect_part_groups,
+            commands::join_parts,
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application RAKETA");

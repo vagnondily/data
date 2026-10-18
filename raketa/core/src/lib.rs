@@ -38,6 +38,7 @@ pub mod filename;
 pub mod hash;
 pub mod metadata;
 pub mod model;
+pub mod parts;
 pub mod ratelimit;
 pub mod redact;
 pub mod segmented;
@@ -49,6 +50,7 @@ pub use error::{EngineError, Result};
 pub use model::{
     Control, DownloadStatus, DownloadTask, Outcome, Progress, RemoteInfo, SegmentInfo,
 };
+pub use parts::{detect_groups, PartFile, PartGroup, PartKind};
 pub use ratelimit::RateLimiter;
 pub use redact::redact_url;
 pub use storage::{DownloadRecord, EventRecord, HistoryRecord, Store};

@@ -340,6 +340,61 @@ export function onUpdateProgress(
   return listen<UpdateProgress>(EVENT_UPDATE, (event) => cb(event.payload));
 }
 
+// ---- Combineur de parties (joindre les fichiers découpés) ----
+
+// "concat" = à concaténer (reconstitue le fichier) ; "archive" = archive
+// multi-volume à extraire (ne jamais concaténer).
+export type PartKind = "concat" | "archive";
+
+export interface PartFile {
+  path: string;
+  name: string;
+  size: number;
+}
+
+export interface PartGroup {
+  base: string;
+  output_name: string;
+  kind: PartKind;
+  parts: PartFile[];
+  total_size: number;
+  // Première partie manquante (suite non contiguë), sinon null.
+  missing: number | null;
+}
+
+export interface JoinProgress {
+  output: string;
+  written: number;
+  total: number;
+  done: boolean;
+}
+
+export const EVENT_JOIN = "raketa://join-progress";
+
+// Détecte les groupes « multi-parties » d'un dossier (par nom de fichier).
+export function detectPartGroups(dir: string): Promise<PartGroup[]> {
+  return invoke<PartGroup[]>("detect_part_groups", { dir });
+}
+
+// Concatène des parties dans l'ordre en un seul fichier. Renvoie le chemin final.
+export function joinParts(args: {
+  parts: string[];
+  dir: string;
+  outputName: string;
+  deleteParts: boolean;
+}): Promise<string> {
+  return invoke<string>("join_parts", {
+    parts: args.parts,
+    dir: args.dir,
+    outputName: args.outputName,
+    deleteParts: args.deleteParts,
+  });
+}
+
+export function onJoinProgress(cb: (p: JoinProgress) => void): Promise<UnlistenFn> {
+  return listen<JoinProgress>(EVENT_JOIN, (event) => cb(event.payload));
+}
+
 export const EVENT_CLIPBOARD = "raketa://clipboard-url";
 
 // URL intéressante copiée dans le presse-papiers (capture façon IDM).

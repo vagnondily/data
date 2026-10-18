@@ -1452,6 +1452,150 @@ pub async fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
 // Ergonomie de la fenêtre (épingler, mode réduit « à côté de l'écran »)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Combineur de parties (joindre les fichiers téléchargés en plusieurs morceaux)
+// ---------------------------------------------------------------------------
+
+/// Canal de progression de la jonction des parties.
+pub const EVENT_JOIN: &str = "raketa://join-progress";
+
+/// Progression d'une jonction de parties (identifiée par le nom de sortie).
+#[derive(Debug, Clone, Serialize)]
+pub struct JoinProgress {
+    pub output: String,
+    pub written: u64,
+    pub total: u64,
+    pub done: bool,
+}
+
+/// Détecte les groupes de fichiers « en plusieurs parties » présents dans un
+/// dossier (par nom de fichier). Plusieurs groupes distincts peuvent coexister.
+#[tauri::command]
+pub async fn detect_part_groups(dir: String) -> Result<Vec<raketa_core::PartGroup>, String> {
+    let dir_path = std::path::PathBuf::from(&dir);
+    let mut entries: Vec<(String, String, u64)> = Vec::new();
+    let mut rd = tokio::fs::read_dir(&dir_path)
+        .await
+        .map_err(|e| format!("lecture du dossier : {e}"))?;
+    while let Ok(Some(ent)) = rd.next_entry().await {
+        let Ok(meta) = ent.metadata().await else { continue };
+        if !meta.is_file() {
+            continue;
+        }
+        let name = ent.file_name().to_string_lossy().to_string();
+        // Ignore les fichiers partiels de RAKETA (téléchargements en cours).
+        if name.contains(".rkt-part") {
+            continue;
+        }
+        entries.push((ent.path().display().to_string(), name, meta.len()));
+    }
+    Ok(raketa_core::detect_groups(&entries))
+}
+
+/// Concatène des parties (découpe binaire) dans l'ordre fourni en UN fichier.
+///
+/// `parts` = chemins complets déjà triés (ordre de reconstruction) ; `dir` =
+/// dossier de sortie ; `output_name` = nom proposé du fichier final. N'écrase
+/// jamais un fichier existant ; passe par un fichier temporaire puis rename
+/// atomique. `delete_parts` supprime les morceaux UNIQUEMENT après succès.
+///
+/// Réservé aux découpes concaténables (`.001/.002`, volumes 7-Zip) : les
+/// archives multi-volumes (RAR/ZIP) ne doivent pas être concaténées — elles
+/// s'extraient (l'interface propose « Ouvrir » pour cela).
+#[tauri::command]
+pub async fn join_parts(
+    app: AppHandle,
+    parts: Vec<String>,
+    dir: String,
+    output_name: String,
+    delete_parts: bool,
+) -> Result<String, String> {
+    use tauri::Emitter;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    if parts.len() < 2 {
+        return Err("Au moins deux parties sont nécessaires.".into());
+    }
+    let safe_name = raketa_core::filename::sanitize(&output_name);
+    let dir_path = std::path::PathBuf::from(&dir);
+    let final_path = raketa_core::filename::unique_destination(&dir_path, &safe_name);
+
+    let mut total: u64 = 0;
+    for p in &parts {
+        total += tokio::fs::metadata(p).await.map(|m| m.len()).unwrap_or(0);
+    }
+
+    // Écriture dans un fichier temporaire « .joining », puis rename atomique.
+    let tmp = dir_path.join(format!("{safe_name}.joining"));
+    let mut out = tokio::fs::File::create(&tmp)
+        .await
+        .map_err(|e| format!("création du fichier : {e}"))?;
+
+    let mut buf = vec![0u8; 1024 * 1024];
+    let mut written: u64 = 0;
+    let mut last = std::time::Instant::now();
+    let _ = app.emit(
+        EVENT_JOIN,
+        JoinProgress { output: safe_name.clone(), written, total, done: false },
+    );
+
+    for part in &parts {
+        let mut f = match tokio::fs::File::open(part).await {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = tokio::fs::remove_file(&tmp).await;
+                return Err(format!("ouverture de « {part} » : {e}"));
+            }
+        };
+        loop {
+            let n = match f.read(&mut buf).await {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) => {
+                    let _ = tokio::fs::remove_file(&tmp).await;
+                    return Err(format!("lecture : {e}"));
+                }
+            };
+            if let Err(e) = out.write_all(&buf[..n]).await {
+                let _ = tokio::fs::remove_file(&tmp).await;
+                if e.raw_os_error() == Some(28) {
+                    return Err("Disque plein pendant la jonction.".into());
+                }
+                return Err(format!("écriture : {e}"));
+            }
+            written += n as u64;
+            if last.elapsed() >= std::time::Duration::from_millis(200) {
+                let _ = app.emit(
+                    EVENT_JOIN,
+                    JoinProgress { output: safe_name.clone(), written, total, done: false },
+                );
+                last = std::time::Instant::now();
+            }
+        }
+    }
+
+    out.flush().await.map_err(|e| format!("finalisation : {e}"))?;
+    out.sync_all().await.map_err(|e| format!("finalisation : {e}"))?;
+    drop(out);
+
+    tokio::fs::rename(&tmp, &final_path)
+        .await
+        .map_err(|e| format!("renommage : {e}"))?;
+
+    // Suppression des parties uniquement après une jonction réussie.
+    if delete_parts {
+        for part in &parts {
+            let _ = tokio::fs::remove_file(part).await;
+        }
+    }
+
+    let _ = app.emit(
+        EVENT_JOIN,
+        JoinProgress { output: safe_name, written, total, done: true },
+    );
+    Ok(final_path.display().to_string())
+}
+
 /// Épingle/désépingle la fenêtre au-dessus des autres (toujours visible).
 #[tauri::command]
 pub async fn set_always_on_top(app: AppHandle, on: bool) -> Result<(), String> {

@@ -47,6 +47,7 @@ import { BrowserPanel } from "./features/browser/BrowserPanel";
 import { MediaPanel, type MediaItem } from "./features/media/MediaPanel";
 import { HistoryPanel } from "./features/history/HistoryPanel";
 import { GlobalOverview } from "./features/overview/GlobalOverview";
+import { PartsJoiner } from "./features/parts/PartsJoiner";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import logoMark from "./assets/logo-mark.svg";
 
@@ -96,6 +97,8 @@ export function App() {
   const [addMode, setAddMode] = useState<"single" | "batch">("single");
   // Fenêtre de préférences flottante.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Combineur de parties (joindre les fichiers découpés).
+  const [partsOpen, setPartsOpen] = useState(false);
   // Glisser-déposer un lien sur la fenêtre pour lancer un téléchargement.
   const [dragging, setDragging] = useState(false);
   const downloadsRef = useRef<DownloadDto[]>([]);
@@ -580,6 +583,14 @@ export function App() {
               <Icon name="globe" size={17} />
             </button>
             <button
+              className={`win-btn ${partsOpen ? "active" : ""}`}
+              onClick={() => setPartsOpen(true)}
+              title="Combineur de parties (joindre des fichiers découpés)"
+              aria-pressed={partsOpen}
+            >
+              <Icon name="layers" size={17} />
+            </button>
+            <button
               className={`win-btn ${settingsOpen ? "active" : ""}`}
               onClick={() => setSettingsOpen(true)}
               title="Préférences"
@@ -704,6 +715,13 @@ export function App() {
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           onSaved={loadSettings}
+        />
+      )}
+
+      {partsOpen && (
+        <PartsJoiner
+          defaultDir={settings?.default_dir ?? ""}
+          onClose={() => setPartsOpen(false)}
         />
       )}
 
