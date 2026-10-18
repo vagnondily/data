@@ -275,6 +275,8 @@ export interface UpdateInfo {
   tag: string;
   url: string;
   notes: string;
+  // Empreinte SHA-256 attendue de l'installeur (si publiée) — vérifiée avant installation.
+  sha256: string | null;
 }
 
 // Vérifie s'il existe une version plus récente (null si à jour).
@@ -293,8 +295,8 @@ export const EVENT_UPDATE = "raketa://update-progress";
 
 // Télécharge l'installeur DANS RAKETA (pas via le navigateur). Renvoie le
 // chemin local du .exe.
-export function downloadUpdate(url: string): Promise<string> {
-  return invoke<string>("download_update", { url });
+export function downloadUpdate(url: string, sha256?: string | null): Promise<string> {
+  return invoke<string>("download_update", { url, expectedSha256: sha256 ?? null });
 }
 
 // Lance l'installeur téléchargé et ferme RAKETA.

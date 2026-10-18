@@ -124,7 +124,7 @@ export function App() {
       un = await onUpdateProgress((p) => {
         if (p.total) setUpdPct(Math.min(100, Math.round((p.downloaded / p.total) * 100)));
       });
-      const path = await downloadUpdate(update.url);
+      const path = await downloadUpdate(update.url, update.sha256);
       setUpdPath(path);
       setUpdPct(100);
       setUpdDl("ready");

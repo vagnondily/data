@@ -849,6 +849,10 @@ pub struct UpdateInfo {
     pub tag: String,
     pub url: String,
     pub notes: String,
+    /// Empreinte SHA-256 attendue de l'installeur (hex minuscule), si publiée :
+    /// digest de l'asset GitHub, sinon ligne « SHA256-SETUP: … » du corps de la
+    /// release. Permet de vérifier l'intégrité avant de lancer l'installeur.
+    pub sha256: Option<String>,
 }
 
 /// Vérifie s'il existe une version plus récente sur le dépôt public
@@ -891,7 +895,7 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
     let latest: u64 = tag.trim_start_matches(|c: char| !c.is_ascii_digit()).parse().unwrap_or(0);
 
     if latest > current {
-        let url = json
+        let setup = json
             .get("assets")
             .and_then(|a| a.as_array())
             .and_then(|arr| {
@@ -901,7 +905,8 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
                         .map(|n| n.ends_with("-setup.exe"))
                         .unwrap_or(false)
                 })
-            })
+            });
+        let url = setup
             .and_then(|x| x.get("browser_download_url"))
             .and_then(|u| u.as_str())
             .or_else(|| json.get("html_url").and_then(|u| u.as_str()))
@@ -912,10 +917,33 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
             .and_then(|b| b.as_str())
             .unwrap_or("")
             .to_string();
-        Ok(Some(UpdateInfo { build: latest, tag, url, notes }))
+        // Empreinte attendue : « digest » de l'asset GitHub (« sha256:HEX ») en
+        // priorité, sinon une ligne « SHA256-SETUP: HEX » du corps de la release.
+        let sha256 = setup
+            .and_then(|x| x.get("digest"))
+            .and_then(|d| d.as_str())
+            .and_then(|d| d.strip_prefix("sha256:"))
+            .map(|h| h.to_lowercase())
+            .filter(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()))
+            .or_else(|| parse_body_sha256(&notes));
+        Ok(Some(UpdateInfo { build: latest, tag, url, notes, sha256 }))
     } else {
         Ok(None)
     }
+}
+
+/// Extrait l'empreinte « SHA256-SETUP: <hex> » du corps d'une release (publiée
+/// par la CI), si elle est présente et bien formée (64 caractères hexadécimaux).
+fn parse_body_sha256(body: &str) -> Option<String> {
+    for line in body.lines() {
+        if let Some(rest) = line.trim().strip_prefix("SHA256-SETUP:") {
+            let h = rest.trim().to_lowercase();
+            if h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Some(h);
+            }
+        }
+    }
+    None
 }
 
 /// Canal de progression du téléchargement de la mise à jour.
@@ -933,7 +961,11 @@ pub struct UpdateProgress {
 /// temporaire), en publiant la progression sur `raketa://update-progress`.
 /// Renvoie le chemin local du `.exe`. Évite de passer par le navigateur.
 #[tauri::command]
-pub async fn download_update(app: AppHandle, url: String) -> Result<String, String> {
+pub async fn download_update(
+    app: AppHandle,
+    url: String,
+    expected_sha256: Option<String>,
+) -> Result<String, String> {
     use futures_util::StreamExt;
     use std::io::Write;
     use tauri::Emitter;
@@ -974,6 +1006,32 @@ pub async fn download_update(app: AppHandle, url: String) -> Result<String, Stri
         }
     }
     file.flush().map_err(|e| format!("finalisation : {e}"))?;
+    drop(file); // referme le fichier avant de le relire (verrou Windows)
+
+    // Vérification d'intégrité : si l'empreinte attendue est connue (publiée par
+    // la CI / fournie par GitHub), on refuse de lancer un installeur altéré.
+    // Best-effort : sans empreinte (anciennes releases), on n'empêche pas la MAJ.
+    if let Some(expected) = expected_sha256 {
+        let expected = expected.trim().to_lowercase();
+        if expected.len() == 64 {
+            match raketa_core::hash::sha256_file(&dest).await {
+                Ok(actual) if actual == expected => {}
+                Ok(actual) => {
+                    let _ = std::fs::remove_file(&dest);
+                    return Err(format!(
+                        "empreinte de l'installeur invalide (attendu {}…, obtenu {}…) — mise à jour refusée par sécurité",
+                        &expected[..8],
+                        &actual[..8.min(actual.len())]
+                    ));
+                }
+                Err(e) => {
+                    let _ = std::fs::remove_file(&dest);
+                    return Err(format!("vérification de l'intégrité impossible : {e}"));
+                }
+            }
+        }
+    }
+
     let _ = app.emit(EVENT_UPDATE, UpdateProgress { downloaded, total, done: true });
     Ok(dest.display().to_string())
 }

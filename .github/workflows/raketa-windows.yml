@@ -58,6 +58,17 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path browser-extension/* -DestinationPath raketa-extension.zip -Force
 
+      - name: Empreinte SHA-256 de l'installeur
+        # Calcule l'empreinte de l'installeur NSIS, publiée dans le corps de la
+        # release ; l'app la vérifie avant de lancer la mise à jour (intégrité).
+        id: hash
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          $h = (Get-FileHash -Algorithm SHA256 $exe.FullName).Hash.ToLower()
+          "setup_sha256=$h" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "SHA256($($exe.Name)) = $h"
+
       - name: Publier l'installeur en artifact
         uses: actions/upload-artifact@v4
         with:
@@ -136,6 +147,8 @@ jobs:
             Installeur Windows de RAKETA — build ${{ github.run_number }}.
 
             Téléchargé et vérifié automatiquement par l'app (Paramètres › Mises à jour).
+
+            SHA256-SETUP: ${{ steps.hash.outputs.setup_sha256 }}
           files: |
             raketa/src-tauri/target/release/bundle/nsis/*.exe
             raketa/src-tauri/target/release/bundle/msi/*.msi
