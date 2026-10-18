@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RAKETA — Capture de téléchargements",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Envoie les liens, téléchargements et vidéos vers RAKETA (clic droit « Télécharger » / « Récupérer la vidéo », ou capture automatique).",
   "permissions": ["contextMenus", "downloads", "storage", "notifications"],
   "host_permissions": ["http://127.0.0.1:47623/*"],
