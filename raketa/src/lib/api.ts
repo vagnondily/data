@@ -304,6 +304,12 @@ export function runInstaller(path: string): Promise<void> {
   return invoke("run_installer", { path });
 }
 
+// Télécharge + décompresse l'extension et ouvre le dossier prêt à charger.
+// Renvoie le chemin du dossier.
+export function installExtension(): Promise<string> {
+  return invoke<string>("install_extension");
+}
+
 export function onUpdateProgress(
   cb: (p: UpdateProgress) => void,
 ): Promise<UnlistenFn> {

@@ -10,6 +10,7 @@ import {
   installFfmpeg,
   mediaToolsStatus,
   onFfmpegProgress,
+  installExtension,
   openExternalUrl,
   openLog,
   parseCustomCategories,
@@ -76,6 +77,10 @@ export function SettingsModal({ onClose, onSaved }: Props) {
   const [ffmpegProg, setFfmpegProg] = useState<FfmpegProgress | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [fw, setFw] = useState<FirewallStatus | null>(null);
+  // Installation guidée de l'extension (téléchargement + décompression).
+  const [extState, setExtState] = useState<"idle" | "working" | "ready" | "error">("idle");
+  const [extPath, setExtPath] = useState<string>("");
+  const [extErr, setExtErr] = useState<string>("");
   const [fwBusy, setFwBusy] = useState(false);
 
   const refreshLog = () => {
@@ -422,15 +427,64 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                 </div>
                 <div className="setting-row">
                   <label>Extension navigateur</label>
-                  <button className="btn ghost" onClick={() => openExternalUrl(RELEASE_URL)}>
-                    <Icon name="globe" size={15} /> Télécharger l'extension
+                  <button
+                    className="btn primary"
+                    disabled={extState === "working"}
+                    onClick={async () => {
+                      setExtState("working");
+                      setExtErr("");
+                      try {
+                        const p = await installExtension();
+                        setExtPath(p);
+                        setExtState("ready");
+                      } catch (e) {
+                        setExtErr(String(e));
+                        setExtState("error");
+                      }
+                    }}
+                  >
+                    <Icon name="globe" size={15} />{" "}
+                    {extState === "working" ? "Préparation…" : "Préparer l'extension (Chrome/Edge)"}
                   </button>
-                  <span className="hint">
-                    Pour Chrome/Edge : ajoute le bouton « Télécharger cette vidéo » sur les
-                    pages et capture les téléchargements. Récupérez « raketa-extension.zip »,
-                    décompressez-le, puis chargez le dossier dans chrome://extensions
-                    (activez le « Mode développeur »).
-                  </span>
+                  {extState === "ready" ? (
+                    <div className="hint ext-steps">
+                      <strong>Dossier prêt (ouvert dans l'explorateur) :</strong>
+                      <code className="ext-path">{extPath}</code>
+                      <ol>
+                        <li>
+                          Ouvrez <code>chrome://extensions</code> (ou{" "}
+                          <code>edge://extensions</code>).
+                        </li>
+                        <li>Activez le « Mode développeur » (en haut à droite).</li>
+                        <li>
+                          Cliquez « Charger l'extension non empaquetée » et choisissez le dossier
+                          ci-dessus.
+                        </li>
+                      </ol>
+                      <button
+                        className="btn tiny ghost"
+                        onClick={() => {
+                          navigator.clipboard?.writeText("chrome://extensions").catch(() => {});
+                        }}
+                      >
+                        Copier « chrome://extensions »
+                      </button>
+                    </div>
+                  ) : extState === "error" ? (
+                    <span className="hint" style={{ color: "var(--danger, #e5484d)" }}>
+                      {extErr} — vous pouvez aussi télécharger l'extension manuellement.{" "}
+                      <button className="btn tiny ghost" onClick={() => openExternalUrl(RELEASE_URL)}>
+                        Page des versions
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="hint">
+                      Télécharge et décompresse l'extension pour vous, puis ouvre le dossier à
+                      charger. Elle ajoute le bouton « Télécharger cette vidéo » sur les pages et
+                      capture les téléchargements. Alternative sans installation : le navigateur
+                      intégré de RAKETA.
+                    </span>
+                  )}
                 </div>
               </>
             )}

@@ -165,6 +165,7 @@ pub fn run() {
             commands::check_update,
             commands::download_update,
             commands::run_installer,
+            commands::install_extension,
             commands::media_probe,
             commands::media_download,
             commands::media_cancel,

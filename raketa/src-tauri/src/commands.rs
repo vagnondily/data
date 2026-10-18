@@ -1087,6 +1087,111 @@ pub async fn run_installer(app: AppHandle, path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Télécharge l'extension navigateur, la décompresse dans un dossier stable, et
+/// ouvre ce dossier dans l'explorateur. L'utilisateur n'a plus qu'à activer le
+/// « Mode développeur » puis « Charger l'extension non empaquetée » en pointant
+/// ce dossier — les seules étapes que Chrome/Edge imposent pour une extension
+/// hors Web Store. Renvoie le chemin du dossier prêt à charger.
+#[tauri::command]
+pub async fn install_extension(app: AppHandle) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("RAKETA-Updater")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 1) Trouver l'URL du zip de l'extension dans une release publiée.
+    let releases: Vec<serde_json::Value> = client
+        .get("https://api.github.com/repos/vagnondily/raketa-releases/releases?per_page=30")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .error_for_status()
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    let zip_url = releases
+        .iter()
+        .filter(|r| !r.get("draft").and_then(|d| d.as_bool()).unwrap_or(false))
+        .flat_map(|r| {
+            r.get("assets")
+                .and_then(|a| a.as_array())
+                .cloned()
+                .unwrap_or_default()
+        })
+        .find(|a| a.get("name").and_then(|n| n.as_str()) == Some("raketa-extension.zip"))
+        .and_then(|a| {
+            a.get("browser_download_url")
+                .and_then(|u| u.as_str())
+                .map(|s| s.to_string())
+        })
+        .ok_or("extension introuvable dans les releases — réessayez après la prochaine build")?;
+
+    // 2) Télécharger le zip.
+    let bytes = client
+        .get(&zip_url)
+        .header("User-Agent", "RAKETA")
+        .send()
+        .await
+        .map_err(|e| format!("téléchargement de l'extension : {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("téléchargement de l'extension : {e}"))?
+        .bytes()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 3) Extraire dans <données>/extension (dossier remis à neuf à chaque fois).
+    let base = directories::ProjectDirs::from("com", "SmartServiceAndroy", "RAKETA")
+        .map(|d| d.data_dir().to_path_buf())
+        .ok_or("dossier de données introuvable")?;
+    let dir = base.join("extension");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    extract_zip_tree(&bytes, &dir)?;
+
+    // 4) Ouvrir le dossier prêt à charger dans l'explorateur.
+    use tauri_plugin_opener::OpenerExt;
+    let _ = app.opener().open_path(dir.display().to_string(), None::<&str>);
+
+    Ok(dir.display().to_string())
+}
+
+/// Décompresse une archive zip en préservant l'arborescence (protégé contre le
+/// « zip-slip » via `enclosed_name`). Utilisé pour l'extension navigateur.
+fn extract_zip_tree(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
+    use std::io::{Cursor, Read, Write};
+    let mut zip = zip::ZipArchive::new(Cursor::new(data))
+        .map_err(|e| format!("archive illisible : {e}"))?;
+    for i in 0..zip.len() {
+        let mut entry = zip
+            .by_index(i)
+            .map_err(|e| format!("entrée zip illisible : {e}"))?;
+        // On copie le chemin tout de suite (propriétaire) pour ne pas garder un
+        // emprunt sur `entry`, qui est ensuite lu en mutable.
+        let rel = match entry.enclosed_name() {
+            Some(p) => p.to_owned(),
+            None => continue, // chemin non sûr : ignoré
+        };
+        let out = dest.join(&rel);
+        if entry.is_dir() {
+            let _ = std::fs::create_dir_all(&out);
+            continue;
+        }
+        if let Some(parent) = out.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let mut buf = Vec::new();
+        entry
+            .read_to_end(&mut buf)
+            .map_err(|e| format!("lecture entrée : {e}"))?;
+        std::fs::File::create(&out)
+            .and_then(|mut f| f.write_all(&buf))
+            .map_err(|e| format!("écriture {} : {e}", out.display()))?;
+    }
+    Ok(())
+}
+
 /// Ouvre un fichier (ou dossier) avec l'application par défaut du système.
 #[tauri::command]
 pub async fn open_file(app: AppHandle, path: String) -> Result<(), String> {
