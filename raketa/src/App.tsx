@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDownload,
+  addTorrent,
   checkUpdate,
   downloadUpdate,
   getSettings,
@@ -90,6 +91,8 @@ export function App() {
   const [addMode, setAddMode] = useState<"single" | "batch">("single");
   // Fenêtre de préférences flottante.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Glisser-déposer un lien sur la fenêtre pour lancer un téléchargement.
+  const [dragging, setDragging] = useState(false);
   const downloadsRef = useRef<DownloadDto[]>([]);
   const settingsRef = useRef<Settings | null>(null);
   settingsRef.current = settings;
@@ -380,6 +383,64 @@ export function App() {
     };
   }, [refresh, refreshTorrents]);
 
+  // Glisser-déposer : déposer un lien (depuis un navigateur, un document…) sur
+  // la fenêtre lance le téléchargement — pratique et sans connaissance technique.
+  useEffect(() => {
+    let depth = 0;
+    const hasLink = (e: DragEvent) =>
+      !!e.dataTransfer &&
+      (e.dataTransfer.types.includes("text/uri-list") ||
+        e.dataTransfer.types.includes("text/plain"));
+    const onEnter = (e: DragEvent) => {
+      if (!hasLink(e)) return;
+      e.preventDefault();
+      depth++;
+      setDragging(true);
+    };
+    const onOver = (e: DragEvent) => {
+      if (hasLink(e)) e.preventDefault();
+    };
+    const onLeave = () => {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragging(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      depth = 0;
+      setDragging(false);
+      const dt = e.dataTransfer;
+      if (!dt) return;
+      const raw = (dt.getData("text/uri-list") || dt.getData("text/plain") || "").trim();
+      const links = raw
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"));
+      let added = false;
+      for (const u of links) {
+        if (/^magnet:/i.test(u)) {
+          addTorrent(u).then(refreshTorrents).catch(() => {});
+          setTab("torrents");
+          added = true;
+        } else if (/^https?:\/\//i.test(u)) {
+          addDownload({ url: u, destDir: "" }).then(refresh).catch(() => {});
+          setTab("http");
+          added = true;
+        }
+      }
+      void added;
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [refresh, refreshTorrents]);
+
   // Capture presse-papiers : propose le lien copié (façon IDM).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -432,6 +493,14 @@ export function App() {
 
   return (
     <div className="app">
+      {dragging && (
+        <div className="drop-overlay">
+          <div className="drop-overlay-inner">
+            <Icon name="download" size={40} />
+            <p>Déposez le lien pour télécharger avec RAKETA</p>
+          </div>
+        </div>
+      )}
       <header className="app-header">
         <div className="brand">
           <img className="brand-logo" src={logoMark} alt="RAKETA" />

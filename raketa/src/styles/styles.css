@@ -736,6 +736,32 @@ button:focus:not(:focus-visible) {
   margin-left: auto;
   flex: 0 0 auto;
 }
+/* ---- Glisser-déposer d'un lien ---- */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(10, 13, 17, 0.72);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 56px;
+  border: 2px dashed var(--blue);
+  border-radius: 16px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .update-dl {
   display: inline-flex;
   align-items: center;
