@@ -329,6 +329,13 @@ export function SettingsModal({ onClose, onSaved }: Props) {
                   </label>
                 </div>
                 <div className="setting-row">
+                  <label>Garder la fenêtre au-dessus</label>
+                  <label className="switch">
+                    <input type="checkbox" checked={s.always_on_top} onChange={(e) => update("always_on_top", e.target.checked)} />
+                    <span className="hint">RAKETA reste visible devant les autres fenêtres (identique au bouton « épingler » de l'en-tête). Réglage conservé au redémarrage.</span>
+                  </label>
+                </div>
+                <div className="setting-row">
                   <label>Pare-feu Windows</label>
                   {fw?.allowed ? (
                     <span className="badge ok">Autorisé</span>

@@ -465,6 +465,11 @@ pub async fn set_settings(
         let _ = if settings.autostart { al.enable() } else { al.disable() };
     }
 
+    // Applique « toujours au-dessus » à chaud sur la fenêtre principale.
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.set_always_on_top(settings.always_on_top);
+    }
+
     *state.settings.lock().await = settings;
     Ok(())
 }

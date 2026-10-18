@@ -239,6 +239,7 @@ export interface Settings {
   custom_categories: string;
   minimize_to_tray: boolean;
   autostart: boolean;
+  always_on_top: boolean;
 }
 
 // Catégorie personnalisée définie par l'utilisateur.

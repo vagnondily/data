@@ -24,6 +24,7 @@ import {
   resumeDownload,
   setAlwaysOnTop,
   setRateLimitLive,
+  setSettings as persistSettings,
   type DownloadDto,
   type MediaProgress,
   type Progress,
@@ -160,7 +161,9 @@ export function App() {
     }
   }
 
-  // Épingler la fenêtre au-dessus des autres.
+  // Épingler la fenêtre au-dessus des autres. Le choix est PERSISTANT : on le
+  // mémorise dans les préférences pour qu'il survive au redémarrage (c'est la
+  // demande « activer always-on-top »).
   async function togglePin() {
     const next = !pinned;
     setPinned(next);
@@ -168,6 +171,12 @@ export function App() {
       await setAlwaysOnTop(next);
     } catch {
       /* hors Tauri */
+    }
+    const s = settingsRef.current;
+    if (s && s.always_on_top !== next) {
+      const updated = { ...s, always_on_top: next };
+      setSettings(updated);
+      persistSettings(updated).catch(() => {});
     }
   }
 
@@ -192,7 +201,10 @@ export function App() {
         setPinned(true);
       } else {
         await restoreWindow();
-        setPinned(false);
+        // Revient à la préférence persistante d'épinglage (et non toujours OFF).
+        const keep = settingsRef.current?.always_on_top ?? false;
+        setPinned(keep);
+        await setAlwaysOnTop(keep).catch(() => {});
       }
     } catch {
       /* hors Tauri */
@@ -226,6 +238,14 @@ export function App() {
       .then((u) => u && setUpdate(u))
       .catch(() => {});
   }, [refresh, refreshTorrents, loadSettings]);
+
+  // Restaure « toujours au-dessus » au chargement des préférences (persistant).
+  useEffect(() => {
+    if (!settings) return;
+    setPinned(settings.always_on_top);
+    setAlwaysOnTop(settings.always_on_top).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.always_on_top]);
 
   // Planificateur horaire (façon IDM) : suspend/reprend la file et applique la
   // limite de vitesse nocturne. La fenêtre de l'app étant ouverte tant que des

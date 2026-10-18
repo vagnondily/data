@@ -42,6 +42,8 @@ pub struct Settings {
     pub minimize_to_tray: bool,
     /// Démarrer RAKETA automatiquement avec Windows.
     pub autostart: bool,
+    /// Garder la fenêtre au-dessus des autres (always-on-top), persistant.
+    pub always_on_top: bool,
 }
 
 impl Settings {
@@ -68,6 +70,7 @@ impl Settings {
             custom_categories: "[]".into(),
             minimize_to_tray: true,
             autostart: false,
+            always_on_top: false,
         }
     }
 
@@ -137,6 +140,9 @@ impl Settings {
             if let Some(v) = map.get("autostart") {
                 s.autostart = v == "true";
             }
+            if let Some(v) = map.get("always_on_top") {
+                s.always_on_top = v == "true";
+            }
         }
         s
     }
@@ -162,6 +168,7 @@ impl Settings {
         put("custom_categories", self.custom_categories.clone())?;
         put("minimize_to_tray", self.minimize_to_tray.to_string())?;
         put("autostart", self.autostart.to_string())?;
+        put("always_on_top", self.always_on_top.to_string())?;
         Ok(())
     }
 
