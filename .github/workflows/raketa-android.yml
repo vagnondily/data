@@ -50,15 +50,20 @@ jobs:
         with:
           workspaces: raketa/src-tauri
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Installer le NDK
+      - name: Android SDK + NDK (licences acceptées)
+        # Le runner ubuntu-latest a déjà le SDK Android. On accepte les licences
+        # (yes | …) et on installe NDK + plateforme + build-tools. Plus fiable que
+        # l'action setup-android, qui restait bloquée sur l'acceptation.
         shell: bash
         run: |
-          sdkmanager "ndk;26.3.11579264" "platforms;android-34" "build-tools;34.0.0"
-          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> "$GITHUB_ENV"
+          set -e
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SM" --licenses >/dev/null 2>&1 || true
+          "$SM" "ndk;26.3.11579264" "platforms;android-34" "build-tools;34.0.0"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$SDK/ndk/26.3.11579264" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$SDK/ndk/26.3.11579264" >> "$GITHUB_ENV"
 
       - name: Installer les dépendances front
         run: npm install
@@ -82,3 +87,35 @@ jobs:
           name: RAKETA-Android
           path: raketa/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+      # Ne s'exécute QUE si le build ci-dessus a réussi (« si l'APK est bon ») :
+      # publie l'APK dans le MÊME dépôt que les installeurs Windows
+      # (vagnondily/raketa-releases), sur un tag Android dédié pour ne pas
+      # entrer en conflit avec la numérotation « bN » des builds Windows.
+      - name: Empreinte SHA-256 de l'APK
+        id: apkhash
+        shell: bash
+        run: |
+          apk=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1)
+          echo "apk=$apk"
+          if [ -n "$apk" ]; then
+            echo "sha256=$(sha256sum "$apk" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publier l'APK sur le dépôt public (même dossier que Windows)
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: vagnondily/raketa-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: android-latest
+          name: RAKETA Android — dernière version (build ${{ github.run_number }})
+          draft: false
+          prerelease: false
+          body: |
+            APK Android de RAKETA — build ${{ github.run_number }} (compilé automatiquement).
+
+            Installez l'APK sur votre téléphone (autorisez « sources inconnues » / « installer des applis inconnues » pour le gestionnaire de fichiers ou le navigateur).
+
+            SHA256-APK: ${{ steps.apkhash.outputs.sha256 }}
+          files: raketa/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
