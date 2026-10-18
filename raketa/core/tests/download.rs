@@ -200,6 +200,59 @@ async fn reprise_apres_coupure_sans_corruption() {
     }
 }
 
+#[tokio::test]
+async fn reprise_refusee_si_ressource_modifiee() {
+    // Un fichier partiel laissé par une version PRÉCÉDENTE de la ressource (donc
+    // avec un validateur différent de l'actuel) ne doit JAMAIS être repris : le
+    // moteur doit repartir de zéro et produire le contenu courant complet.
+    //
+    // Ce serveur de test honore Range sans vérifier If-Range (comme beaucoup de
+    // serveurs réels) : sans la garde « validateur d'origine identique », les
+    // octets périmés seraient conservés et de nouveaux octets ajoutés par-dessus
+    // → fichier corrompu. La garde l'empêche.
+    let url = start_server(ServerOpts {
+        support_ranges: true,
+        cut_once: Arc::new(AtomicBool::new(false)),
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let data = payload();
+
+    // .part périmé (octets bidon) + marqueur de validateur qui NE correspond PAS
+    // à l'ETag courant du serveur ("v1-raketa").
+    std::fs::write(dir.path().join("t_changed.rkt-part"), vec![0xABu8; 100 * 1024]).unwrap();
+    std::fs::write(
+        dir.path().join("t_changed.rkt-part.v"),
+        "\"ancien-etag-different\"",
+    )
+    .unwrap();
+
+    let engine = Engine::new().unwrap();
+    let task = DownloadTask {
+        id: "t_changed".into(),
+        url,
+        dest_dir: dir.path().display().to_string(),
+        filename: Some("changed.bin".into()),
+        expected_sha256: Some(sha_hex(&data)),
+        auth: None,
+    };
+
+    let outcome = engine
+        .download(&task, Control::new(), noop_progress())
+        .await
+        .expect("doit repartir de zéro et terminer sans corruption");
+
+    if let Outcome::Completed { path, sha256, .. } = outcome {
+        assert_eq!(sha256.unwrap(), sha_hex(&data));
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            data,
+            "le .part périmé doit être ignoré, pas repris (pas de corruption)"
+        );
+    } else {
+        panic!("attendu Completed");
+    }
+}
+
 // Config forçant le multi-segments même sur un petit fichier de test.
 fn seg_config() -> EngineConfig {
     EngineConfig {

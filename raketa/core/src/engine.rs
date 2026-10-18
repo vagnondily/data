@@ -208,12 +208,26 @@ impl Engine {
             Err(_) => 0,
         };
 
-        // On ne tente la reprise que si le serveur supporte les plages ET qu'on
-        // dispose d'un validateur (ETag/Last-Modified) — sinon on ne peut pas
-        // garantir que la ressource n'a pas changé, donc on repart de zéro
-        // (contrat documenté en tête de module, évite une corruption silencieuse).
+        // Marqueur du validateur d'ORIGINE, mémorisé à côté du `.part` dès le
+        // premier téléchargement. On ne reprend que si le serveur honore les
+        // plages, qu'on a un validateur maintenant, ET qu'il est IDENTIQUE à
+        // celui d'origine. Sans cette égalité, une ressource modifiée — même à
+        // taille égale — serait reprise et corrompue en silence (le validateur
+        // fraîchement sondé « correspond » toujours à lui-même : il ne peut donc
+        // PAS servir de garde, c'est tout l'intérêt de mémoriser l'original).
+        let vmarker = validator_marker(part_path);
         let validator = info.etag.clone().or_else(|| info.last_modified.clone());
-        let can_resume = existing > 0 && info.accept_ranges && validator.is_some();
+        let stored = read_marker(&vmarker).await;
+        let can_resume = existing > 0
+            && info.accept_ranges
+            && validator.is_some()
+            && stored.as_deref() == validator.as_deref();
+        // Départ neuf (ou reprise refusée car ressource changée) : on (ré)écrit
+        // le validateur courant pour les reprises futures ; le `.part` périmé
+        // sera tronqué par la réponse complète (200) ci-dessous.
+        if !can_resume {
+            write_marker(&vmarker, validator.as_deref()).await;
+        }
 
         let mut req = metadata::apply_auth(self.client.get(&info.final_url), task.auth.as_ref());
         if can_resume {
@@ -408,6 +422,8 @@ impl Engine {
         let final_path = filename::unique_destination(dir, chosen);
         // rename atomique sur un même système de fichiers.
         fs::rename(part_path, &final_path).await?;
+        // Le marqueur de validateur n'a plus d'utilité une fois le fichier finalisé.
+        let _ = fs::remove_file(validator_marker(part_path)).await;
 
         self.emit(
             progress,
@@ -443,6 +459,31 @@ impl Engine {
             segments: None,
         });
     }
+}
+
+/// Chemin du marqueur de validateur, accolé au fichier partiel (« ….rkt-part.v »).
+/// Mémorise l'ETag/Last-Modified vu au premier téléchargement pour sécuriser la
+/// reprise après redémarrage (cf. `attempt`).
+fn validator_marker(part_path: &Path) -> PathBuf {
+    let mut p = part_path.as_os_str().to_owned();
+    p.push(".v");
+    PathBuf::from(p)
+}
+
+/// Lit le validateur d'origine mémorisé (`None` si absent ou vide).
+async fn read_marker(path: &Path) -> Option<String> {
+    let s = fs::read_to_string(path).await.ok()?;
+    let s = s.trim();
+    if s.is_empty() {
+        None
+    } else {
+        Some(s.to_string())
+    }
+}
+
+/// Écrit le validateur d'origine à côté du fichier partiel (best-effort).
+async fn write_marker(path: &Path, validator: Option<&str>) {
+    let _ = fs::write(path, validator.unwrap_or("")).await;
 }
 
 /// Analyse l'en-tête `Retry-After` (format « secondes » uniquement, suffisant ici).

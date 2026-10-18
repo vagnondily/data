@@ -89,8 +89,14 @@ pub async fn run(
     // correspond toujours (même taille). Sinon on repart proprement — ce qui
     // évite de réassembler des parts issues d'un autre découpage (ex. l'utilisateur
     // change le nombre de connexions entre deux reprises) ou d'une ressource modifiée.
+    // Reprise sûre seulement si : on a un validateur, le découpage enregistré
+    // correspond (même taille) ET le validateur d'origine est IDENTIQUE à celui
+    // vu maintenant. Ce dernier point est crucial : sans lui, une ressource
+    // modifiée mais de même longueur serait reprise et corrompue silencieusement
+    // (on réécrirait des octets neufs par-dessus des parts périmées).
     let saved = read_plan(&plan_marker).await;
-    let resume_ok = validator.is_some() && matches!(&saved, Some((_, t)) if *t == total);
+    let resume_ok = validator.is_some()
+        && matches!(&saved, Some((_, t, v)) if *t == total && v.as_deref() == validator.as_deref());
     let seg_count = if resume_ok {
         saved.as_ref().unwrap().0
     } else {
@@ -98,7 +104,7 @@ pub async fn run(
         connections
     };
     let ranges = plan_segments(total, seg_count, config.min_segment_size);
-    write_plan(&plan_marker, ranges.len(), total).await;
+    write_plan(&plan_marker, ranges.len(), total, validator.as_deref()).await;
 
     // Un compteur d'octets par segment (inclut ce qui est déjà sur disque).
     let seg_counters: Vec<Arc<AtomicU64>> = (0..ranges.len())
@@ -471,18 +477,22 @@ async fn report(
     }
 }
 
-/// Lit le marqueur de découpage `(nombre_de_segments, taille_totale)`.
-async fn read_plan(path: &std::path::Path) -> Option<(usize, u64)> {
+/// Lit le marqueur de découpage `(nombre_de_segments, taille_totale,
+/// validateur_d'origine)`. Le validateur (3e ligne, optionnelle) est l'ETag /
+/// Last-Modified vu au PREMIER téléchargement : il sert à refuser la reprise si
+/// la ressource a changé entre-temps (même à taille identique).
+async fn read_plan(path: &std::path::Path) -> Option<(usize, u64, Option<String>)> {
     let s = fs::read_to_string(path).await.ok()?;
     let mut lines = s.lines();
     let count: usize = lines.next()?.trim().parse().ok()?;
     let total: u64 = lines.next()?.trim().parse().ok()?;
-    Some((count, total))
+    let validator = lines.next().map(|l| l.to_string()).filter(|l| !l.is_empty());
+    Some((count, total, validator))
 }
 
-/// Écrit le marqueur de découpage (best-effort).
-async fn write_plan(path: &std::path::Path, count: usize, total: u64) {
-    let _ = fs::write(path, format!("{count}\n{total}\n")).await;
+/// Écrit le marqueur de découpage (best-effort), validateur d'origine inclus.
+async fn write_plan(path: &std::path::Path, count: usize, total: u64, validator: Option<&str>) {
+    let _ = fs::write(path, format!("{count}\n{total}\n{}\n", validator.unwrap_or(""))).await;
 }
 
 /// Supprime toutes les parts de cette tâche (`.i`, `.assembled`, `.plan`) — pour
