@@ -54,6 +54,9 @@ pub struct AppState {
     pub auth_store: Arc<Mutex<HashMap<String, Credentials>>>,
     /// Réveille l'ordonnanceur (nouvel ajout ou créneau libéré).
     notify: Arc<Notify>,
+    /// Transferts actifs au moment du dernier arrêt, à reprendre une fois
+    /// l'ordonnanceur démarré (les pauses volontaires en sont exclues).
+    startup_resume: Arc<Mutex<Vec<raketa_core::DownloadRecord>>>,
 }
 
 impl AppState {
@@ -65,10 +68,17 @@ impl AppState {
         std::fs::create_dir_all(data_dir).map_err(|e| e.to_string())?;
         let db_path = data_dir.join("raketa.db");
         let store = Store::open(&db_path).map_err(|e| e.to_string())?;
-        // Au démarrage, on ramène les tâches « en cours » à l'état pausé (FR-04).
+        // Au démarrage : on capture les transferts qui étaient actifs lors du
+        // dernier arrêt (à reprendre automatiquement), PUIS on normalise la base
+        // à l'état « pausé » — état sûr si la reprise n'a pas lieu. Les transferts
+        // mis en pause volontairement ne sont pas dans cette liste (FR-04).
+        let interrupted = store.list_interrupted().map_err(|e| e.to_string())?;
         let recovered = store.recover_interrupted().map_err(|e| e.to_string())?;
         if recovered > 0 {
-            eprintln!("[raketa] {recovered} tâche(s) interrompue(s) restaurée(s) en pause");
+            eprintln!(
+                "[raketa] {recovered} tâche(s) interrompue(s) — {} à reprendre automatiquement",
+                interrupted.len()
+            );
         }
         let engine = Engine::new().map_err(|e| e.to_string())?;
 
@@ -89,7 +99,39 @@ impl AppState {
             queue: Arc::new(Mutex::new(VecDeque::new())),
             auth_store: Arc::new(Mutex::new(HashMap::new())),
             notify: Arc::new(Notify::new()),
+            startup_resume: Arc::new(Mutex::new(interrupted)),
         })
+    }
+
+    /// Reprend automatiquement les transferts qui étaient actifs lors du dernier
+    /// arrêt (coupure, fermeture). Appelé une seule fois, après le démarrage de
+    /// l'ordonnanceur : chaque tâche repasse par la file (la limite « max
+    /// simultanés » est donc respectée) et le moteur reprend le fichier partiel
+    /// quand c'est possible. Les transferts mis en pause par l'utilisateur ne
+    /// sont pas concernés (ils ne figurent pas dans la liste).
+    pub async fn resume_interrupted(&self, app: AppHandle) {
+        let records = std::mem::take(&mut *self.startup_resume.lock().await);
+        for record in records {
+            let auth = self.auth_store.lock().await.get(&record.id).cloned();
+            let task = DownloadTask {
+                id: record.id.clone(),
+                url: record.url,
+                dest_dir: record.destination,
+                filename: Some(record.display_name),
+                expected_sha256: record.sha256,
+                auth,
+            };
+            {
+                let store = self.store.lock().await;
+                let _ = store.update_progress(
+                    &record.id,
+                    DownloadStatus::Downloading,
+                    record.downloaded_bytes,
+                    record.total_bytes,
+                );
+            }
+            self.submit(app.clone(), task).await;
+        }
     }
 
     /// Surveille le presse-papiers : si une URL http(s) nouvelle est copiée et

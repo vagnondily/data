@@ -54,6 +54,16 @@ pub fn run() {
             state.spawn_scheduler(app.handle().clone());
             state.spawn_torrent_reporter(app.handle().clone());
             state.spawn_clipboard_watcher(app.handle().clone());
+            // Reprise automatique des transferts qui étaient actifs lors du
+            // dernier arrêt (ordonnanceur déjà démarré, limite respectée). Les
+            // pauses volontaires de l'utilisateur ne sont pas reprises.
+            let resume_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                resume_handle
+                    .state::<AppState>()
+                    .resume_interrupted(resume_handle.clone())
+                    .await;
+            });
             // Pont navigateur (extension Chrome/Edge/Firefox).
             bridge::start(app.handle().clone());
             logx::log(

@@ -293,6 +293,25 @@ impl Store {
         Ok(())
     }
 
+    /// Liste les transferts qui étaient actifs (ou en file) au moment de l'arrêt
+    /// — ceux à reprendre automatiquement au prochain démarrage. Les transferts
+    /// volontairement mis en pause par l'utilisateur ont le statut `paused` et
+    /// sont donc exclus : ils restent en pause (section 5.1, FR-04).
+    pub fn list_interrupted(&self) -> Result<Vec<DownloadRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, url, display_name, destination, status, total_bytes, downloaded_bytes, \
+             mime_type, etag, last_modified, sha256, error_code, created_at, updated_at \
+             FROM downloads WHERE status IN ('downloading', 'probing', 'queued') \
+             ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map([], Self::map_row)?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
     /// Au démarrage : ramène les tâches « en cours » à l'état `paused` pour
     /// restaurer un état cohérent (FR-04, section 5.1).
     pub fn recover_interrupted(&self) -> Result<usize> {
@@ -489,6 +508,27 @@ mod tests {
         let n = store.recover_interrupted().unwrap();
         assert_eq!(n, 1);
         assert_eq!(store.get("a").unwrap().unwrap().status, DownloadStatus::Paused);
+    }
+
+    #[test]
+    fn liste_a_reprendre_exclut_les_pauses_utilisateur() {
+        let store = Store::open_in_memory().unwrap();
+        // « a » était en cours (interrompu par l'arrêt), « b » a été mis en
+        // pause volontairement, « c » est terminé.
+        store.insert(&task("a"), "a.zip").unwrap();
+        store.insert(&task("b"), "b.zip").unwrap();
+        store.insert(&task("c"), "c.zip").unwrap();
+        store
+            .update_progress("a", DownloadStatus::Downloading, 10, Some(100))
+            .unwrap();
+        store
+            .update_progress("b", DownloadStatus::Paused, 20, Some(100))
+            .unwrap();
+        store.mark_completed("c", "h", "/tmp/c.zip", 100).unwrap();
+
+        let resume = store.list_interrupted().unwrap();
+        let ids: Vec<&str> = resume.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(ids, vec!["a"], "seul le transfert actif doit être repris");
     }
 
     #[test]
