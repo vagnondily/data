@@ -64,10 +64,17 @@ jobs:
         id: hash
         shell: pwsh
         run: |
-          $exe = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
-          $h = (Get-FileHash -Algorithm SHA256 $exe.FullName).Hash.ToLower()
-          "setup_sha256=$h" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "SHA256($($exe.Name)) = $h"
+          $exe = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($exe) {
+            $h = (Get-FileHash -Algorithm SHA256 $exe.FullName).Hash.ToLower()
+            "setup_sha256=$h" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "SHA256($($exe.Name)) = $h"
+          } else {
+            # Pas d'installeur trouvé : empreinte vide (la vérification côté app
+            # est best-effort, l'absence n'empêche pas la mise à jour).
+            "setup_sha256=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Aucun installeur -setup.exe trouvé : empreinte vide."
+          }
 
       - name: Publier l'installeur en artifact
         uses: actions/upload-artifact@v4
