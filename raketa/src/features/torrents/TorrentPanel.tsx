@@ -4,9 +4,11 @@ import {
   addTorrent,
   addTorrentFile,
   firewallAuthorize,
+  openFile,
   pauseTorrent,
   removeTorrent,
   resumeTorrent,
+  revealInFolder,
   type TorrentProgress,
 } from "../../lib/api";
 import { Icon } from "../../components/Icon";
@@ -230,6 +232,24 @@ export function TorrentPanel({ torrents, onChanged }: Props) {
                     </button>
                   )}
                   <div className="torrent-actions-right">
+                    {t.finished && (
+                      <button
+                        className="btn tiny primary"
+                        onClick={() => openFile(t.content_path).catch(() => {})}
+                        title="Ouvrir le fichier (ou le dossier) téléchargé"
+                      >
+                        <Icon name="external" size={14} /> Ouvrir
+                      </button>
+                    )}
+                    {t.content_path && (
+                      <button
+                        className="btn tiny"
+                        onClick={() => revealInFolder(t.content_path).catch(() => {})}
+                        title="Afficher dans l'explorateur de fichiers"
+                      >
+                        <Icon name="folder" size={14} /> Dossier
+                      </button>
+                    )}
                     {!t.finished &&
                       (t.paused ? (
                         <button className="btn tiny primary" onClick={() => resumeTorrent(t.id).then(onChanged)}>

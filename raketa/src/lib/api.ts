@@ -140,6 +140,8 @@ export interface TorrentProgress {
   id: number;
   info_hash: string;
   name: string;
+  // Chemin du contenu sur le disque (fichier ou dossier racine du torrent).
+  content_path: string;
   downloaded: number;
   total: number;
   uploaded: number;

@@ -9,7 +9,10 @@
 //! pas du format interne de `Speed`), ce qui donne une valeur stable en o/s.
 
 use anyhow::Result;
-use librqbit::{AddTorrent, AddTorrentOptions, ManagedTorrent, Session, SessionOptions};
+use librqbit::{
+    AddTorrent, AddTorrentOptions, ManagedTorrent, Session, SessionOptions,
+    SessionPersistenceConfig,
+};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -37,6 +40,10 @@ pub struct TorrentProgress {
     /// Empreinte info-hash (hex), identifiant durable du torrent.
     pub info_hash: String,
     pub name: String,
+    /// Chemin du contenu sur le disque (dossier de sortie + nom du torrent) :
+    /// le fichier pour un torrent mono-fichier, le dossier racine sinon. Sert
+    /// aux actions « Ouvrir le fichier » / « Ouvrir le dossier ».
+    pub content_path: String,
     pub downloaded: u64,
     pub total: u64,
     pub uploaded: u64,
@@ -88,8 +95,38 @@ impl TorrentManager {
     /// production : indispensable pour les magnets et une bonne vitesse).
     pub async fn new(download_dir: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(&download_dir)?;
-        let session = Session::new(download_dir).await?;
-        Ok(Self::from_session(session))
+        // Persistance activée : la session mémorise les torrents ajoutés et les
+        // restaure au prochain démarrage ; `fastresume` restaure rapidement
+        // l'état des pièces déjà téléchargées. Sans cela, les torrents
+        // « disparaissaient » à chaque redémarrage de RAKETA (dossier JSON
+        // spécifique à l'OS, hors du dossier de téléchargement).
+        let opts = SessionOptions {
+            persistence: Some(SessionPersistenceConfig::Json { folder: None }),
+            fastresume: true,
+            ..Default::default()
+        };
+        let session = Session::new_with_opts(download_dir, opts).await?;
+        let mgr = Self::from_session(session);
+        mgr.adopt_persisted().await;
+        Ok(mgr)
+    }
+
+    /// Enregistre dans notre table les torrents que la session a restaurés
+    /// depuis la persistance au démarrage. Sans cela, ils tourneraient bien
+    /// dans le moteur mais resteraient invisibles côté interface, car `list()`
+    /// ne présente que les torrents présents dans `handles`.
+    async fn adopt_persisted(&self) {
+        let restored: Vec<Arc<ManagedTorrent>> = self
+            .session
+            .with_torrents(|it| it.map(|(_, h)| h.clone()).collect());
+        let mut handles = self.handles.lock().await;
+        for handle in restored {
+            handles.entry(handle.id()).or_insert_with(|| Tracked {
+                handle,
+                added_at: Instant::now(),
+                seen_max: Arc::new(AtomicU32::new(0)),
+            });
+        }
     }
 
     /// Crée un gestionnaire avec des options de session explicites.
@@ -295,10 +332,18 @@ impl TorrentManager {
         }
         .to_string();
 
+        let name = handle.name().unwrap_or_else(|| "torrent".to_string());
+        let content_path = handle
+            .output_folder()
+            .join(&name)
+            .to_string_lossy()
+            .to_string();
+
         TorrentProgress {
             id,
             info_hash: format!("{:?}", handle.info_hash()),
-            name: handle.name().unwrap_or_else(|| "torrent".to_string()),
+            name,
+            content_path,
             downloaded: stats.progress_bytes,
             total: stats.total_bytes,
             uploaded: stats.uploaded_bytes,
