@@ -504,6 +504,19 @@ pub async fn download(
         args.push("--ffmpeg-location".into());
         args.push(loc.display().to_string());
     }
+    // Métadonnées + pochette intégrées au fichier (titre, artiste, album quand la
+    // source les fournit — YouTube Music/VEVO le font souvent — et la miniature
+    // en cover art). Résultat : les infos et la jaquette s'affichent dans iTunes
+    // et les autres lecteurs, au lieu d'un fichier « nu ». Nécessite ffmpeg.
+    if ffmpeg {
+        args.push("--embed-metadata".into());
+        args.push("--embed-thumbnail".into());
+        args.push("--embed-chapters".into());
+        // Convertit la miniature en un format sûr pour l'intégration (évite les
+        // WebP que certains conteneurs/lecteurs rejettent comme pochette).
+        args.push("--convert-thumbnails".into());
+        args.push("jpg".into());
+    }
     args.extend(format_args(&quality, ffmpeg));
     let url_for_hist = url.clone();
     args.push(url);

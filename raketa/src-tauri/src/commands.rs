@@ -870,8 +870,12 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
         .build()
         .map_err(|e| e.to_string())?;
 
+    // On liste TOUTES les releases publiées (plus robuste que /releases/latest,
+    // qui exclut les préversions et dépend du marqueur « latest ») puis on retient
+    // le build le plus élevé. Les brouillons n'apparaissent pas sans auth ; on les
+    // écarte aussi par sécurité.
     let resp = client
-        .get("https://api.github.com/repos/vagnondily/raketa-releases/releases/latest")
+        .get("https://api.github.com/repos/vagnondily/raketa-releases/releases?per_page=30")
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
@@ -879,61 +883,67 @@ pub async fn check_update() -> Result<Option<UpdateInfo>, String> {
 
     let status = resp.status();
     if !status.is_success() {
-        // 404 = aucune release publiée (dépôt pas encore prêt) ; autre code =
-        // service momentanément indisponible. Dans les deux cas on ne peut PAS
-        // affirmer « à jour » : on remonte une erreur pour que l'interface
-        // propose le téléchargement manuel plutôt qu'un faux « Vous êtes à jour ».
+        // On ne peut PAS affirmer « à jour » : on remonte une erreur pour que
+        // l'interface propose le téléchargement manuel plutôt qu'un faux « à jour ».
         return Err(format!(
             "vérification impossible (HTTP {}) — réessayez plus tard ou téléchargez manuellement.",
             status.as_u16()
         ));
     }
 
-    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    let tag = json
-        .get("tag_name")
-        .and_then(|v| v.as_str())
+    let releases: Vec<serde_json::Value> = resp.json().await.map_err(|e| e.to_string())?;
+
+    // Build d'une release = N extrait du tag « bN ».
+    let build_of = |r: &serde_json::Value| -> u64 {
+        r.get("tag_name")
+            .and_then(|v| v.as_str())
+            .map(|t| t.trim_start_matches(|c: char| !c.is_ascii_digit()).parse().unwrap_or(0))
+            .unwrap_or(0)
+    };
+
+    let best = releases
+        .iter()
+        .filter(|r| !r.get("draft").and_then(|d| d.as_bool()).unwrap_or(false))
+        .max_by_key(|r| build_of(r));
+    let Some(best) = best else {
+        return Ok(None); // aucune release publiée
+    };
+
+    let latest = build_of(best);
+    if latest <= current {
+        return Ok(None);
+    }
+
+    let tag = best.get("tag_name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let setup = best
+        .get("assets")
+        .and_then(|a| a.as_array())
+        .and_then(|arr| {
+            arr.iter().find(|x| {
+                x.get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|n| n.ends_with("-setup.exe"))
+                    .unwrap_or(false)
+            })
+        });
+    let url = setup
+        .and_then(|x| x.get("browser_download_url"))
+        .and_then(|u| u.as_str())
+        .or_else(|| best.get("html_url").and_then(|u| u.as_str()))
         .unwrap_or("")
         .to_string();
-    // Le tag est de la forme « bN » : on extrait N.
-    let latest: u64 = tag.trim_start_matches(|c: char| !c.is_ascii_digit()).parse().unwrap_or(0);
+    let notes = best.get("body").and_then(|b| b.as_str()).unwrap_or("").to_string();
+    // Empreinte attendue : « digest » de l'asset GitHub (« sha256:HEX ») en
+    // priorité, sinon une ligne « SHA256-SETUP: HEX » du corps de la release.
+    let sha256 = setup
+        .and_then(|x| x.get("digest"))
+        .and_then(|d| d.as_str())
+        .and_then(|d| d.strip_prefix("sha256:"))
+        .map(|h| h.to_lowercase())
+        .filter(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()))
+        .or_else(|| parse_body_sha256(&notes));
 
-    if latest > current {
-        let setup = json
-            .get("assets")
-            .and_then(|a| a.as_array())
-            .and_then(|arr| {
-                arr.iter().find(|x| {
-                    x.get("name")
-                        .and_then(|n| n.as_str())
-                        .map(|n| n.ends_with("-setup.exe"))
-                        .unwrap_or(false)
-                })
-            });
-        let url = setup
-            .and_then(|x| x.get("browser_download_url"))
-            .and_then(|u| u.as_str())
-            .or_else(|| json.get("html_url").and_then(|u| u.as_str()))
-            .unwrap_or("")
-            .to_string();
-        let notes = json
-            .get("body")
-            .and_then(|b| b.as_str())
-            .unwrap_or("")
-            .to_string();
-        // Empreinte attendue : « digest » de l'asset GitHub (« sha256:HEX ») en
-        // priorité, sinon une ligne « SHA256-SETUP: HEX » du corps de la release.
-        let sha256 = setup
-            .and_then(|x| x.get("digest"))
-            .and_then(|d| d.as_str())
-            .and_then(|d| d.strip_prefix("sha256:"))
-            .map(|h| h.to_lowercase())
-            .filter(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()))
-            .or_else(|| parse_body_sha256(&notes));
-        Ok(Some(UpdateInfo { build: latest, tag, url, notes, sha256 }))
-    } else {
-        Ok(None)
-    }
+    Ok(Some(UpdateInfo { build: latest, tag, url, notes, sha256 }))
 }
 
 /// Extrait l'empreinte « SHA256-SETUP: <hex> » du corps d'une release (publiée

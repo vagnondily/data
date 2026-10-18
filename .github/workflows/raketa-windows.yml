@@ -150,6 +150,12 @@ jobs:
           token: ${{ secrets.RELEASES_TOKEN }}
           tag_name: b${{ github.run_number }}
           name: RAKETA build ${{ github.run_number }}
+          # PUBLIÉE (pas brouillon) et marquée « latest » : sinon l'endpoint
+          # /releases/latest que lit l'app renvoie 404 et la mise à jour n'est
+          # jamais proposée (l'utilisateur doit passer par le navigateur).
+          draft: false
+          prerelease: false
+          make_latest: "true"
           body: |
             Installeur Windows de RAKETA — build ${{ github.run_number }}.
 
