@@ -78,6 +78,8 @@ export function App() {
   const [updDl, setUpdDl] = useState<"idle" | "downloading" | "ready">("idle");
   const [updPct, setUpdPct] = useState(0);
   const [updPath, setUpdPath] = useState<string | null>(null);
+  // Message d'échec de la mise à jour (ex. intégrité) affiché dans la bannière.
+  const [updErr, setUpdErr] = useState<string | null>(null);
   // Téléchargements média (YouTube & co.) suivis globalement.
   const [media, setMedia] = useState<MediaItem[]>([]);
   // Détail des segments (connexions) en direct, par identifiant.
@@ -119,6 +121,7 @@ export function App() {
     if (!update) return;
     setUpdDl("downloading");
     setUpdPct(0);
+    setUpdErr(null);
     let un: (() => void) | undefined;
     try {
       un = await onUpdateProgress((p) => {
@@ -128,10 +131,19 @@ export function App() {
       setUpdPath(path);
       setUpdPct(100);
       setUpdDl("ready");
-    } catch {
+    } catch (e) {
       setUpdDl("idle");
-      // Repli : ouvrir la page de téléchargement dans le navigateur.
-      if (update) openExternalUrl(update.url);
+      const msg = String(e);
+      // Échec d'intégrité : NE PAS rediriger vers le navigateur — l'installeur
+      // servi là serait tout aussi altéré. On prévient clairement, sans repli.
+      if (/empreinte|intégrit/i.test(msg)) {
+        setUpdErr(
+          "Installeur refusé : il ne correspond pas à l'empreinte de sécurité publiée. Réessayez ; si cela persiste, n'installez pas ce fichier.",
+        );
+      } else if (update) {
+        // Échec réseau/téléchargement : repli sur le navigateur (manuel).
+        openExternalUrl(update.url);
+      }
     } finally {
       if (un) un();
     }
@@ -577,8 +589,8 @@ export function App() {
           </span>
           <span className="update-banner-text">
             <strong>Nouvelle version disponible</strong>
-            <span className="update-banner-sub">
-              Build {update.build} — réinstallez pour les dernières améliorations.
+            <span className="update-banner-sub" style={updErr ? { color: "var(--danger, #e5484d)" } : undefined}>
+              {updErr ?? `Build ${update.build} — réinstallez pour les dernières améliorations.`}
             </span>
           </span>
           <div className="update-banner-actions">
